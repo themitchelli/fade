@@ -1,0 +1,125 @@
+#!/bin/bash
+
+# FADE - Framework for Agentic Development and Engineering
+
+set -e
+
+FADE_VERSION="0.1.0"
+
+# Template content
+read -r -d '' FADE_TEMPLATE << 'EOF' || true
+# Project Name
+
+## Overview
+
+Brief description of this project.
+
+## Tech Stack
+
+- Language:
+- Framework:
+- Database:
+
+## Architecture
+
+Describe the high-level architecture here.
+
+## Coding Standards
+
+- Style guide reference
+- Naming conventions
+- Testing requirements
+
+## Boundaries
+
+<!-- Mark modules that should not be modified by agents -->
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| example/ | off-limits | Legacy code, do not touch |
+
+## References
+
+- Link to docs
+- Link to design specs
+EOF
+
+read -r -d '' PROGRESS_TEMPLATE << 'EOF' || true
+# Progress Log
+
+Session history for this project. Append-only.
+
+---
+EOF
+
+read -r -d '' LEARNED_TEMPLATE << 'EOF' || true
+# Learned
+
+Discoveries and insights from development sessions. Append-only.
+
+---
+EOF
+
+# Functions
+create_file_if_missing() {
+    local file="$1"
+    local content="$2"
+
+    if [[ -f "$file" ]]; then
+        echo "  skip: $file (already exists)"
+        return 1
+    else
+        echo "$content" > "$file"
+        echo "  create: $file"
+        return 0
+    fi
+}
+
+cmd_init() {
+    echo "Initializing FADE structure..."
+    echo ""
+
+    local created=0
+
+    create_file_if_missing "FADE.md" "$FADE_TEMPLATE" && ((created++)) || true
+    create_file_if_missing "progress.md" "$PROGRESS_TEMPLATE" && ((created++)) || true
+    create_file_if_missing "learned.md" "$LEARNED_TEMPLATE" && ((created++)) || true
+
+    echo ""
+    if [[ $created -eq 0 ]]; then
+        echo "No files created. FADE structure already exists."
+    else
+        echo "Created $created file(s)."
+    fi
+}
+
+cmd_help() {
+    cat << EOF
+FADE v$FADE_VERSION - Framework for Agentic Development and Engineering
+
+Usage: fade <command>
+
+Commands:
+  init      Create FADE.md, progress.md, learned.md
+  help      Show this help message
+
+EOF
+}
+
+# Main
+case "${1:-}" in
+    init)
+        cmd_init
+        ;;
+    help|--help|-h)
+        cmd_help
+        ;;
+    "")
+        cmd_help
+        ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'fade help' for usage."
+        exit 1
+        ;;
+esac
