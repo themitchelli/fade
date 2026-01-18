@@ -79,7 +79,7 @@
         "Script runs without errors on macOS (shellcheck passes)"
       ],
       "priority": 3,
-      "passes": false,
+      "passes": true,
       "notes": ""
     },
     {

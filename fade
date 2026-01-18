@@ -193,6 +193,84 @@ cmd_init() {
     fi
 }
 
+cmd_run() {
+    local context=""
+    local warnings=()
+    local files_loaded=0
+
+    echo "Loading FADE context..."
+
+    # Load context files (warn if missing, don't fail)
+    if [[ -f "FADE.md" ]]; then
+        context+="# PROJECT CONTEXT (FADE.md)
+
+$(cat FADE.md)
+
+---
+
+"
+        ((files_loaded++))
+    else
+        warnings+=("FADE.md not found - run 'fade init' first")
+    fi
+
+    if [[ -f "progress.md" ]]; then
+        context+="# SESSION HISTORY (progress.md)
+
+$(cat progress.md)
+
+---
+
+"
+        ((files_loaded++))
+    else
+        warnings+=("progress.md not found")
+    fi
+
+    if [[ -f "learned.md" ]]; then
+        context+="# LEARNED (learned.md)
+
+$(cat learned.md)
+
+---
+
+"
+        ((files_loaded++))
+    else
+        warnings+=("learned.md not found")
+    fi
+
+    # Load execution prompt
+    if [[ -f "prompt.md" ]]; then
+        context+="# EXECUTION INSTRUCTIONS (prompt.md)
+
+$(cat prompt.md)
+"
+        ((files_loaded++))
+    else
+        warnings+=("prompt.md not found - session will start without FADE instructions")
+    fi
+
+    # Print warnings
+    for warning in "${warnings[@]}"; do
+        echo "  warn: $warning"
+    done
+
+    if [[ $files_loaded -eq 0 ]]; then
+        echo ""
+        echo "Error: No FADE files found. Run 'fade init' to create them."
+        exit 1
+    fi
+
+    echo "  loaded: $files_loaded file(s)"
+    echo ""
+    echo "Starting Claude Code session..."
+    echo ""
+
+    # Start Claude with context as initial prompt
+    exec claude "$context"
+}
+
 cmd_help() {
     cat << EOF
 FADE v$FADE_VERSION - Framework for Agentic Development and Engineering
@@ -201,6 +279,7 @@ Usage: fade <command>
 
 Commands:
   init      Create FADE.md, progress.md, learned.md
+  run       Start Claude Code with FADE context injected
   help      Show this help message
 
 EOF
@@ -210,6 +289,9 @@ EOF
 case "${1:-}" in
     init)
         cmd_init
+        ;;
+    run)
+        cmd_run
         ;;
     help|--help|-h)
         cmd_help
