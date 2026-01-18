@@ -95,7 +95,7 @@
         "Claude does not overwrite existing entries, only appends"
       ],
       "priority": 4,
-      "passes": false,
+      "passes": true,
       "notes": ""
     }
   ],
