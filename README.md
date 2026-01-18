@@ -6,6 +6,20 @@ FADE provides session memory and context management for AI coding agents like Cl
 
 ## Quick Start
 
+### Option A: Configuration Wizard (Recommended)
+
+Use the web-based wizard to generate pre-configured project files:
+
+**[Open Configuration Wizard](https://themitchelli.github.io/fade/)**
+
+The wizard generates:
+- Pre-filled FADE.md with your tech stack
+- Dockerfiles and docker-compose.yml
+- CI/CD workflows (GitHub Actions or GitLab CI)
+- Deployment checklists tailored to your target
+
+### Option B: Manual Setup
+
 ```bash
 # 1. Clone the repo
 git clone https://github.com/themitchelli/fade.git

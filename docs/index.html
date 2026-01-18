@@ -1,0 +1,1704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FADE Configuration Wizard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        :root {
+            --bg: #1a1a2e;
+            --surface: #16213e;
+            --primary: #e94560;
+            --secondary: #0f3460;
+            --text: #eaeaea;
+            --text-muted: #a0a0a0;
+            --border: #2a2a4a;
+            --success: #4ade80;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--primary), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        .section {
+            background: var(--surface);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .section h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section h2::before {
+            content: attr(data-step);
+            background: var(--primary);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.875rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+
+        input[type="text"],
+        input[type="url"],
+        textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            background: var(--bg);
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        input:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: var(--text-muted);
+        }
+
+        .error {
+            border-color: var(--primary) !important;
+        }
+
+        .error-message {
+            color: var(--primary);
+            font-size: 0.875rem;
+            margin-top: 0.25rem;
+        }
+
+        .radio-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .radio-option {
+            position: relative;
+        }
+
+        .radio-option input {
+            position: absolute;
+            opacity: 0;
+        }
+
+        .radio-option label {
+            display: block;
+            padding: 0.75rem 1rem;
+            background: var(--bg);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: center;
+            transition: all 0.2s;
+        }
+
+        .radio-option input:checked + label {
+            border-color: var(--primary);
+            background: rgba(233, 69, 96, 0.1);
+        }
+
+        .radio-option label:hover {
+            border-color: var(--primary);
+        }
+
+        .custom-input {
+            margin-top: 0.75rem;
+            display: none;
+        }
+
+        .custom-input.visible {
+            display: block;
+        }
+
+        .actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            background: #d63850;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-secondary:hover {
+            background: #1a4a7a;
+        }
+
+        .output-section {
+            display: none;
+        }
+
+        .output-section.visible {
+            display: block;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .tab {
+            padding: 0.5rem 1rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            color: var(--text-muted);
+        }
+
+        .tab.active {
+            background: var(--surface);
+            border-bottom-color: var(--surface);
+            color: var(--text);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .file-list {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            font-family: monospace;
+            font-size: 0.875rem;
+        }
+
+        .file-item:last-child {
+            border-bottom: none;
+        }
+
+        .commands-output {
+            background: var(--bg);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.875rem;
+            white-space: pre-wrap;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .copy-btn {
+            margin-top: 1rem;
+        }
+
+        .success-message {
+            background: rgba(74, 222, 128, 0.1);
+            border: 1px solid var(--success);
+            color: var(--success);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-top: 1rem;
+            display: none;
+        }
+
+        .success-message.visible {
+            display: block;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-muted);
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>FADE Configuration Wizard</h1>
+            <p class="subtitle">Generate project scaffolding, CI/CD, and deployment configs</p>
+        </header>
+
+        <!-- Section 1: Project Details -->
+        <div class="section">
+            <h2 data-step="1">Project Details</h2>
+            <div class="form-group">
+                <label for="projectName">Project Name</label>
+                <input type="text" id="projectName" placeholder="my-awesome-project" pattern="^[a-z][a-z0-9-]*$">
+                <div class="error-message" id="projectNameError"></div>
+            </div>
+            <div class="form-group">
+                <label for="projectDescription">Description</label>
+                <textarea id="projectDescription" rows="2" placeholder="A brief description of what this project does"></textarea>
+            </div>
+            <div class="form-group">
+                <label for="repoUrl">Repository URL (optional)</label>
+                <input type="url" id="repoUrl" placeholder="https://github.com/username/repo">
+            </div>
+        </div>
+
+        <!-- Section 2: Tech Stack -->
+        <div class="section">
+            <h2 data-step="2">Tech Stack</h2>
+
+            <div class="form-group">
+                <label>Backend Framework</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="backend" id="backend-fastapi" value="fastapi">
+                        <label for="backend-fastapi">FastAPI</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="backend" id="backend-express" value="express">
+                        <label for="backend-express">Express</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="backend" id="backend-go" value="go">
+                        <label for="backend-go">Go</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="backend" id="backend-other" value="other">
+                        <label for="backend-other">Other</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="backend" id="backend-none" value="none" checked>
+                        <label for="backend-none">None</label>
+                    </div>
+                </div>
+                <div class="custom-input" id="backendCustom">
+                    <input type="text" id="backendCustomValue" placeholder="Enter backend framework">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Frontend Framework</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="frontend" id="frontend-sveltekit" value="sveltekit">
+                        <label for="frontend-sveltekit">SvelteKit</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="frontend" id="frontend-react" value="react">
+                        <label for="frontend-react">React</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="frontend" id="frontend-vue" value="vue">
+                        <label for="frontend-vue">Vue</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="frontend" id="frontend-other" value="other">
+                        <label for="frontend-other">Other</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="frontend" id="frontend-none" value="none" checked>
+                        <label for="frontend-none">None</label>
+                    </div>
+                </div>
+                <div class="custom-input" id="frontendCustom">
+                    <input type="text" id="frontendCustomValue" placeholder="Enter frontend framework">
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label>Database</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="database" id="db-postgres" value="postgresql">
+                        <label for="db-postgres">PostgreSQL</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="database" id="db-sqlite" value="sqlite">
+                        <label for="db-sqlite">SQLite</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="database" id="db-none" value="none" checked>
+                        <label for="db-none">None</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section 3: Deployment -->
+        <div class="section">
+            <h2 data-step="3">Deployment Configuration</h2>
+
+            <div class="form-group">
+                <label>Deployment Target</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="target" id="target-selfhosted" value="self-hosted">
+                        <label for="target-selfhosted">Self-hosted</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="target" id="target-aws" value="aws">
+                        <label for="target-aws">AWS</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="target" id="target-azure" value="azure">
+                        <label for="target-azure">Azure</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="target" id="target-gcp" value="gcp">
+                        <label for="target-gcp">GCP</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="target" id="target-local" value="local" checked>
+                        <label for="target-local">Local only</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="domain">Domain (optional)</label>
+                <input type="text" id="domain" placeholder="myapp.example.com">
+            </div>
+
+            <div class="form-group">
+                <label>CI/CD Platform</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="cicd" id="cicd-github" value="github-actions">
+                        <label for="cicd-github">GitHub Actions</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="cicd" id="cicd-gitlab" value="gitlab-ci">
+                        <label for="cicd-gitlab">GitLab CI</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="cicd" id="cicd-none" value="none" checked>
+                        <label for="cicd-none">None</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group" id="runnerTypeGroup" style="display: none;">
+                <label>GitHub Actions Runner Type</label>
+                <div class="radio-group">
+                    <div class="radio-option">
+                        <input type="radio" name="runner" id="runner-github" value="github-hosted" checked>
+                        <label for="runner-github">GitHub-hosted</label>
+                    </div>
+                    <div class="radio-option">
+                        <input type="radio" name="runner" id="runner-self" value="self-hosted">
+                        <label for="runner-self">Self-hosted</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="section">
+            <h2 data-step="4">Generate Configuration</h2>
+            <div class="actions">
+                <button class="btn-primary" id="generateBtn">Generate & Download ZIP</button>
+                <button class="btn-secondary" id="showCommandsBtn">Show Terminal Commands</button>
+            </div>
+            <div class="success-message" id="successMessage">
+                Configuration generated successfully! Check your downloads folder.
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="section output-section" id="outputSection">
+            <h2 data-step="5">Generated Files</h2>
+            <div class="tabs">
+                <div class="tab active" data-tab="files">Files</div>
+                <div class="tab" data-tab="commands">Terminal Commands</div>
+            </div>
+            <div class="tab-content active" id="filesTab">
+                <div class="file-list" id="fileList"></div>
+            </div>
+            <div class="tab-content" id="commandsTab">
+                <div class="commands-output" id="commandsOutput"></div>
+                <button class="btn-secondary copy-btn" id="copyCommandsBtn">Copy All Commands</button>
+            </div>
+        </div>
+
+        <footer>
+            <p>Part of <a href="https://github.com/themitchelli/fade">FADE</a> - Framework for Agentic Development and Engineering</p>
+        </footer>
+    </div>
+
+    <script>
+        // State management with localStorage persistence
+        const state = {
+            projectName: '',
+            projectDescription: '',
+            repoUrl: '',
+            backend: 'none',
+            backendCustom: '',
+            frontend: 'none',
+            frontendCustom: '',
+            database: 'none',
+            target: 'local',
+            domain: '',
+            cicd: 'none',
+            runner: 'github-hosted'
+        };
+
+        // Load state from localStorage
+        function loadState() {
+            const saved = localStorage.getItem('fadeWizardState');
+            if (saved) {
+                Object.assign(state, JSON.parse(saved));
+                // Restore form values
+                document.getElementById('projectName').value = state.projectName;
+                document.getElementById('projectDescription').value = state.projectDescription;
+                document.getElementById('repoUrl').value = state.repoUrl;
+                document.getElementById('domain').value = state.domain;
+                document.getElementById('backendCustomValue').value = state.backendCustom;
+                document.getElementById('frontendCustomValue').value = state.frontendCustom;
+
+                // Restore radio selections
+                const backendRadio = document.querySelector(`input[name="backend"][value="${state.backend}"]`);
+                if (backendRadio) backendRadio.checked = true;
+
+                const frontendRadio = document.querySelector(`input[name="frontend"][value="${state.frontend}"]`);
+                if (frontendRadio) frontendRadio.checked = true;
+
+                const dbRadio = document.querySelector(`input[name="database"][value="${state.database}"]`);
+                if (dbRadio) dbRadio.checked = true;
+
+                const targetRadio = document.querySelector(`input[name="target"][value="${state.target}"]`);
+                if (targetRadio) targetRadio.checked = true;
+
+                const cicdRadio = document.querySelector(`input[name="cicd"][value="${state.cicd}"]`);
+                if (cicdRadio) cicdRadio.checked = true;
+
+                const runnerRadio = document.querySelector(`input[name="runner"][value="${state.runner}"]`);
+                if (runnerRadio) runnerRadio.checked = true;
+
+                updateCustomInputVisibility();
+                updateRunnerVisibility();
+            }
+        }
+
+        // Save state to localStorage
+        function saveState() {
+            localStorage.setItem('fadeWizardState', JSON.stringify(state));
+        }
+
+        // Update state from form
+        function updateState() {
+            state.projectName = document.getElementById('projectName').value;
+            state.projectDescription = document.getElementById('projectDescription').value;
+            state.repoUrl = document.getElementById('repoUrl').value;
+            state.domain = document.getElementById('domain').value;
+            state.backend = document.querySelector('input[name="backend"]:checked')?.value || 'none';
+            state.backendCustom = document.getElementById('backendCustomValue').value;
+            state.frontend = document.querySelector('input[name="frontend"]:checked')?.value || 'none';
+            state.frontendCustom = document.getElementById('frontendCustomValue').value;
+            state.database = document.querySelector('input[name="database"]:checked')?.value || 'none';
+            state.target = document.querySelector('input[name="target"]:checked')?.value || 'local';
+            state.cicd = document.querySelector('input[name="cicd"]:checked')?.value || 'none';
+            state.runner = document.querySelector('input[name="runner"]:checked')?.value || 'github-hosted';
+            saveState();
+        }
+
+        // Validation
+        function validateProjectName() {
+            const input = document.getElementById('projectName');
+            const error = document.getElementById('projectNameError');
+            const value = input.value;
+
+            if (!value) {
+                input.classList.add('error');
+                error.textContent = 'Project name is required';
+                return false;
+            }
+
+            if (!/^[a-z][a-z0-9-]*$/.test(value)) {
+                input.classList.add('error');
+                error.textContent = 'Must be lowercase, start with letter, only hyphens allowed';
+                return false;
+            }
+
+            input.classList.remove('error');
+            error.textContent = '';
+            return true;
+        }
+
+        // Custom input visibility
+        function updateCustomInputVisibility() {
+            const backendCustom = document.getElementById('backendCustom');
+            const frontendCustom = document.getElementById('frontendCustom');
+
+            backendCustom.classList.toggle('visible', state.backend === 'other');
+            frontendCustom.classList.toggle('visible', state.frontend === 'other');
+        }
+
+        // Runner type visibility
+        function updateRunnerVisibility() {
+            const runnerGroup = document.getElementById('runnerTypeGroup');
+            runnerGroup.style.display = state.cicd === 'github-actions' ? 'block' : 'none';
+        }
+
+        // Template generators
+        function generateFadeMd() {
+            const backend = state.backend === 'other' ? state.backendCustom : state.backend;
+            const frontend = state.frontend === 'other' ? state.frontendCustom : state.frontend;
+
+            const backendDisplay = backend === 'none' ? 'None' :
+                backend === 'fastapi' ? 'FastAPI (Python)' :
+                backend === 'express' ? 'Express (Node.js)' :
+                backend === 'go' ? 'Go' : backend;
+
+            const frontendDisplay = frontend === 'none' ? 'None' :
+                frontend === 'sveltekit' ? 'SvelteKit' :
+                frontend === 'react' ? 'React' :
+                frontend === 'vue' ? 'Vue' : frontend;
+
+            const dbDisplay = state.database === 'none' ? 'None' :
+                state.database === 'postgresql' ? 'PostgreSQL' :
+                state.database === 'sqlite' ? 'SQLite' : state.database;
+
+            // Build architecture diagram
+            let diagram = '';
+            if (frontend !== 'none' && backend !== 'none' && state.database !== 'none') {
+                diagram = `\`\`\`
+┌─────────────┐     ┌─────────────┐     ┌─────────────┐
+│   Client    │────▶│   API       │────▶│  Database   │
+│ (${frontendDisplay.padEnd(9)}) │     │ (${backendDisplay.substring(0, 9).padEnd(9)}) │     │ (${dbDisplay.substring(0, 9).padEnd(9)}) │
+└─────────────┘     └─────────────┘     └─────────────┘
+\`\`\``;
+            } else if (frontend !== 'none' && backend !== 'none') {
+                diagram = `\`\`\`
+┌─────────────┐     ┌─────────────┐
+│   Client    │────▶│   API       │
+│ (${frontendDisplay.padEnd(9)}) │     │ (${backendDisplay.substring(0, 9).padEnd(9)}) │
+└─────────────┘     └─────────────┘
+\`\`\``;
+            } else if (backend !== 'none' && state.database !== 'none') {
+                diagram = `\`\`\`
+┌─────────────┐     ┌─────────────┐
+│   API       │────▶│  Database   │
+│ (${backendDisplay.substring(0, 9).padEnd(9)}) │     │ (${dbDisplay.substring(0, 9).padEnd(9)}) │
+└─────────────┘     └─────────────┘
+\`\`\``;
+            }
+
+            // Build style guides based on stack
+            let styleGuides = '';
+            if (backend === 'fastapi') {
+                styleGuides += '- **Python:** [PEP 8](https://peps.python.org/pep-0008/)\n';
+            } else if (backend === 'express') {
+                styleGuides += '- **JavaScript/TypeScript:** [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)\n';
+            } else if (backend === 'go') {
+                styleGuides += '- **Go:** [Effective Go](https://go.dev/doc/effective_go)\n';
+            }
+            if (frontend === 'sveltekit' || frontend === 'react' || frontend === 'vue') {
+                if (!styleGuides.includes('TypeScript')) {
+                    styleGuides += '- **TypeScript:** [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)\n';
+                }
+            }
+            if (!styleGuides) {
+                styleGuides = '- Add relevant style guides for your stack\n';
+            }
+
+            return `# ${state.projectName}
+
+<!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
+
+---
+
+## Project Overview
+
+${state.projectDescription || 'Brief description of this project.'}
+
+**Tech Stack:**
+- Backend: ${backendDisplay}
+- Frontend: ${frontendDisplay}
+- Database: ${dbDisplay}
+
+**Repository:** ${state.repoUrl || '[link]'}
+
+---
+
+## Coding Standards
+
+### Style Guides
+
+${styleGuides}
+### Project Conventions
+
+- Naming: \`camelCase\` for variables, \`PascalCase\` for components
+- Tests: Co-locate with source files as \`*.test.*\`
+- Commits: FADE commit conventions (\`feat:\`, \`fix:\`, \`doc:\`, \`toil:\`, \`refactor:\`, \`spike:\`)
+
+---
+
+## Architecture References
+
+### System Overview
+
+${diagram || 'Add architecture diagram here.'}
+
+### Key Documents
+
+| Document | Location | Description |
+|----------|----------|-------------|
+| API Design | \`docs/api.md\` | REST endpoint specifications |
+| Data Model | \`docs/schema.md\` | Database schema and relationships |
+
+---
+
+## Off-Limits Modules
+
+| Path | Reason | Contact |
+|------|--------|---------|
+| \`vendor/\` | Third-party code, do not modify | n/a |
+
+**If you need to modify an off-limits module:** Stop and ask the human for guidance.
+
+---
+
+## Session Boundaries
+
+### Allowed Actions
+
+- Create, modify, delete files in \`src/\`, \`backend/\`, \`frontend/\`, \`tests/\`, \`docs/\`
+- Run tests and linters
+- Install dev dependencies
+- Create feature branches
+
+### Requires Human Approval
+
+- Changes to CI/CD configuration (\`.github/\`, \`Dockerfile\`)
+- Database migrations
+- Changes to authentication or authorization logic
+- Dependency upgrades (major versions)
+
+### Never Do
+
+- Push directly to \`main\` or \`master\`
+- Modify \`.env\` files or commit secrets
+- Run destructive database commands in production
+- Disable security features or linters
+
+---
+
+## System Context
+
+### Current Challenges
+
+- Challenge 1: description
+- Challenge 2: description
+
+### Transition Plan
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 0 | Initial setup and scaffolding | ← CURRENT |
+| Phase 1 | Core functionality | NOT WRITTEN |
+
+### Active Work Items
+
+- [FEATURE] Initial project setup - in progress
+
+---
+
+## Additional Context
+
+Generated by [FADE Configuration Wizard](https://themitchelli.github.io/fade/)
+`;
+        }
+
+        function generateProgressMd() {
+            return `# Progress Log
+
+Session history for this project. Append-only.
+
+<!--
+Entry format (append new entries below the line):
+
+## YYYY-MM-DD HH:MM - US-XXX: Story Title - COMPLETE
+
+- Summary of what was implemented
+- Files changed: list key files
+- Tests: passed/added
+-->
+
+---
+`;
+        }
+
+        function generateLearnedMd() {
+            return `# Learned
+
+Discoveries and insights from development sessions. Append-only.
+
+<!--
+Entry format (append new entries below the line):
+
+## YYYY-MM-DD - Discovery Title
+
+**Context:** What were you doing when you discovered this?
+**Learning:** What did you learn?
+**Relevance:** Why does this matter for future work?
+**Files affected:** Which modules/files does this apply to?
+-->
+
+---
+`;
+        }
+
+        function generatePromptMd() {
+            // Use the same prompt template as the fade script
+            return `# FADE Execution Prompt
+
+You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from \`prd.json\` while maintaining session continuity through structured files.
+
+## Session Start
+
+1. Read \`FADE.md\` for project context, standards, and boundaries
+   - Check **System Context** to understand where this work fits in the broader plan
+   - Check **Transition Plan** to understand sequencing and current phase
+   - Check **Active Work Items** to see what else is in flight (avoid conflicts)
+2. Read \`progress.md\` to see what's been completed
+3. Read \`learned.md\` for discoveries from previous sessions
+4. Read \`prd.json\` and pick the highest priority story where \`passes: false\`
+
+## Execution Rules
+
+- **One story per session** – Complete the current story fully before moving to the next
+- **Follow the standards** – FADE.md contains coding standards and architecture refs. Follow them.
+- **Respect boundaries** – If FADE.md marks a module as off-limits, don't touch it
+- **Small commits** – Commit working increments, not big bangs
+- **Test before done** – All acceptance criteria must pass before marking complete
+
+## Git Conventions
+
+Use consistent commit message prefixes. Format: \`prefix: lowercase description\`
+
+| Prefix | Meaning |
+|--------|---------|
+| \`feat:\` | New feature or capability |
+| \`fix:\` | Bug fix |
+| \`doc:\` | Documentation only |
+| \`toil:\` | Operational/maintenance work |
+| \`refactor:\` | Code restructuring, no behavior change |
+| \`spike:\` | Exploratory work (spike branches only) |
+
+## Session Exit Protocol
+
+Before signaling completion, you MUST:
+
+1. Update progress.md with completion entry
+2. Update learned.md if discoveries were made
+3. Set \`passes: true\` in prd.json for completed story
+4. Output: \`<promise>STORY_DONE</promise>\`
+
+---
+
+Now: Read the context files, pick the next story, and begin.
+`;
+        }
+
+        function generateDockerCompose() {
+            const services = {};
+            const backend = state.backend === 'other' ? state.backendCustom : state.backend;
+            const frontend = state.frontend === 'other' ? state.frontendCustom : state.frontend;
+
+            if (backend === 'fastapi') {
+                services.backend = {
+                    build: './backend',
+                    ports: ['8000:8000'],
+                    environment: state.database === 'postgresql' ? ['DATABASE_URL=postgresql://postgres:postgres@db:5432/app'] : [],
+                    depends_on: state.database === 'postgresql' ? ['db'] : []
+                };
+            } else if (backend === 'express') {
+                services.backend = {
+                    build: './backend',
+                    ports: ['3000:3000'],
+                    environment: state.database === 'postgresql' ? ['DATABASE_URL=postgresql://postgres:postgres@db:5432/app'] : [],
+                    depends_on: state.database === 'postgresql' ? ['db'] : []
+                };
+            } else if (backend === 'go') {
+                services.backend = {
+                    build: './backend',
+                    ports: ['8080:8080'],
+                    environment: state.database === 'postgresql' ? ['DATABASE_URL=postgresql://postgres:postgres@db:5432/app'] : [],
+                    depends_on: state.database === 'postgresql' ? ['db'] : []
+                };
+            }
+
+            if (frontend === 'sveltekit' || frontend === 'react' || frontend === 'vue') {
+                services.frontend = {
+                    build: './frontend',
+                    ports: ['5173:5173'],
+                    depends_on: backend !== 'none' ? ['backend'] : []
+                };
+            }
+
+            if (state.database === 'postgresql') {
+                services.db = {
+                    image: 'postgres:15-alpine',
+                    environment: [
+                        'POSTGRES_USER=postgres',
+                        'POSTGRES_PASSWORD=postgres',
+                        'POSTGRES_DB=app'
+                    ],
+                    volumes: ['postgres_data:/var/lib/postgresql/data'],
+                    ports: ['5432:5432']
+                };
+            }
+
+            if (Object.keys(services).length === 0) {
+                return null;
+            }
+
+            let yaml = `version: '3.8'
+
+services:
+`;
+
+            for (const [name, config] of Object.entries(services)) {
+                yaml += `  ${name}:\n`;
+                if (config.image) {
+                    yaml += `    image: ${config.image}\n`;
+                }
+                if (config.build) {
+                    yaml += `    build: ${config.build}\n`;
+                }
+                if (config.ports && config.ports.length) {
+                    yaml += `    ports:\n`;
+                    config.ports.forEach(p => yaml += `      - "${p}"\n`);
+                }
+                if (config.environment && config.environment.length) {
+                    yaml += `    environment:\n`;
+                    config.environment.forEach(e => yaml += `      - ${e}\n`);
+                }
+                if (config.volumes && config.volumes.length) {
+                    yaml += `    volumes:\n`;
+                    config.volumes.forEach(v => yaml += `      - ${v}\n`);
+                }
+                if (config.depends_on && config.depends_on.length) {
+                    yaml += `    depends_on:\n`;
+                    config.depends_on.forEach(d => yaml += `      - ${d}\n`);
+                }
+                yaml += '\n';
+            }
+
+            if (state.database === 'postgresql') {
+                yaml += `volumes:
+  postgres_data:
+`;
+            }
+
+            return yaml;
+        }
+
+        function generateDockerComposeProd() {
+            const compose = generateDockerCompose();
+            if (!compose) return null;
+
+            // Modify for production
+            return compose
+                .replace(/5173:5173/g, '80:80')
+                .replace('version: \'3.8\'', 'version: \'3.8\'\n\n# Production configuration');
+        }
+
+        function generateBackendFiles() {
+            const files = {};
+            const backend = state.backend === 'other' ? state.backendCustom : state.backend;
+
+            if (backend === 'fastapi') {
+                files['backend/main.py'] = `from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI(title="${state.projectName}")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+@app.get("/")
+def read_root():
+    return {"message": "Hello from ${state.projectName}"}
+
+@app.get("/health")
+def health_check():
+    return {"status": "healthy"}
+`;
+
+                files['backend/requirements.txt'] = `fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+${state.database === 'postgresql' ? 'psycopg2-binary>=2.9.0\nsqlalchemy>=2.0.0' : ''}
+`;
+
+                files['backend/Dockerfile'] = `FROM python:3.11-slim
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+`;
+            } else if (backend === 'express') {
+                files['backend/index.js'] = `const express = require('express');
+const cors = require('cors');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/', (req, res) => {
+    res.json({ message: 'Hello from ${state.projectName}' });
+});
+
+app.get('/health', (req, res) => {
+    res.json({ status: 'healthy' });
+});
+
+app.listen(PORT, () => {
+    console.log(\`Server running on port \${PORT}\`);
+});
+`;
+
+                files['backend/package.json'] = JSON.stringify({
+                    name: `${state.projectName}-backend`,
+                    version: '1.0.0',
+                    main: 'index.js',
+                    scripts: {
+                        start: 'node index.js',
+                        dev: 'node --watch index.js'
+                    },
+                    dependencies: {
+                        express: '^4.18.2',
+                        cors: '^2.8.5',
+                        ...(state.database === 'postgresql' ? { pg: '^8.11.0' } : {})
+                    }
+                }, null, 2);
+
+                files['backend/Dockerfile'] = `FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --production
+
+COPY . .
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
+`;
+            } else if (backend === 'go') {
+                files['backend/main.go'] = `package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+)
+
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "Hello from ${state.projectName}",
+		})
+	})
+
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status": "healthy",
+		})
+	})
+
+	log.Println("Server starting on :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+`;
+
+                files['backend/go.mod'] = `module ${state.projectName}
+
+go 1.21
+`;
+
+                files['backend/Dockerfile'] = `FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+COPY . .
+RUN go build -o main .
+
+FROM alpine:latest
+WORKDIR /app
+COPY --from=builder /app/main .
+
+EXPOSE 8080
+
+CMD ["./main"]
+`;
+            }
+
+            return files;
+        }
+
+        function generateFrontendFiles() {
+            const files = {};
+            const frontend = state.frontend === 'other' ? state.frontendCustom : state.frontend;
+
+            if (frontend === 'sveltekit') {
+                files['frontend/package.json'] = JSON.stringify({
+                    name: `${state.projectName}-frontend`,
+                    version: '1.0.0',
+                    type: 'module',
+                    scripts: {
+                        dev: 'vite dev',
+                        build: 'vite build',
+                        preview: 'vite preview'
+                    },
+                    devDependencies: {
+                        '@sveltejs/adapter-auto': '^2.0.0',
+                        '@sveltejs/kit': '^1.27.0',
+                        'svelte': '^4.0.0',
+                        'vite': '^4.4.0'
+                    }
+                }, null, 2);
+
+                files['frontend/svelte.config.js'] = `import adapter from '@sveltejs/adapter-auto';
+
+/** @type {import('@sveltejs/kit').Config} */
+const config = {
+	kit: {
+		adapter: adapter()
+	}
+};
+
+export default config;
+`;
+
+                files['frontend/Dockerfile'] = `FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM node:20-alpine
+WORKDIR /app
+COPY --from=builder /app/build build/
+COPY --from=builder /app/package.json .
+RUN npm install --production
+
+EXPOSE 5173
+
+CMD ["node", "build"]
+`;
+            } else if (frontend === 'react') {
+                files['frontend/package.json'] = JSON.stringify({
+                    name: `${state.projectName}-frontend`,
+                    version: '1.0.0',
+                    type: 'module',
+                    scripts: {
+                        dev: 'vite',
+                        build: 'vite build',
+                        preview: 'vite preview'
+                    },
+                    dependencies: {
+                        'react': '^18.2.0',
+                        'react-dom': '^18.2.0'
+                    },
+                    devDependencies: {
+                        '@types/react': '^18.2.0',
+                        '@types/react-dom': '^18.2.0',
+                        '@vitejs/plugin-react': '^4.0.0',
+                        'vite': '^4.4.0'
+                    }
+                }, null, 2);
+
+                files['frontend/Dockerfile'] = `FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+`;
+            } else if (frontend === 'vue') {
+                files['frontend/package.json'] = JSON.stringify({
+                    name: `${state.projectName}-frontend`,
+                    version: '1.0.0',
+                    type: 'module',
+                    scripts: {
+                        dev: 'vite',
+                        build: 'vite build',
+                        preview: 'vite preview'
+                    },
+                    dependencies: {
+                        'vue': '^3.3.0'
+                    },
+                    devDependencies: {
+                        '@vitejs/plugin-vue': '^4.0.0',
+                        'vite': '^4.4.0'
+                    }
+                }, null, 2);
+
+                files['frontend/Dockerfile'] = `FROM node:20-alpine AS builder
+
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
+`;
+            }
+
+            return files;
+        }
+
+        function generateGitHubWorkflow() {
+            if (state.cicd !== 'github-actions') return null;
+
+            const isSelfHosted = state.runner === 'self-hosted';
+            const runsOn = isSelfHosted ? 'self-hosted' : 'ubuntu-latest';
+
+            let workflow = `name: Deploy
+
+on:
+  push:
+    branches: [main, master]
+
+jobs:
+  deploy:
+    runs-on: ${runsOn}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build containers
+        run: docker compose build
+
+`;
+
+            if (isSelfHosted) {
+                workflow += `      - name: Deploy
+        run: |
+          docker compose down
+          docker compose up -d
+
+`;
+            } else {
+                workflow += `      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: \${{ secrets.DEPLOY_HOST }}
+          username: \${{ secrets.DEPLOY_USER }}
+          key: \${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd /opt/${state.projectName}
+            git pull
+            docker compose down
+            docker compose up -d --build
+
+`;
+            }
+
+            if (state.domain) {
+                workflow += `      - name: Health check
+        run: |
+          sleep 10
+          curl -f https://${state.domain}/health || exit 1
+`;
+            }
+
+            return workflow;
+        }
+
+        function generateGitLabCI() {
+            if (state.cicd !== 'gitlab-ci') return null;
+
+            return `stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+    - docker compose build
+  only:
+    - main
+    - master
+
+deploy:
+  stage: deploy
+  script:
+    - docker compose down
+    - docker compose up -d
+${state.domain ? `    - sleep 10
+    - curl -f https://${state.domain}/health` : ''}
+  only:
+    - main
+    - master
+  when: manual
+`;
+        }
+
+        function generateDeploymentChecklist() {
+            let checklist = `# Deployment Checklist
+
+Generated for: ${state.projectName}
+Target: ${state.target}
+CI/CD: ${state.cicd}
+
+---
+
+## Pre-Deployment
+
+- [ ] All tests passing locally
+- [ ] Environment variables documented
+- [ ] Secrets identified and stored securely
+`;
+
+            if (state.target === 'self-hosted') {
+                checklist += `
+## Server Setup (Self-Hosted)
+
+- [ ] Server provisioned and accessible via SSH
+- [ ] Docker installed on server
+- [ ] Docker Compose installed on server
+- [ ] Firewall configured (ports 80, 443 open)
+- [ ] Domain DNS configured to point to server IP
+
+### Reverse Proxy & SSL
+
+- [ ] Nginx or Caddy installed
+- [ ] SSL certificate obtained (Let's Encrypt recommended)
+- [ ] Reverse proxy configured to forward to container ports
+
+### GitHub Actions Self-Hosted Runner (if applicable)
+
+- [ ] Runner application downloaded on server
+- [ ] Runner configured with repository token
+- [ ] Runner service enabled: \`sudo ./svc.sh install && sudo ./svc.sh start\`
+- [ ] Runner appears in repository Settings > Actions > Runners
+`;
+            } else if (state.target === 'aws') {
+                checklist += `
+## AWS Setup
+
+- [ ] AWS account and CLI configured
+- [ ] ECR repository created for container images
+- [ ] ECS cluster or EC2 instance provisioned
+- [ ] RDS database created (if using PostgreSQL)
+- [ ] Security groups configured
+- [ ] IAM roles and policies set up
+- [ ] Route 53 DNS configured (if using custom domain)
+- [ ] ACM certificate provisioned for SSL
+`;
+            } else if (state.target === 'azure') {
+                checklist += `
+## Azure Setup
+
+- [ ] Azure account and CLI configured
+- [ ] Container Registry created
+- [ ] App Service or AKS cluster provisioned
+- [ ] Azure Database for PostgreSQL created (if applicable)
+- [ ] Network security rules configured
+- [ ] Azure DNS configured (if using custom domain)
+- [ ] SSL certificate configured
+`;
+            } else if (state.target === 'gcp') {
+                checklist += `
+## GCP Setup
+
+- [ ] GCP account and gcloud CLI configured
+- [ ] Artifact Registry repository created
+- [ ] Cloud Run or GKE cluster provisioned
+- [ ] Cloud SQL instance created (if using PostgreSQL)
+- [ ] VPC and firewall rules configured
+- [ ] Cloud DNS configured (if using custom domain)
+- [ ] SSL certificate via Google-managed certificates
+`;
+            }
+
+            if (state.cicd === 'github-actions' && state.runner === 'github-hosted') {
+                checklist += `
+## GitHub Actions Secrets
+
+Add these secrets in repository Settings > Secrets:
+
+- [ ] \`DEPLOY_HOST\` - Server IP or hostname
+- [ ] \`DEPLOY_USER\` - SSH username
+- [ ] \`DEPLOY_KEY\` - SSH private key for deployment
+`;
+            }
+
+            checklist += `
+## Post-Deployment
+
+- [ ] Application accessible at expected URL
+- [ ] Health check endpoint responding
+- [ ] Logs accessible and not showing errors
+- [ ] Monitoring/alerting configured (optional)
+- [ ] Backup strategy in place (for databases)
+
+---
+
+Generated by [FADE Configuration Wizard](https://themitchelli.github.io/fade/)
+`;
+
+            return checklist;
+        }
+
+        function generateGitignore() {
+            let gitignore = `# Dependencies
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Build outputs
+dist/
+build/
+.svelte-kit/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Database
+*.db
+*.sqlite
+`;
+
+            if (state.database === 'postgresql') {
+                gitignore += `
+# PostgreSQL
+postgres_data/
+`;
+            }
+
+            return gitignore;
+        }
+
+        // Generate all files
+        function generateAllFiles() {
+            const files = {};
+
+            // Core FADE files
+            files['FADE.md'] = generateFadeMd();
+            files['progress.md'] = generateProgressMd();
+            files['learned.md'] = generateLearnedMd();
+            files['prompt.md'] = generatePromptMd();
+            files['.gitignore'] = generateGitignore();
+
+            // Docker files
+            const dockerCompose = generateDockerCompose();
+            if (dockerCompose) {
+                files['docker-compose.yml'] = dockerCompose;
+                files['docker-compose.prod.yml'] = generateDockerComposeProd();
+            }
+
+            // Backend files
+            const backendFiles = generateBackendFiles();
+            Object.assign(files, backendFiles);
+
+            // Frontend files
+            const frontendFiles = generateFrontendFiles();
+            Object.assign(files, frontendFiles);
+
+            // CI/CD files
+            const githubWorkflow = generateGitHubWorkflow();
+            if (githubWorkflow) {
+                files['.github/workflows/deploy.yml'] = githubWorkflow;
+            }
+
+            const gitlabCI = generateGitLabCI();
+            if (gitlabCI) {
+                files['.gitlab-ci.yml'] = gitlabCI;
+            }
+
+            // Deployment checklist
+            if (state.target !== 'local') {
+                files['DEPLOYMENT.md'] = generateDeploymentChecklist();
+            }
+
+            return files;
+        }
+
+        // Generate terminal commands
+        function generateCommands() {
+            const files = generateAllFiles();
+            let commands = `#!/bin/bash
+# Generated by FADE Configuration Wizard
+# Project: ${state.projectName}
+
+set -e
+
+echo "Creating ${state.projectName} project structure..."
+
+`;
+
+            // Create directories
+            const dirs = new Set();
+            for (const path of Object.keys(files)) {
+                const dir = path.split('/').slice(0, -1).join('/');
+                if (dir) dirs.add(dir);
+            }
+
+            if (dirs.size > 0) {
+                commands += `# Create directories\n`;
+                for (const dir of [...dirs].sort()) {
+                    commands += `mkdir -p "${dir}"\n`;
+                }
+                commands += '\n';
+            }
+
+            // Create files
+            commands += `# Create files\n`;
+            for (const [path, content] of Object.entries(files)) {
+                const escaped = content.replace(/\\/g, '\\\\').replace(/'/g, "'\\''");
+                commands += `cat > "${path}" << 'FADE_EOF'\n${content}FADE_EOF\n\n`;
+            }
+
+            commands += `echo "Done! Project ${state.projectName} created successfully."
+echo ""
+echo "Next steps:"
+echo "  1. Review and customize FADE.md"
+echo "  2. Create your prd.json with user stories"
+echo "  3. Run: fade run"
+`;
+
+            return commands;
+        }
+
+        // Create and download ZIP
+        async function downloadZip() {
+            if (!validateProjectName()) return;
+            updateState();
+
+            const files = generateAllFiles();
+            const zip = new JSZip();
+
+            for (const [path, content] of Object.entries(files)) {
+                zip.file(path, content);
+            }
+
+            const blob = await zip.generateAsync({ type: 'blob' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${state.projectName}-fade-config.zip`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            // Show success and file list
+            document.getElementById('successMessage').classList.add('visible');
+            showOutput();
+        }
+
+        // Show output section
+        function showOutput() {
+            const files = generateAllFiles();
+            const commands = generateCommands();
+
+            // File list
+            const fileList = document.getElementById('fileList');
+            fileList.innerHTML = Object.keys(files)
+                .sort()
+                .map(f => `<div class="file-item">${f}</div>`)
+                .join('');
+
+            // Commands
+            document.getElementById('commandsOutput').textContent = commands;
+
+            document.getElementById('outputSection').classList.add('visible');
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            loadState();
+
+            // Form change listeners
+            document.querySelectorAll('input, textarea').forEach(el => {
+                el.addEventListener('input', () => {
+                    updateState();
+                    if (el.id === 'projectName') validateProjectName();
+                });
+                el.addEventListener('change', () => {
+                    updateState();
+                    updateCustomInputVisibility();
+                    updateRunnerVisibility();
+                });
+            });
+
+            // Generate button
+            document.getElementById('generateBtn').addEventListener('click', downloadZip);
+
+            // Show commands button
+            document.getElementById('showCommandsBtn').addEventListener('click', () => {
+                if (!validateProjectName()) return;
+                updateState();
+                showOutput();
+                // Switch to commands tab
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                document.querySelector('.tab[data-tab="commands"]').classList.add('active');
+                document.getElementById('commandsTab').classList.add('active');
+            });
+
+            // Tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    const tabName = tab.dataset.tab;
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(`${tabName}Tab`).classList.add('active');
+                });
+            });
+
+            // Copy commands button
+            document.getElementById('copyCommandsBtn').addEventListener('click', async () => {
+                const commands = generateCommands();
+                await navigator.clipboard.writeText(commands);
+                const btn = document.getElementById('copyCommandsBtn');
+                const original = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = original, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
