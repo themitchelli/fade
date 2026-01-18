@@ -133,6 +133,55 @@ what they can and cannot do, and when to ask for human input.
 
 ---
 
+## System Context
+
+<!--
+Provide awareness of where this work fits in the broader project landscape.
+This helps agents understand sequencing, dependencies, and what else is happening.
+-->
+
+### Current Challenges
+
+<!--
+What problems or constraints is the team currently dealing with?
+Examples: technical debt, scaling issues, team transitions, deadline pressure
+-->
+
+- Challenge 1: description
+- Challenge 2: description
+
+### Transition Plan
+
+<!--
+If the project is undergoing a migration, refactor, or multi-phase initiative,
+document the phases here. Use status indicators:
+  - Link to doc (if detailed plan exists elsewhere)
+  - NOT WRITTEN (planned but not documented)
+  - ✅ COMPLETE (done)
+  - ← CURRENT (active phase)
+-->
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Description | ✅ COMPLETE |
+| Phase 2 | Description | ← CURRENT |
+| Phase 3 | Description | NOT WRITTEN |
+
+### Active Work Items
+
+<!--
+What else is in flight? This helps agents avoid conflicts and understand priorities.
+Include different work types: features, bugs, toil, spikes
+Format: [TYPE] Brief description - Owner/Status
+-->
+
+- [FEATURE] Example feature being built - @developer / in progress
+- [BUG] Example bug being investigated - @developer / blocked
+- [TOIL] Example operational task - unassigned
+- [SPIKE] Example research/investigation - @developer / complete
+
+---
+
 ## Additional Context
 
 <!--
@@ -202,6 +251,9 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 ## Session Start
 
 1. Read `FADE.md` for project context, standards, and boundaries
+   - Check **System Context** to understand where this work fits in the broader plan
+   - Check **Transition Plan** to understand sequencing and current phase
+   - Check **Active Work Items** to see what else is in flight (avoid conflicts)
 2. Read `progress.md` to see what's been completed
 3. Read `learned.md` for discoveries from previous sessions
 4. Read `prd.json` and pick the highest priority story where `passes: false`
