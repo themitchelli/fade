@@ -266,6 +266,28 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 - **Small commits** – Commit working increments, not big bangs
 - **Test before done** – All acceptance criteria must pass before marking complete
 
+## Spike Execution
+
+Spikes are exploratory work that should NOT merge to main. Check if prd.json has `"type": "spike"`.
+
+**If this is a spike:**
+
+1. **Branch first** – Check for `branchName` field in prd.json. Run `git checkout -b {branchName}` before starting any work.
+
+2. **Work on branch** – All commits stay on the spike branch. Do NOT merge to main.
+
+3. **Create the artifact** – Check for `outputArtifact` field in prd.json. This defines what deliverable the spike should produce (e.g., a design doc, prototype, analysis report).
+
+4. **Signal completion** – When done, output: `<promise>SPIKE_COMPLETE</promise>`
+
+5. **Human reviews** – The human will review the spike branch and decide whether to merge, iterate, or discard. Do not make this decision yourself.
+
+**Spike exit checklist:**
+- [ ] All work committed to spike branch (not main)
+- [ ] outputArtifact created and complete
+- [ ] progress.md updated with spike summary
+- [ ] learned.md updated if discoveries were made
+
 ## Session Exit Protocol
 
 Before signaling completion, you MUST:
