@@ -288,6 +288,42 @@ Spikes are exploratory work that should NOT merge to main. Check if prd.json has
 - [ ] progress.md updated with spike summary
 - [ ] learned.md updated if discoveries were made
 
+## Git Conventions
+
+Use consistent commit message prefixes. Format: `prefix: lowercase description`
+
+### Commit Prefixes
+
+| Prefix | Meaning | Example |
+|--------|---------|---------|
+| `feat:` | New feature or capability | `feat: add user authentication` |
+| `fix:` | Bug fix | `fix: resolve null pointer in login` |
+| `doc:` | Documentation only | `doc: update API reference` |
+| `toil:` | Operational/maintenance work | `toil: update dependencies` |
+| `refactor:` | Code restructuring, no behavior change | `refactor: extract validation logic` |
+| `spike:` | Exploratory work (spike branches only) | `spike: prototype caching approach` |
+
+### PRD Type → Commit Prefix Mapping
+
+| PRD Type | Primary Prefix | Notes |
+|----------|----------------|-------|
+| `feature` | `feat:` | New functionality |
+| `bug` | `fix:` | Defect corrections |
+| `toil` | `toil:` | Operational tasks |
+| `enhancement` | `feat:` | Improvements to existing features |
+| `spike` | `spike:` | Only on spike/ branches |
+
+**Important:**
+- `refactor:` and `doc:` can be used with ANY PRD type when appropriate
+- A `feature` PRD might include `doc:` commits for README updates
+- A `bug` PRD might include `refactor:` commits if cleanup is needed
+- `spike:` prefix is ONLY used on spike/ branches, never on main
+
+### Branch Rules
+
+- **Spikes** → commit to `spike/{name}` branch, use `spike:` prefix
+- **All other work** → commit to main/trunk, use appropriate prefix
+
 ## Session Exit Protocol
 
 Before signaling completion, you MUST:
