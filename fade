@@ -1,12 +1,11 @@
 #!/bin/bash
 
 # FADE - Framework for Agentic Development and Engineering
-# v0.2.1 - STOP/ALL execution modes with bash loop orchestration
-# Fixed: ask_execution_mode now outputs menu to stderr
+# v0.2.3 - Added 'fade yolo' command and --yolo flag for autonomous mode
 
 set -e
 
-FADE_VERSION="0.2.1"
+FADE_VERSION="0.2.3"
 
 # Colors for output
 RED='\033[0;31m'
@@ -749,53 +748,76 @@ PRDS_EOF
 }
 
 cmd_run() {
-    echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
+    local yolo_mode=false
+
+    # Check for --yolo flag
+    if [[ "${1:-}" == "--yolo" ]]; then
+        yolo_mode=true
+    fi
+
+    if [[ "$yolo_mode" == true ]]; then
+        echo -e "${CYAN}FADE v$FADE_VERSION${NC} ${YELLOW}🤘 YOLO MODE${NC}"
+    else
+        echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
+    fi
     echo ""
-    
+
     # Check for FADE files
     if [[ ! -f "FADE.md" ]]; then
         echo -e "${RED}Error: FADE.md not found. Run 'fade init' first.${NC}"
         exit 1
     fi
-    
+
     # Display work queue
     if ! display_work_queue; then
         exit 0
     fi
-    
-    # Ask for execution mode
-    mode=$(ask_execution_mode)
-    
+
+    # Determine execution mode
+    local mode
+    if [[ "$yolo_mode" == true ]]; then
+        mode="ALL"
+        echo -e "${YELLOW}🤘 YOLO MODE - Skipping prompts, going straight to ALL mode${NC}"
+    else
+        mode=$(ask_execution_mode)
+    fi
+
     echo ""
     echo -e "${GREEN}Starting in $mode mode...${NC}"
     echo ""
-    
+
+    # Set Claude command based on yolo mode
+    local claude_cmd="claude"
+    if [[ "$yolo_mode" == true ]]; then
+        claude_cmd="claude --dangerously-skip-permissions"
+    fi
+
     if [[ "$mode" == "STOP" ]]; then
         # STOP mode: single execution, hand over terminal completely
         local context=$(build_context)
-        exec claude "$context"
+        exec $claude_cmd "$context"
     else
         # ALL mode: loop until complete or blocked
         local iteration=1
-        
+
         while true; do
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo -e "${CYAN}Iteration $iteration - Building fresh context...${NC}"
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo ""
-            
+
             local context=$(build_context)
-            
+
             # Run Claude and capture output
             local output_file=$(mktemp)
-            
+
             # Run claude interactively but capture output
-            claude "$context" 2>&1 | tee "$output_file"
+            $claude_cmd "$context" 2>&1 | tee "$output_file"
             local exit_code=${PIPESTATUS[0]}
-            
+
             local output=$(cat "$output_file")
             rm -f "$output_file"
-            
+
             # Check for signals in output
             if echo "$output" | grep -q "ALL_COMPLETE"; then
                 echo ""
@@ -804,7 +826,7 @@ cmd_run() {
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
                 break
             fi
-            
+
             if echo "$output" | grep -q "BLOCKED"; then
                 echo ""
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
@@ -812,7 +834,7 @@ cmd_run() {
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                 break
             fi
-            
+
             if echo "$output" | grep -q "STORY_DONE"; then
                 echo ""
                 echo -e "${GREEN}✓ Story complete. Restarting with fresh context...${NC}"
@@ -821,7 +843,7 @@ cmd_run() {
                 sleep 2  # Brief pause for filesystem to settle
                 continue
             fi
-            
+
             # No recognized signal
             echo ""
             echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
@@ -831,9 +853,14 @@ cmd_run() {
             echo "Expected one of: STORY_DONE, ALL_COMPLETE, BLOCKED"
             echo "Check the output above for errors."
             break
-            
+
         done
     fi
+}
+
+cmd_yolo() {
+    # Convenience command: fade yolo is equivalent to fade run --yolo
+    cmd_run "--yolo"
 }
 
 cmd_status() {
@@ -860,6 +887,8 @@ ${YELLOW}Usage:${NC} fade <command> [options]
 ${YELLOW}Commands:${NC}
   init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
   run           Show work queue, choose STOP/ALL mode, start Claude Code
+  run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
+  yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
   help          Show this help message
 
@@ -877,7 +906,7 @@ ${YELLOW}PRD Locations:${NC}
 
 ${YELLOW}PRD Naming Convention:${NC}
   {TYPE}-{NUMBER}-{slug}.json
-  
+
   Types: FEAT, BUG, CHORE, ENH, SPIKE
 
 ${YELLOW}Git Commit Prefixes:${NC}
@@ -891,6 +920,7 @@ ${YELLOW}Git Commit Prefixes:${NC}
 ${YELLOW}Examples:${NC}
   fade init                 # Set up FADE in current directory
   fade run                  # See queue, pick mode, start working
+  fade yolo                 # 🤘 Full auto mode, no prompts
   fade status               # Check work queue
   fade status --json        # Machine-readable status
 
@@ -906,7 +936,11 @@ case "${1:-}" in
         cmd_init
         ;;
     run)
-        cmd_run
+        shift
+        cmd_run "$@"
+        ;;
+    yolo)
+        cmd_yolo
         ;;
     status)
         shift

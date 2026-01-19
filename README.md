@@ -1,4 +1,4 @@
-# FADE v0.2.2
+# FADE v0.2.3
 
 **Framework for Agentic Development and Engineering**
 
@@ -93,9 +93,29 @@ Shows your work queue, then prompts for execution mode:
 | **STOP** (or S) | Complete one story, then pause for review |
 | **ALL** (or A) | Process all stories with fresh context between each |
 
+### `fade yolo` 🤘
+
+Skip prompts and run in full autonomous mode with no permission prompts:
+
+```bash
+fade yolo
+```
+
+This is a shortcut for `fade run --yolo` that:
+- Shows your work queue
+- Skips the STOP/ALL mode prompt (goes straight to ALL mode)
+- Starts Claude with `--dangerously-skip-permissions` (no permission prompts)
+- Displays 🤘 YOLO MODE indicator
+
+**What does `--dangerously-skip-permissions` do?**
+
+Normally, Claude Code asks for permission before running commands, editing files, or performing other actions. With this flag enabled, Claude will execute all actions without asking - perfect for trusted PRDs where you want fully autonomous execution.
+
+**Warning:** Only use YOLO mode when you trust your PRD and understand what changes will be made. Review your PRD acceptance criteria carefully before running.
+
 ### `fade run --yolo`
 
-Skip the mode prompt and go straight to ALL mode:
+Equivalent to `fade yolo`:
 
 ```bash
 fade run --yolo
