@@ -42,7 +42,7 @@ from or extend the standard guides.
 
 - Naming: `camelCase` for variables, `PascalCase` for components
 - Tests: Co-locate with source files as `*.test.ts`
-- Commits: Conventional commits format (`feat:`, `fix:`, `docs:`)
+- Commits: Conventional commits format (`feat:`, `fix:`, `chore:`)
 
 ---
 
@@ -120,6 +120,70 @@ what they can and cannot do, and when to ask for human input.
 - Modify `.env` files or commit secrets
 - Run destructive database commands in production
 - Disable security features or linters
+
+---
+
+## System Context
+
+<!--
+Provide awareness of where this work fits in the broader project landscape.
+This helps agents understand sequencing, dependencies, and what else is happening.
+-->
+
+### Current Challenges
+
+<!--
+What problems or constraints is the team currently dealing with?
+Examples: technical debt, scaling issues, team transitions, deadline pressure
+-->
+
+- Challenge 1: description
+- Challenge 2: description
+
+### Transition Plan
+
+<!--
+If the project is undergoing a migration, refactor, or multi-phase initiative,
+document the phases here. Use status indicators:
+  - Link to doc (if detailed plan exists elsewhere)
+  - NOT WRITTEN (planned but not documented)
+  - ✅ COMPLETE (done)
+  - ← CURRENT (active phase)
+-->
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | Description | ✅ COMPLETE |
+| Phase 2 | Description | ← CURRENT |
+| Phase 3 | Description | NOT WRITTEN |
+
+### Active Work Items
+
+<!--
+What else is in flight? This helps agents avoid conflicts and understand priorities.
+Include different work types: features, bugs, chores, spikes
+Format: [TYPE] Brief description - Owner/Status
+-->
+
+- [FEATURE] Example feature being built - @developer / in progress
+- [BUG] Example bug being investigated - @developer / blocked
+- [CHORE] Example operational task - unassigned
+- [SPIKE] Example research/investigation - @developer / complete
+
+---
+
+## Development Environment
+
+### Local Development
+
+- How to run locally
+- Required environment variables
+- Test commands
+
+### Production/Deployment
+
+- Deployment process
+- Production environment details
 
 ---
 

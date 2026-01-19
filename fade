@@ -1,12 +1,26 @@
 #!/bin/bash
 
 # FADE - Framework for Agentic Development and Engineering
+# v0.2.1 - STOP/ALL execution modes with bash loop orchestration
+# Fixed: ask_execution_mode now outputs menu to stderr
 
 set -e
 
-FADE_VERSION="0.1.0"
+FADE_VERSION="0.2.1"
 
-# Template content
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# ============================================================================
+# TEMPLATES
+# ============================================================================
+
 read -r -d '' FADE_TEMPLATE << 'EOF' || true
 # Project Name
 
@@ -52,7 +66,7 @@ from or extend the standard guides.
 
 - Naming: `camelCase` for variables, `PascalCase` for components
 - Tests: Co-locate with source files as `*.test.ts`
-- Commits: Conventional commits format (`feat:`, `fix:`, `docs:`)
+- Commits: Conventional commits format (`feat:`, `fix:`, `chore:`)
 
 ---
 
@@ -171,14 +185,29 @@ document the phases here. Use status indicators:
 
 <!--
 What else is in flight? This helps agents avoid conflicts and understand priorities.
-Include different work types: features, bugs, toil, spikes
+Include different work types: features, bugs, chores, spikes
 Format: [TYPE] Brief description - Owner/Status
 -->
 
 - [FEATURE] Example feature being built - @developer / in progress
 - [BUG] Example bug being investigated - @developer / blocked
-- [TOIL] Example operational task - unassigned
+- [CHORE] Example operational task - unassigned
 - [SPIKE] Example research/investigation - @developer / complete
+
+---
+
+## Development Environment
+
+### Local Development
+
+- How to run locally
+- Required environment variables
+- Test commands
+
+### Production/Deployment
+
+- Deployment process
+- Production environment details
 
 ---
 
@@ -246,211 +275,425 @@ EOF
 read -r -d '' PROMPT_TEMPLATE << 'EOF' || true
 # FADE Execution Prompt
 
-You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from PRD files while maintaining session continuity through structured files.
+You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from PRD files while maintaining session continuity.
+
+---
 
 ## Session Start
 
 1. Read `FADE.md` for project context, standards, and boundaries
-   - Check **System Context** to understand where this work fits in the broader plan
-   - Check **Transition Plan** to understand sequencing and current phase
-   - Check **Active Work Items** to see what else is in flight (avoid conflicts)
+   - Check **System Context** to understand where this work fits
+   - Check **Transition Plan** for sequencing
+   - Check **Active Work Items** to avoid conflicts
 2. Read `progress.md` to see what's been completed
 3. Read `learned.md` for discoveries from previous sessions
-4. Find and select the active PRD (see **PRD Discovery** below)
-5. Pick the highest priority story in that PRD where `passes: false`
+4. Find the active PRD (see **PRD Discovery** below)
+5. Pick the highest priority story where `passes: false`
 
 ## PRD Discovery
 
-FADE supports multiple PRD files in a `prds/` folder.
-
-### File Locations (checked in order)
-
-1. **`prds/*.json`** - Multiple PRDs with naming convention
-2. **`prd.json`** - Single PRD in root (backwards compatibility)
+### Priority Order
+1. **`prd.json`** in root - Priority injection (critical bugs, urgent work)
+2. **`prds/*.json`** - Standard queue, lowest number first
 
 ### Naming Convention
-
 PRD files in `prds/` follow: `{TYPE}-{NUMBER}-{slug}.json`
 
-| Type | Description | Example |
-|------|-------------|---------|
-| FEAT | Feature | `FEAT-001-user-authentication.json` |
-| BUG | Bug fix | `BUG-002-login-timeout.json` |
-| TOIL | Operational work | `TOIL-003-upgrade-dependencies.json` |
-| ENH | Enhancement | `ENH-004-improve-performance.json` |
-| SPIKE | Exploration | `SPIKE-005-evaluate-caching.json` |
+| Type | Description |
+|------|-------------|
+| FEAT | Feature |
+| BUG | Bug fix |
+| CHORE | Operational/maintenance work |
+| ENH | Enhancement |
+| SPIKE | Exploration |
 
 ### Selection Logic
-
-To pick which PRD to work on:
-
-1. **Check Transition Plan first** - If `FADE.md` has a Transition Plan with phases, follow that order. Work on PRDs marked `← CURRENT`.
-
-2. **Otherwise, use number order** - Pick the lowest-numbered PRD that has incomplete stories (any story where `passes: false`).
-
-3. **Skip completed PRDs** - If all stories in a PRD have `passes: true`, skip it.
-
-4. **Fallback** - If no `prds/` folder exists, use `prd.json` in root.
+1. If `prd.json` exists with incomplete stories → use it
+2. Otherwise, pick lowest-numbered PRD in `prds/` with incomplete stories
+3. Within PRD, pick highest priority story where `passes: false`
 
 ## Execution Rules
 
-- **One story per session** – Complete the current story fully before moving to the next
-- **Follow the standards** – FADE.md contains coding standards and architecture refs. Follow them.
-- **Respect boundaries** – If FADE.md marks a module as off-limits, don't touch it
-- **Small commits** – Commit working increments, not big bangs
-- **Test before done** – All acceptance criteria must pass before marking complete
-
-## Spike Execution
-
-Spikes are exploratory work that should NOT merge to main. Check if the PRD has `"type": "spike"`.
-
-**If this is a spike:**
-
-1. **Branch first** – Check for `branchName` field in the PRD. Run `git checkout -b {branchName}` before starting any work.
-
-2. **Work on branch** – All commits stay on the spike branch. Do NOT merge to main.
-
-3. **Create the artifact** – Check for `outputArtifact` field in the PRD. This defines what deliverable the spike should produce (e.g., a design doc, prototype, analysis report).
-
-4. **Signal completion** – When done, output: `<promise>SPIKE_COMPLETE</promise>`
-
-5. **Human reviews** – The human will review the spike branch and decide whether to merge, iterate, or discard. Do not make this decision yourself.
-
-**Spike exit checklist:**
-- [ ] All work committed to spike branch (not main)
-- [ ] outputArtifact created and complete
-- [ ] progress.md updated with spike summary
-- [ ] learned.md updated if discoveries were made
+- **One story at a time** - Complete fully before signalling done
+- **Follow standards** in FADE.md
+- **Respect boundaries** - don't touch off-limits modules
+- **Small commits** - working increments, not big bangs
+- **Test before done** - all acceptance criteria must pass
 
 ## Git Conventions
 
-Use consistent commit message prefixes. Format: `prefix: lowercase description`
+| Prefix | Use |
+|--------|-----|
+| `feat:` | New feature |
+| `fix:` | Bug fix |
+| `docs:` | Documentation |
+| `chore:` | Maintenance, dependencies, operational |
+| `refactor:` | Code restructure, no behaviour change |
+| `spike:` | Exploratory (spike branches only) |
 
-### Commit Prefixes
+## Spike Execution
 
-| Prefix | Meaning | Example |
-|--------|---------|---------|
-| `feat:` | New feature or capability | `feat: add user authentication` |
-| `fix:` | Bug fix | `fix: resolve null pointer in login` |
-| `doc:` | Documentation only | `doc: update API reference` |
-| `toil:` | Operational/maintenance work | `toil: update dependencies` |
-| `refactor:` | Code restructuring, no behavior change | `refactor: extract validation logic` |
-| `spike:` | Exploratory work (spike branches only) | `spike: prototype caching approach` |
+If PRD has `"type": "spike"`:
+1. Create branch: `git checkout -b {branchName}`
+2. All work stays on spike branch
+3. Create the `outputArtifact`
+4. Do NOT merge to main
 
-### PRD Type → Commit Prefix Mapping
+## Story Completion Protocol
 
-| PRD Type | Primary Prefix | Notes |
-|----------|----------------|-------|
-| `feature` | `feat:` | New functionality |
-| `bug` | `fix:` | Defect corrections |
-| `toil` | `toil:` | Operational tasks |
-| `enhancement` | `feat:` | Improvements to existing features |
-| `spike` | `spike:` | Only on spike/ branches |
+After completing a story, you MUST do these steps IN ORDER:
 
-**Important:**
-- `refactor:` and `doc:` can be used with ANY PRD type when appropriate
-- A `feature` PRD might include `doc:` commits for README updates
-- A `bug` PRD might include `refactor:` commits if cleanup is needed
-- `spike:` prefix is ONLY used on spike/ branches, never on main
-
-### Branch Rules
-
-- **Spikes** → commit to `spike/{name}` branch, use `spike:` prefix
-- **All other work** → commit to main/trunk, use appropriate prefix
-
-## Session Exit Protocol
-
-Before signaling completion, you MUST:
-
-### 1. Update progress.md
-
-Append a completion entry in this format:
-
+### Step 1: Update progress.md
+Append:
 ```
 ## YYYY-MM-DD HH:MM - US-XXX: Story Title - COMPLETE
 
-- Summary of what was implemented
-- Files changed: list key files
+- Summary of implementation
+- Files changed: [list]
 - Tests: passed/added
 ```
 
-### 2. Update learned.md
+### Step 2: Update learned.md (if applicable)
+Only add genuinely reusable, non-obvious discoveries.
 
-If you discovered anything useful for future sessions, append:
+### Step 3: Update PRD
+Set `passes: true` for the completed story.
 
-```
-## YYYY-MM-DD - Discovery Title
-
-**Context:** What were you doing when you discovered this?
-**Learning:** What did you learn?
-**Relevance:** Why does this matter for future work?
-**Files affected:** Which modules/files does this apply to?
+### Step 4: Commit everything
+```bash
+git add -A && git commit -m "feat: complete US-XXX - Story Title"
 ```
 
-Only add learnings that are:
-- Reusable (not story-specific details)
-- Non-obvious (things a future session wouldn't know)
-- Actionable (helps avoid mistakes or speeds up work)
+### Step 5: Signal completion
 
-### 3. Update the PRD file
+Check if there are more incomplete stories in the queue:
+- If MORE work remains: Output exactly `STORY_DONE: US-XXX`
+- If ALL work complete: Output exactly `ALL_COMPLETE`
 
-Set `passes: true` for the completed story in the active PRD.
+### Step 6: STOP
 
-### 4. Signal completion
+After outputting the signal, STOP IMMEDIATELY.
+- Do NOT continue to the next story
+- Do NOT respond to follow-up questions
+- Your process will exit
 
-Output: `<promise>STORY_DONE</promise>`
+An external orchestrator will either:
+- Restart you with fresh context (ALL mode)
+- Wait for human to run `fade run` again (STOP mode)
 
-If ALL stories in prd.json have `passes: true`, output: `<promise>COMPLETE</promise>`
-
-## What NOT to do
-
-- Don't modify FADE.md (that's human-curated project context)
-- Don't delete entries from progress.md or learned.md (append-only)
-- Don't skip acceptance criteria (every single one must pass)
-- Don't start a new story in the same session (exit, let the loop restart fresh)
-- Don't guess at standards – if FADE.md doesn't specify, ask or check existing patterns
+The files you updated ARE the memory for the next session.
 
 ## Error Handling
 
-If you hit a blocker:
-1. Document it in progress.md under a "BLOCKED" entry
-2. Explain what's blocking and what you tried
-3. Output: `<promise>BLOCKED</promise>`
-
-The human will resolve and restart the session.
+If blocked:
+1. Document in progress.md as BLOCKED entry
+2. Commit the documentation
+3. Output exactly: `BLOCKED: [reason]`
+4. STOP - wait for human intervention
 
 ## File Locations
 
 ```
 ./FADE.md       # Project context (read-only)
-./progress.md   # Session history (append)
-./learned.md    # Cumulative memory (append)
-./prds/         # PRD files folder (preferred)
-./prd.json      # Single PRD fallback (legacy)
+./progress.md   # Session history (append-only)
+./learned.md    # Cumulative memory (append-only)
+./prd.json      # Priority PRD (optional)
+./prds/         # PRD queue
 ```
 
 ---
 
-Now: Read the context files, find the active PRD, pick the next story, and begin.
+Now: Read context files, pick the next story, and begin.
 EOF
 
-# Functions
+# ============================================================================
+# HELPER FUNCTIONS
+# ============================================================================
+
 create_file_if_missing() {
     local file="$1"
     local content="$2"
 
     if [[ -f "$file" ]]; then
-        echo "  skip: $file (already exists)"
+        echo -e "  ${YELLOW}skip${NC}: $file (already exists)"
         return 1
     else
         echo "$content" > "$file"
-        echo "  create: $file"
+        echo -e "  ${GREEN}create${NC}: $file"
         return 0
     fi
 }
 
+# Check if a PRD has incomplete stories
+prd_has_incomplete_stories() {
+    local prd_file="$1"
+    if [[ -f "$prd_file" ]]; then
+        if grep -q '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null; then
+            return 0
+        fi
+    fi
+    return 1
+}
+
+# Extract PRD name/title from JSON file
+get_prd_name() {
+    local prd_file="$1"
+    local name=""
+    
+    name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    
+    if [[ -z "$name" ]]; then
+        name=$(grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    fi
+    
+    if [[ -z "$name" ]]; then
+        name=$(basename "$prd_file" .json)
+    fi
+    
+    echo "$name"
+}
+
+# Get PRD type from JSON or filename
+get_prd_type() {
+    local prd_file="$1"
+    local prd_type=""
+    
+    prd_type=$(grep -o '"type"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    
+    if [[ -z "$prd_type" ]]; then
+        local filename=$(basename "$prd_file")
+        prd_type=$(echo "$filename" | grep -o '^[A-Z]*' | head -1)
+    fi
+    
+    echo "$prd_type"
+}
+
+# Count incomplete stories in a PRD
+count_incomplete_stories() {
+    local prd_file="$1"
+    grep -c '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null || echo "0"
+}
+
+# Count complete stories in a PRD
+count_complete_stories() {
+    local prd_file="$1"
+    grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null || echo "0"
+}
+
+# Build context from FADE files
+build_context() {
+    local context=""
+
+    if [[ -f "FADE.md" ]]; then
+        context+="# PROJECT CONTEXT (FADE.md)
+
+$(cat FADE.md)
+
+---
+
+"
+    fi
+
+    if [[ -f "progress.md" ]]; then
+        context+="# SESSION HISTORY (progress.md)
+
+$(cat progress.md)
+
+---
+
+"
+    fi
+
+    if [[ -f "learned.md" ]]; then
+        context+="# LEARNED (learned.md)
+
+$(cat learned.md)
+
+---
+
+"
+    fi
+
+    if [[ -f "prompt.md" ]]; then
+        context+="# EXECUTION INSTRUCTIONS (prompt.md)
+
+$(cat prompt.md)
+
+---
+
+"
+    fi
+
+    context+="# START NOW
+
+Read the context above, find the next incomplete story, and begin implementation.
+After completing the story, output STORY_DONE, ALL_COMPLETE, or BLOCKED as appropriate.
+"
+
+    echo "$context"
+}
+
+# ============================================================================
+# DISPLAY FUNCTIONS
+# ============================================================================
+
+display_work_queue() {
+    local format="${1:-pretty}"  # pretty or json
+    
+    local priority_prd=""
+    local priority_name=""
+    local priority_type=""
+    local priority_incomplete=0
+    local priority_complete=0
+    
+    declare -a queue_prds
+    declare -a queue_names
+    declare -a queue_types
+    declare -a queue_incomplete
+    declare -a queue_complete
+    
+    # Check prd.json first
+    if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
+        priority_prd="prd.json"
+        priority_name=$(get_prd_name "prd.json")
+        priority_type=$(get_prd_type "prd.json")
+        priority_incomplete=$(count_incomplete_stories "prd.json")
+        priority_complete=$(count_complete_stories "prd.json")
+    fi
+    
+    # Check prds/ folder
+    if [[ -d "prds" ]]; then
+        for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                queue_prds+=("$prd_file")
+                queue_names+=("$(get_prd_name "$prd_file")")
+                queue_types+=("$(get_prd_type "$prd_file")")
+                queue_incomplete+=("$(count_incomplete_stories "$prd_file")")
+                queue_complete+=("$(count_complete_stories "$prd_file")")
+            fi
+        done
+    fi
+    
+    local total_items=0
+    [[ -n "$priority_prd" ]] && ((total_items++))
+    ((total_items += ${#queue_prds[@]}))
+    
+    # JSON output
+    if [[ "$format" == "json" ]]; then
+        echo "{"
+        echo "  \"version\": \"$FADE_VERSION\","
+        echo "  \"total_items\": $total_items,"
+        
+        if [[ -n "$priority_prd" ]]; then
+            echo "  \"priority\": {"
+            echo "    \"file\": \"$priority_prd\","
+            echo "    \"name\": \"$priority_name\","
+            echo "    \"type\": \"$priority_type\","
+            echo "    \"incomplete\": $priority_incomplete,"
+            echo "    \"complete\": $priority_complete"
+            echo "  },"
+        else
+            echo "  \"priority\": null,"
+        fi
+        
+        echo "  \"queue\": ["
+        for i in "${!queue_prds[@]}"; do
+            echo "    {"
+            echo "      \"file\": \"${queue_prds[$i]}\","
+            echo "      \"name\": \"${queue_names[$i]}\","
+            echo "      \"type\": \"${queue_types[$i]}\","
+            echo "      \"incomplete\": ${queue_incomplete[$i]},"
+            echo "      \"complete\": ${queue_complete[$i]}"
+            if [[ $i -eq $((${#queue_prds[@]} - 1)) ]]; then
+                echo "    }"
+            else
+                echo "    },"
+            fi
+        done
+        echo "  ]"
+        echo "}"
+        return 0
+    fi
+    
+    # Pretty output
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}                     FADE Work Queue                         ${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    
+    if [[ $total_items -eq 0 ]]; then
+        echo -e "${GREEN}✓ No incomplete work found!${NC}"
+        echo ""
+        echo "Create a PRD in prds/ or add prd.json to get started."
+        return 1
+    fi
+    
+    # Priority PRD
+    if [[ -n "$priority_prd" ]]; then
+        echo -e "${RED}⚡ PRIORITY${NC} ${BOLD}(prd.json)${NC}"
+        echo -e "   ${YELLOW}[$priority_type]${NC} $priority_name"
+        echo -e "   └─ ${GREEN}$priority_complete done${NC} / ${RED}$priority_incomplete remaining${NC}"
+        echo ""
+    fi
+    
+    # Queue PRDs
+    if [[ ${#queue_prds[@]} -gt 0 ]]; then
+        echo -e "${BLUE}📋 QUEUE${NC} ${BOLD}(prds/)${NC}"
+        
+        for i in "${!queue_prds[@]}"; do
+            local filename=$(basename "${queue_prds[$i]}")
+            echo -e "   ${YELLOW}[${queue_types[$i]}]${NC} $filename"
+            echo -e "   │   ${queue_names[$i]}"
+            echo -e "   └─ ${GREEN}${queue_complete[$i]} done${NC} / ${RED}${queue_incomplete[$i]} remaining${NC}"
+            [[ $i -lt $((${#queue_prds[@]} - 1)) ]] && echo ""
+        done
+        echo ""
+    fi
+    
+    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+    echo -e "Total: ${BOLD}$total_items${NC} PRD(s) with incomplete work"
+    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+    echo ""
+    
+    return 0
+}
+
+# FIXED: Menu output goes to stderr, only result goes to stdout
+ask_execution_mode() {
+    echo -e "${YELLOW}How would you like to proceed?${NC}" >&2
+    echo "" >&2
+    echo -e "  ${GREEN}STOP${NC}  - Complete one story, then pause for review" >&2
+    echo -e "  ${BLUE}ALL${NC}   - Process all stories automatically (fresh context each story)" >&2
+    echo "" >&2
+    
+    while true; do
+        read -p "Enter mode [STOP/ALL]: " mode </dev/tty
+        mode=$(echo "$mode" | tr '[:lower:]' '[:upper:]')
+        
+        case "$mode" in
+            STOP|S)
+                echo "STOP"
+                return
+                ;;
+            ALL|A)
+                echo "ALL"
+                return
+                ;;
+            *)
+                echo -e "${RED}Invalid choice. Enter STOP or ALL.${NC}" >&2
+                ;;
+        esac
+    done
+}
+
+# ============================================================================
+# COMMANDS
+# ============================================================================
+
 cmd_init() {
-    echo "Initializing FADE structure..."
+    echo -e "${CYAN}Initializing FADE structure...${NC}"
     echo ""
 
     local created=0
@@ -476,153 +719,198 @@ Place your PRD files here using the naming convention:
 
 - `FEAT-001-user-authentication.json`
 - `BUG-002-login-timeout.json`
-- `TOIL-003-upgrade-dependencies.json`
+- `CHORE-003-upgrade-dependencies.json`
 - `ENH-004-improve-performance.json`
 - `SPIKE-005-evaluate-caching.json`
 
-## Types
-
-| Type | Description |
-|------|-------------|
-| FEAT | New feature |
-| BUG | Bug fix |
-| TOIL | Operational/maintenance work |
-| ENH | Enhancement to existing feature |
-| SPIKE | Exploratory work |
-
 ## Selection Order
 
-FADE picks the lowest-numbered PRD with incomplete stories, or follows the Transition Plan in FADE.md if defined.
+FADE picks the lowest-numbered PRD with incomplete stories.
+Priority: prd.json (if exists) → prds/ folder (by number)
 PRDS_EOF
-        echo "  create: prds/"
+        echo -e "  ${GREEN}create${NC}: prds/"
         ((created++))
     else
-        echo "  skip: prds/ (already exists)"
+        echo -e "  ${YELLOW}skip${NC}: prds/ (already exists)"
     fi
 
     echo ""
     if [[ $created -eq 0 ]]; then
         echo "No files created. FADE structure already exists."
     else
-        echo "Created $created file(s)."
+        echo -e "${GREEN}Created $created file(s).${NC}"
     fi
+    
+    echo ""
+    echo "Next steps:"
+    echo "  1. Edit FADE.md with your project context"
+    echo "  2. Create a PRD in prds/ folder"
+    echo "  3. Run 'fade run' to start working"
 }
 
 cmd_run() {
-    local context=""
-    local warnings=()
-    local files_loaded=0
-
-    echo "Loading FADE context..."
-
-    # Load context files (warn if missing, don't fail)
-    if [[ -f "FADE.md" ]]; then
-        context+="# PROJECT CONTEXT (FADE.md)
-
-$(cat FADE.md)
-
----
-
-"
-        ((files_loaded++))
-    else
-        warnings+=("FADE.md not found - run 'fade init' first")
-    fi
-
-    if [[ -f "progress.md" ]]; then
-        context+="# SESSION HISTORY (progress.md)
-
-$(cat progress.md)
-
----
-
-"
-        ((files_loaded++))
-    else
-        warnings+=("progress.md not found")
-    fi
-
-    if [[ -f "learned.md" ]]; then
-        context+="# LEARNED (learned.md)
-
-$(cat learned.md)
-
----
-
-"
-        ((files_loaded++))
-    else
-        warnings+=("learned.md not found")
-    fi
-
-    # Load execution prompt
-    if [[ -f "prompt.md" ]]; then
-        context+="# EXECUTION INSTRUCTIONS (prompt.md)
-
-$(cat prompt.md)
-
-"
-        ((files_loaded++))
-    else
-        warnings+=("prompt.md not found - session will start without FADE instructions")
-    fi
-
-    # Add directive to start executing
-    if [[ -f "prd.json" ]]; then
-        context+="---
-
-# START NOW
-
-A prd.json file exists in this project. Read it immediately, find the highest priority user story where \`passes: false\`, and begin implementing it. Do not ask what I want help with - follow the FADE protocol above and start working on the next incomplete story."
-    else
-        context+="---
-
-# START NOW
-
-No prd.json found. Ask the user what they would like to work on today, then follow the FADE protocol for session management."
-    fi
-
-    # Print warnings
-    for warning in "${warnings[@]}"; do
-        echo "  warn: $warning"
-    done
-
-    if [[ $files_loaded -eq 0 ]]; then
-        echo ""
-        echo "Error: No FADE files found. Run 'fade init' to create them."
+    echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
+    echo ""
+    
+    # Check for FADE files
+    if [[ ! -f "FADE.md" ]]; then
+        echo -e "${RED}Error: FADE.md not found. Run 'fade init' first.${NC}"
         exit 1
     fi
-
-    echo "  loaded: $files_loaded file(s)"
+    
+    # Display work queue
+    if ! display_work_queue; then
+        exit 0
+    fi
+    
+    # Ask for execution mode
+    mode=$(ask_execution_mode)
+    
     echo ""
-    echo "Starting Claude Code session..."
+    echo -e "${GREEN}Starting in $mode mode...${NC}"
     echo ""
+    
+    if [[ "$mode" == "STOP" ]]; then
+        # STOP mode: single execution, hand over terminal completely
+        local context=$(build_context)
+        exec claude "$context"
+    else
+        # ALL mode: loop until complete or blocked
+        local iteration=1
+        
+        while true; do
+            echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+            echo -e "${CYAN}Iteration $iteration - Building fresh context...${NC}"
+            echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+            echo ""
+            
+            local context=$(build_context)
+            
+            # Run Claude and capture output
+            local output_file=$(mktemp)
+            
+            # Run claude interactively but capture output
+            claude "$context" 2>&1 | tee "$output_file"
+            local exit_code=${PIPESTATUS[0]}
+            
+            local output=$(cat "$output_file")
+            rm -f "$output_file"
+            
+            # Check for signals in output
+            if echo "$output" | grep -q "ALL_COMPLETE"; then
+                echo ""
+                echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${GREEN}🎉 ALL WORK COMPLETE!${NC}"
+                echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                break
+            fi
+            
+            if echo "$output" | grep -q "BLOCKED"; then
+                echo ""
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                break
+            fi
+            
+            if echo "$output" | grep -q "STORY_DONE"; then
+                echo ""
+                echo -e "${GREEN}✓ Story complete. Restarting with fresh context...${NC}"
+                echo ""
+                ((iteration++))
+                sleep 2  # Brief pause for filesystem to settle
+                continue
+            fi
+            
+            # No recognized signal
+            echo ""
+            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+            echo -e "${YELLOW}⚠️  No exit signal detected. Stopping loop.${NC}"
+            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+            echo ""
+            echo "Expected one of: STORY_DONE, ALL_COMPLETE, BLOCKED"
+            echo "Check the output above for errors."
+            break
+            
+        done
+    fi
+}
 
-    # Start Claude with context as initial prompt
-    exec claude "$context"
+cmd_status() {
+    local format="pretty"
+    
+    # Check for --json flag
+    if [[ "${1:-}" == "--json" ]]; then
+        format="json"
+    fi
+    
+    if [[ "$format" == "pretty" ]]; then
+        echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
+    fi
+    
+    display_work_queue "$format"
 }
 
 cmd_help() {
     cat << EOF
-FADE v$FADE_VERSION - Framework for Agentic Development and Engineering
+${CYAN}FADE v$FADE_VERSION${NC} - Framework for Agentic Development and Engineering
 
-Usage: fade <command>
+${YELLOW}Usage:${NC} fade <command> [options]
 
-Commands:
-  init      Create FADE.md, progress.md, learned.md, prompt.md, prds/
-  run       Start Claude Code with FADE context injected
-  help      Show this help message
+${YELLOW}Commands:${NC}
+  init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
+  run           Show work queue, choose STOP/ALL mode, start Claude Code
+  status        Show current work queue
+  help          Show this help message
+
+${YELLOW}Status Options:${NC}
+  --json        Output status as JSON (for scripting)
+
+${YELLOW}Execution Modes:${NC}
+  STOP          Complete one story, then pause for human review
+  ALL           Process all stories with fresh context between each
+                (Note: ALL mode may have issues with Claude's interactive terminal)
+
+${YELLOW}PRD Locations:${NC}
+  prd.json      Priority injection (processed first if has incomplete work)
+  prds/         Standard queue (processed by filename order)
+
+${YELLOW}PRD Naming Convention:${NC}
+  {TYPE}-{NUMBER}-{slug}.json
+  
+  Types: FEAT, BUG, CHORE, ENH, SPIKE
+
+${YELLOW}Git Commit Prefixes:${NC}
+  feat:         New feature
+  fix:          Bug fix
+  docs:         Documentation
+  chore:        Maintenance, dependencies
+  refactor:     Code restructure
+  spike:        Exploratory work
+
+${YELLOW}Examples:${NC}
+  fade init                 # Set up FADE in current directory
+  fade run                  # See queue, pick mode, start working
+  fade status               # Check work queue
+  fade status --json        # Machine-readable status
 
 EOF
 }
 
-# Main
+# ============================================================================
+# MAIN
+# ============================================================================
+
 case "${1:-}" in
     init)
         cmd_init
         ;;
     run)
         cmd_run
+        ;;
+    status)
+        shift
+        cmd_status "$@"
         ;;
     help|--help|-h)
         cmd_help
@@ -631,7 +919,7 @@ case "${1:-}" in
         cmd_help
         ;;
     *)
-        echo "Unknown command: $1"
+        echo -e "${RED}Unknown command: $1${NC}"
         echo "Run 'fade help' for usage."
         exit 1
         ;;
