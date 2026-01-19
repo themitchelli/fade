@@ -62,7 +62,7 @@
         "Final message shows completion or blocked status"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

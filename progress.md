@@ -67,3 +67,17 @@ For blocked stories, use:
 - Verified session ends after STOP mode (exec replaces shell, no loop)
 - Files changed: none (validation only)
 - Tests: Code review and live session verification
+
+---
+
+## 2026-01-19 16:32 - US-004: Validate ALL mode loop orchestration - COMPLETE
+
+- Verified ALL/A accepted by ask_execution_mode (line 680)
+- Verified iteration number displayed (line 783)
+- Verified Claude runs with context (line 793)
+- Verified STORY_DONE triggers loop continuation with fresh context (lines 816-822)
+- Verified build_context reads current progress.md each iteration (lines 497-500, 787)
+- Verified loop breaks on ALL_COMPLETE or BLOCKED (lines 800-814)
+- Verified final messages: "🎉 ALL WORK COMPLETE!" or "⛔ BLOCKED" (lines 803, 811)
+- Files changed: none (validation only)
+- Tests: Code review verification of all loop logic
