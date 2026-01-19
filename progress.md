@@ -54,3 +54,16 @@ For blocked stories, use:
 - Verified empty queue shows helpful message: "✓ No incomplete work found!" with guidance
 - Files changed: none (validation only)
 - Tests: Manual verification of all status output variants
+
+---
+
+## 2026-01-19 16:28 - US-003: Validate STOP mode execution - COMPLETE
+
+- Verified fade run calls display_work_queue (line 762)
+- Verified ask_execution_mode prompts for STOP or ALL (line 767)
+- Verified STOP mode builds context and runs `exec claude "$context"` (lines 773-776)
+- Verified Claude processes stories (this session is proof)
+- Verified STORY_DONE signals are output after each story
+- Verified session ends after STOP mode (exec replaces shell, no loop)
+- Files changed: none (validation only)
+- Tests: Code review and live session verification

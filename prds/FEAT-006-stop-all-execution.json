@@ -46,7 +46,7 @@
         "Session ends - human must run fade run again"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
