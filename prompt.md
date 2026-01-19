@@ -7,7 +7,30 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 1. Read `FADE.md` for project context, standards, and boundaries
 2. Read `progress.md` to see what's been completed
 3. Read `learned.md` for discoveries from previous sessions
-4. Read `prd.json` and pick the highest priority story where `passes: false`
+4. Find the active PRD:
+   - Check `prds/` folder for `*.json` files
+   - If found, pick from those PRDs (see PRD Selection below)
+   - If `prds/` is empty or missing, fall back to `prd.json` in root
+5. Pick the highest priority story where `passes: false`
+
+## PRD File Convention
+
+PRD files in `prds/` follow this naming convention:
+
+```
+{TYPE}-{NUMBER}-{slug}.json
+```
+
+Where:
+- **TYPE**: Category prefix (FEAT, BUG, ENH, TECH, etc.)
+- **NUMBER**: Three-digit sequence number (001, 002, etc.)
+- **slug**: Kebab-case short description
+
+**Examples:**
+- `FEAT-001-authentication.json` - New authentication feature
+- `BUG-002-login-timeout.json` - Bug fix for login timeout
+- `ENH-003-performance-cache.json` - Performance enhancement
+- `TECH-004-database-migration.json` - Technical debt / infrastructure
 
 ## Execution Rules
 
@@ -84,7 +107,8 @@ The human will resolve and restart the session.
 ./FADE.md       # Project context (read-only)
 ./progress.md   # Session history (append)
 ./learned.md    # Cumulative memory (append)
-./prd.json      # Work items (update passes field)
+./prds/         # PRD files (preferred location)
+./prd.json      # Work items - legacy fallback (update passes field)
 ```
 
 ---

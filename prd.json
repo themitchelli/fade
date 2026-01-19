@@ -1,123 +1,62 @@
 {
-  "type": "feature",
+  "type": "enhancement",
   "project": "FADE",
-  "branchName": "fade/session-memory-context",
-  "featureName": "Session Memory & Context Management",
-  "description": "FADE - Session Memory & Context Management for persistent Claude Code sessions",
-  "problemStatement": "Developers using AI coding agents like Claude Code face a recurring problem: each session starts with zero context. There's no memory of what was learned, no awareness of project standards, no tracking of what's been completed, and no structured way to hand off between sessions. This means developers waste time re-explaining architecture every session, agents make the same mistakes repeatedly, multi-story features lose coherence, and there's no cumulative regression awareness. The result is fragmented, inefficient agentic development requiring constant human supervision to maintain continuity.",
-  "successMetrics": [
-    "Session setup time drops from 2-5 minutes to under 30 seconds (context paste time = 0)",
-    "Zero repeat mistakes - errors corrected in previous sessions don't recur because learnings are automatically loaded",
-    "Session count per PRD approaches 1:1 story-to-session ratio (down from 8-10 sessions for a 5-story PRD)",
-    "Learnings persist across sessions without manual intervention"
-  ],
-  "inScope": [
-    "FADE.md structure and conventions (project standards, architecture refs, boundaries)",
-    "progress.md format and automatic updates when stories complete",
-    "learned.md format and automatic append on session exit",
-    "Session bootstrap - Claude loads context automatically via fade run",
-    "Session exit discipline - Claude writes progress + learnings before signaling done",
-    "fade init CLI command to scaffold structure",
-    "fade run CLI command to inject context and execute",
-    "File-based, Git-friendly storage (markdown/JSON in repo)",
-    "Ralph's prd.json format compatibility",
-    "macOS support as primary platform"
-  ],
-  "outOfScope": [
-    "PRD Generator integration (Phase 2)",
-    "Multi-repo orchestration (Phase 2 or 3)",
-    "Regression test automation (Phase 3)",
-    "Web UI (future, maybe never)",
-    "Multi-user support, auth, permissions",
-    "External databases or cloud sync",
-    "CI/CD integration (future phase)",
-    "Linux/Windows compatibility in MVP (nice-to-have later)",
-    "Heavy runtime dependencies (must stay bash + jq + Claude CLI)"
-  ],
+  "id": "ENH-005",
+  "name": "Multi-PRD support with prds/ folder and upgrade command",
+  "description": "Allow multiple named PRD files in a prds/ folder instead of single prd.json, plus add fade upgrade command to update project template files",
   "userStories": [
     {
       "id": "US-001",
-      "title": "fade init scaffolds structure",
-      "description": "As a developer starting a new project, I want fade init to create FADE.md, progress.md, learned.md templates so that I can start with working structure in 30 seconds.",
+      "title": "PRD discovery in prds/ folder",
+      "description": "FADE should look for PRD files in prds/ folder with naming convention",
       "acceptanceCriteria": [
-        "Running fade init in project root creates FADE.md, progress.md, learned.md if they don't exist",
-        "Files contain clear template sections with placeholder text/examples",
-        "Command completes in under 5 seconds",
-        "Running fade init when files exist doesn't overwrite (safe to re-run)",
-        "Success message indicates which files were created",
-        "Script runs without errors on macOS (shellcheck passes)"
+        "prompt.md updated: check prds/ folder for *.json files",
+        "Naming convention documented: {TYPE}-{NUMBER}-{slug}.json",
+        "Examples: FEAT-001-authentication.json, BUG-002-login-timeout.json",
+        "Falls back to prd.json in root for backwards compatibility"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": ""
+      "passes": true
     },
     {
       "id": "US-002",
-      "title": "FADE.md template and conventions",
-      "description": "As a developer, I want a documented FADE.md format so that I know what to put in each section and Claude knows how to interpret it.",
+      "title": "PRD selection logic",
+      "description": "Define how FADE picks which PRD to work on",
       "acceptanceCriteria": [
-        "FADE.md template includes sections: Project Overview, Coding Standards, Architecture References, Off-Limits Modules, Session Boundaries",
-        "Each section has inline documentation explaining what belongs there",
-        "Template references where to link standards docs (e.g., TypeScript guide, API patterns)",
-        "Format is markdown with clear heading hierarchy",
-        "Examples provided for at least 2 sections (e.g., sample off-limits warning, sample architecture reference)"
+        "Pick lowest-numbered PRD where not all stories pass",
+        "Or if FADE.md has Transition Plan, follow that order",
+        "Skip PRDs where all stories have passes: true",
+        "Document selection logic in prompt.md"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": ""
+      "passes": false
     },
     {
       "id": "US-003",
-      "title": "fade run loads context files",
-      "description": "As a developer, I want fade run to automatically inject FADE.md + progress.md + learned.md into Claude Code's context so that I never manually paste context again.",
+      "title": "fade init creates prds/ folder",
+      "description": "Scaffold includes empty prds/ directory",
       "acceptanceCriteria": [
-        "Running fade run concatenates FADE.md, progress.md, learned.md into Claude Code session prompt",
-        "Context injection happens before Claude starts processing (Claude sees all files from first message)",
-        "Missing files are handled gracefully (warning but doesn't fail - allows partial setup)",
-        "Claude Code session starts within 10 seconds of fade run execution",
-        "Bash script uses Claude CLI documented methods for context injection",
-        "Script runs without errors on macOS (shellcheck passes)"
+        "fade init creates prds/ folder",
+        "Includes .gitkeep or README explaining convention",
+        "Does not create prd.json in root (breaking change - optional)"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": ""
+      "passes": false
     },
     {
       "id": "US-004",
-      "title": "Claude updates progress.md and learned.md on exit",
-      "description": "As a developer, I want Claude to mark the story complete in progress.md AND append any discoveries to learned.md before signaling done, so that session state is captured automatically.",
+      "title": "fade upgrade command",
+      "description": "Update project's FADE template files to latest version",
       "acceptanceCriteria": [
-        "When Claude completes a user story, it appends completion entry to progress.md with timestamp and story ID",
-        "Any new learnings discovered during session are appended to learned.md with context (what was learned, why it matters)",
-        "Updates happen before Claude signals 'done' or exits session",
-        "Format for progress.md entries is consistent: YYYY-MM-DD HH:MM - US-XXX: Story title - COMPLETE",
-        "Format for learned.md entries includes date, discovery, and relevance",
-        "Claude does not overwrite existing entries, only appends"
+        "fade upgrade compares prompt.md to latest template",
+        "Shows diff if different",
+        "Asks for confirmation before overwriting",
+        "Never touches FADE.md (human-curated)",
+        "Updates: prompt.md, optionally learned.md template, .gitignore additions"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": ""
+      "passes": false
     }
   ],
-  "technicalNotes": "Must work with Claude Code CLI as execution engine. Stack limited to bash + jq + Claude CLI (no heavy dependencies). All state stored as markdown/JSON in repo (Git-friendly). Reuses Ralph's prd.json format and bash loop pattern. Reference Claude Code CLI docs for context injection and exit detection: https://docs.anthropic.com/en/docs/claude-code",
-  "openQuestions": [
-    "Does Claude Code CLI support pre-session context injection via file concatenation, or do we need to simulate initial prompt?",
-    "What's the signal for 'session complete' - does Claude explicitly exit, or do we detect inactivity?",
-    "Should learned.md entries be timestamped or session-tagged for future retrieval?"
-  ],
-  "contextDocs": [
-    "https://github.com/snarktank/ralph",
-    "https://github.com/themitchelli/ralph-prd-generator",
-    "https://docs.anthropic.com/en/docs/claude-code"
-  ],
-  "parkedFeatures": [
-    {
-      "name": "PRD-Driven Workflow Integration",
-      "description": "PRD Generator scaffolds directly into FADE structure, integrating idea-to-execution pipeline"
-    },
-    {
-      "name": "Regression Detection System",
-      "description": "Auto-running acceptance criteria using learned.md dependency tracking to catch breaks proactively"
-    }
-  ]
+  "priority": 1
 }
