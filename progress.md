@@ -93,3 +93,16 @@ For blocked stories, use:
 - Verified `grep -q` matches signals anywhere in output (tested with surrounding text)
 - Files changed: none (validation only)
 - Tests: Code review and grep pattern testing
+
+---
+
+## 2026-01-19 16:40 - US-006: Update project documentation - COMPLETE
+
+- Created fade-project-description-updated.md with v0.2.0 features
+- Created fade-project-starter-updated.md with v0.2.0 quickstart guide
+- Documented STOP/ALL execution modes with detailed explanations
+- Documented chore: prefix with explicit note "(not toil:)"
+- Documented fade status command including --json option
+- Explained bash loop orchestration with signal protocol table
+- Files changed: fade-project-description-updated.md (new), fade-project-starter-updated.md (new)
+- Tests: N/A (documentation)
