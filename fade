@@ -246,7 +246,7 @@ EOF
 read -r -d '' PROMPT_TEMPLATE << 'EOF' || true
 # FADE Execution Prompt
 
-You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from `prd.json` while maintaining session continuity through structured files.
+You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from PRD files while maintaining session continuity through structured files.
 
 ## Session Start
 
@@ -256,7 +256,41 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
    - Check **Active Work Items** to see what else is in flight (avoid conflicts)
 2. Read `progress.md` to see what's been completed
 3. Read `learned.md` for discoveries from previous sessions
-4. Read `prd.json` and pick the highest priority story where `passes: false`
+4. Find and select the active PRD (see **PRD Discovery** below)
+5. Pick the highest priority story in that PRD where `passes: false`
+
+## PRD Discovery
+
+FADE supports multiple PRD files in a `prds/` folder.
+
+### File Locations (checked in order)
+
+1. **`prds/*.json`** - Multiple PRDs with naming convention
+2. **`prd.json`** - Single PRD in root (backwards compatibility)
+
+### Naming Convention
+
+PRD files in `prds/` follow: `{TYPE}-{NUMBER}-{slug}.json`
+
+| Type | Description | Example |
+|------|-------------|---------|
+| FEAT | Feature | `FEAT-001-user-authentication.json` |
+| BUG | Bug fix | `BUG-002-login-timeout.json` |
+| TOIL | Operational work | `TOIL-003-upgrade-dependencies.json` |
+| ENH | Enhancement | `ENH-004-improve-performance.json` |
+| SPIKE | Exploration | `SPIKE-005-evaluate-caching.json` |
+
+### Selection Logic
+
+To pick which PRD to work on:
+
+1. **Check Transition Plan first** - If `FADE.md` has a Transition Plan with phases, follow that order. Work on PRDs marked `← CURRENT`.
+
+2. **Otherwise, use number order** - Pick the lowest-numbered PRD that has incomplete stories (any story where `passes: false`).
+
+3. **Skip completed PRDs** - If all stories in a PRD have `passes: true`, skip it.
+
+4. **Fallback** - If no `prds/` folder exists, use `prd.json` in root.
 
 ## Execution Rules
 
@@ -268,15 +302,15 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 
 ## Spike Execution
 
-Spikes are exploratory work that should NOT merge to main. Check if prd.json has `"type": "spike"`.
+Spikes are exploratory work that should NOT merge to main. Check if the PRD has `"type": "spike"`.
 
 **If this is a spike:**
 
-1. **Branch first** – Check for `branchName` field in prd.json. Run `git checkout -b {branchName}` before starting any work.
+1. **Branch first** – Check for `branchName` field in the PRD. Run `git checkout -b {branchName}` before starting any work.
 
 2. **Work on branch** – All commits stay on the spike branch. Do NOT merge to main.
 
-3. **Create the artifact** – Check for `outputArtifact` field in prd.json. This defines what deliverable the spike should produce (e.g., a design doc, prototype, analysis report).
+3. **Create the artifact** – Check for `outputArtifact` field in the PRD. This defines what deliverable the spike should produce (e.g., a design doc, prototype, analysis report).
 
 4. **Signal completion** – When done, output: `<promise>SPIKE_COMPLETE</promise>`
 
@@ -358,9 +392,9 @@ Only add learnings that are:
 - Non-obvious (things a future session wouldn't know)
 - Actionable (helps avoid mistakes or speeds up work)
 
-### 3. Update prd.json
+### 3. Update the PRD file
 
-Set `passes: true` for the completed story.
+Set `passes: true` for the completed story in the active PRD.
 
 ### 4. Signal completion
 
@@ -391,12 +425,13 @@ The human will resolve and restart the session.
 ./FADE.md       # Project context (read-only)
 ./progress.md   # Session history (append)
 ./learned.md    # Cumulative memory (append)
-./prd.json      # Work items (update passes field)
+./prds/         # PRD files folder (preferred)
+./prd.json      # Single PRD fallback (legacy)
 ```
 
 ---
 
-Now: Read the context files, pick the next story, and begin.
+Now: Read the context files, find the active PRD, pick the next story, and begin.
 EOF
 
 # Functions
@@ -424,6 +459,46 @@ cmd_init() {
     create_file_if_missing "progress.md" "$PROGRESS_TEMPLATE" && ((created++)) || true
     create_file_if_missing "learned.md" "$LEARNED_TEMPLATE" && ((created++)) || true
     create_file_if_missing "prompt.md" "$PROMPT_TEMPLATE" && ((created++)) || true
+
+    # Create prds/ folder
+    if [[ ! -d "prds" ]]; then
+        mkdir -p "prds"
+        cat > "prds/README.md" << 'PRDS_EOF'
+# PRDs Folder
+
+Place your PRD files here using the naming convention:
+
+```
+{TYPE}-{NUMBER}-{slug}.json
+```
+
+## Examples
+
+- `FEAT-001-user-authentication.json`
+- `BUG-002-login-timeout.json`
+- `TOIL-003-upgrade-dependencies.json`
+- `ENH-004-improve-performance.json`
+- `SPIKE-005-evaluate-caching.json`
+
+## Types
+
+| Type | Description |
+|------|-------------|
+| FEAT | New feature |
+| BUG | Bug fix |
+| TOIL | Operational/maintenance work |
+| ENH | Enhancement to existing feature |
+| SPIKE | Exploratory work |
+
+## Selection Order
+
+FADE picks the lowest-numbered PRD with incomplete stories, or follows the Transition Plan in FADE.md if defined.
+PRDS_EOF
+        echo "  create: prds/"
+        ((created++))
+    else
+        echo "  skip: prds/ (already exists)"
+    fi
 
     echo ""
     if [[ $created -eq 0 ]]; then
@@ -534,7 +609,7 @@ FADE v$FADE_VERSION - Framework for Agentic Development and Engineering
 Usage: fade <command>
 
 Commands:
-  init      Create FADE.md, progress.md, learned.md, prompt.md
+  init      Create FADE.md, progress.md, learned.md, prompt.md, prds/
   run       Start Claude Code with FADE context injected
   help      Show this help message
 
