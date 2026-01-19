@@ -1,0 +1,97 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-006",
+  "name": "FADE v0.2.0 - STOP/ALL Execution Modes",
+  "description": "Implement and validate the new STOP/ALL execution mode system with bash loop orchestration for continuous story processing",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Replace existing fade script with v0.2.0",
+      "description": "As a developer, I want to install the new fade v0.2.0 script so that I can use the new STOP/ALL execution modes",
+      "acceptanceCriteria": [
+        "Old fade script is backed up",
+        "New fade script is installed and executable",
+        "fade help shows v0.2.0 and documents STOP/ALL modes",
+        "fade init creates all expected files including prompt.md with new signal protocol"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Validate fade status command",
+      "description": "As a developer, I want to check my work queue without starting Claude so that I can see what's pending",
+      "acceptanceCriteria": [
+        "fade status shows formatted work queue with colours",
+        "fade status --json outputs valid JSON",
+        "Priority PRD (prd.json) shown separately from queue (prds/)",
+        "Shows done/remaining counts per PRD",
+        "Empty queue shows helpful message"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Validate STOP mode execution",
+      "description": "As a developer, I want STOP mode to complete one story and halt so that I can review before continuing",
+      "acceptanceCriteria": [
+        "fade run displays work queue",
+        "Prompt asks for STOP or ALL",
+        "Entering STOP or S starts Claude with context",
+        "Claude processes one story",
+        "Claude outputs STORY_DONE signal",
+        "Session ends - human must run fade run again"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Validate ALL mode loop orchestration",
+      "description": "As a developer, I want ALL mode to process multiple stories automatically with fresh context between each",
+      "acceptanceCriteria": [
+        "Entering ALL or A starts the loop",
+        "Loop displays iteration number",
+        "Claude processes story and outputs STORY_DONE",
+        "Loop catches signal and restarts Claude with fresh context",
+        "Fresh context includes updated progress.md from previous iteration",
+        "Loop continues until ALL_COMPLETE or BLOCKED",
+        "Final message shows completion or blocked status"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Validate signal detection robustness",
+      "description": "As a developer, I want the loop to reliably detect exit signals so that it behaves predictably",
+      "acceptanceCriteria": [
+        "STORY_DONE: US-XXX triggers loop continuation",
+        "ALL_COMPLETE triggers clean exit with success message",
+        "BLOCKED: [reason] triggers exit with intervention message",
+        "No signal triggers exit with warning message",
+        "Signals detected even with surrounding text"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Update project documentation",
+      "description": "As a developer, I want the project docs updated so that they reflect v0.2.0 features",
+      "acceptanceCriteria": [
+        "fade-project-description-updated.md reflects v0.2.0",
+        "fade-project-starter-updated.md reflects v0.2.0",
+        "STOP/ALL modes documented",
+        "chore: prefix documented (not toil:)",
+        "fade status command documented",
+        "Bash loop orchestration explained"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ]
+}

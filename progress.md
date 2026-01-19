@@ -30,3 +30,15 @@ For blocked stories, use:
 - Updated File Locations section to show prds/ as preferred location with prd.json as legacy fallback
 - Files changed: prompt.md
 - Tests: N/A (documentation change)
+
+---
+
+## 2026-01-19 16:16 - US-001: Replace existing fade script with v0.2.0 - COMPLETE
+
+- Verified fade script v0.2.1 is installed with STOP/ALL execution modes
+- Created backup of fade script as fade.backup
+- Verified fade help shows v0.2.1 and documents STOP/ALL modes
+- Verified fade init creates all expected files (FADE.md, progress.md, learned.md, prompt.md, prds/)
+- Verified prompt.md contains new signal protocol (STORY_DONE, ALL_COMPLETE, BLOCKED)
+- Files changed: fade.backup (new)
+- Tests: Manual verification of fade help and fade init in temp directory
