@@ -42,3 +42,15 @@ For blocked stories, use:
 - Verified prompt.md contains new signal protocol (STORY_DONE, ALL_COMPLETE, BLOCKED)
 - Files changed: fade.backup (new)
 - Tests: Manual verification of fade help and fade init in temp directory
+
+---
+
+## 2026-01-19 16:22 - US-002: Validate fade status command - COMPLETE
+
+- Verified fade status shows formatted work queue with ANSI colour codes
+- Verified fade status --json outputs valid JSON (validated with python3 json.tool)
+- Verified priority PRD (prd.json) displays with "⚡ PRIORITY" label separately from queue "📋 QUEUE"
+- Verified done/remaining counts display per PRD (e.g., "1 done / 5 remaining")
+- Verified empty queue shows helpful message: "✓ No incomplete work found!" with guidance
+- Files changed: none (validation only)
+- Tests: Manual verification of all status output variants

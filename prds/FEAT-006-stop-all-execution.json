@@ -31,7 +31,7 @@
         "Empty queue shows helpful message"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
