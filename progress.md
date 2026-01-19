@@ -81,3 +81,15 @@ For blocked stories, use:
 - Verified final messages: "🎉 ALL WORK COMPLETE!" or "⛔ BLOCKED" (lines 803, 811)
 - Files changed: none (validation only)
 - Tests: Code review verification of all loop logic
+
+---
+
+## 2026-01-19 16:36 - US-005: Validate signal detection robustness - COMPLETE
+
+- Verified STORY_DONE triggers loop continuation via `continue` (lines 816-822)
+- Verified ALL_COMPLETE shows "🎉 ALL WORK COMPLETE!" and breaks (lines 800-806)
+- Verified BLOCKED shows "⛔ BLOCKED - Human intervention required" and breaks (lines 808-814)
+- Verified no signal shows "⚠️ No exit signal detected" warning and breaks (lines 825-833)
+- Verified `grep -q` matches signals anywhere in output (tested with surrounding text)
+- Files changed: none (validation only)
+- Tests: Code review and grep pattern testing
