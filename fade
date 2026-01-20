@@ -1379,6 +1379,7 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
+  update        Update FADE CLI to the latest version from GitHub
   help          Show this help message
 
 ${YELLOW}Run Options:${NC}
@@ -1423,6 +1424,162 @@ EOF
 }
 
 # ============================================================================
+# UPDATE COMMAND
+# ============================================================================
+
+FADE_UPDATE_URL="https://raw.githubusercontent.com/themitchelli/fade/main/fade"
+FADE_VERSION_URL="https://raw.githubusercontent.com/themitchelli/fade/main/VERSION"
+
+# Fetch content from URL using curl or wget
+fetch_url() {
+    local url="$1"
+
+    if command -v curl &>/dev/null; then
+        curl -fsSL "$url" 2>/dev/null
+    elif command -v wget &>/dev/null; then
+        wget -qO- "$url" 2>/dev/null
+    else
+        return 1
+    fi
+}
+
+# Check if URL is reachable
+check_url() {
+    local url="$1"
+
+    if command -v curl &>/dev/null; then
+        curl -fsSL --head "$url" &>/dev/null
+        return $?
+    elif command -v wget &>/dev/null; then
+        wget -q --spider "$url" &>/dev/null
+        return $?
+    else
+        return 1
+    fi
+}
+
+# Get the path of the currently running fade script
+get_fade_path() {
+    # Try to resolve the actual path of this script
+    local script_path="${BASH_SOURCE[0]}"
+
+    # Follow symlinks to get the real path
+    while [[ -L "$script_path" ]]; do
+        local dir=$(dirname "$script_path")
+        script_path=$(readlink "$script_path")
+        [[ "$script_path" != /* ]] && script_path="$dir/$script_path"
+    done
+
+    # Get absolute path
+    cd "$(dirname "$script_path")" && pwd -P
+    echo "/$(basename "$script_path")"
+}
+
+cmd_update() {
+    echo -e "${CYAN}FADE Update${NC}"
+    echo ""
+
+    # Check for curl or wget
+    if ! command -v curl &>/dev/null && ! command -v wget &>/dev/null; then
+        echo -e "${RED}Error: Neither curl nor wget found. Please install one of them.${NC}"
+        exit 1
+    fi
+
+    # Get current version
+    local current_version="$FADE_VERSION"
+    echo -e "Current version: ${BOLD}v$current_version${NC}"
+
+    # Fetch latest version
+    echo -e "Checking for updates..."
+    echo ""
+
+    local latest_version
+    latest_version=$(fetch_url "$FADE_VERSION_URL")
+
+    if [[ $? -ne 0 ]] || [[ -z "$latest_version" ]]; then
+        echo -e "${RED}Error: Could not fetch version information from GitHub.${NC}"
+        echo "Please check your internet connection and try again."
+        echo ""
+        echo "URL: $FADE_VERSION_URL"
+        exit 1
+    fi
+
+    # Clean up version string (remove leading 'v' if present, trim whitespace)
+    latest_version=$(echo "$latest_version" | tr -d '[:space:]' | sed 's/^v//')
+
+    echo -e "Latest version:  ${BOLD}v$latest_version${NC}"
+    echo ""
+
+    # Compare versions
+    if [[ "$current_version" == "$latest_version" ]]; then
+        echo -e "${GREEN}✓ You already have the latest version!${NC}"
+        exit 0
+    fi
+
+    echo -e "${YELLOW}A new version is available.${NC}"
+    echo ""
+
+    # Get the path of the fade script to update
+    local fade_script="${BASH_SOURCE[0]}"
+
+    # Resolve to absolute path
+    if [[ "$fade_script" != /* ]]; then
+        fade_script="$(cd "$(dirname "$fade_script")" && pwd)/$(basename "$fade_script")"
+    fi
+
+    # Check if we have write permission
+    if [[ ! -w "$fade_script" ]]; then
+        echo -e "${RED}Error: Cannot write to $fade_script${NC}"
+        echo "You may need to run with sudo or check file permissions."
+        exit 1
+    fi
+
+    echo "Downloading update..."
+
+    # Fetch the new script
+    local new_script
+    new_script=$(fetch_url "$FADE_UPDATE_URL")
+
+    if [[ $? -ne 0 ]] || [[ -z "$new_script" ]]; then
+        echo -e "${RED}Error: Could not download the update from GitHub.${NC}"
+        echo "Please check your internet connection and try again."
+        echo ""
+        echo "URL: $FADE_UPDATE_URL"
+        exit 1
+    fi
+
+    # Verify the downloaded content looks like a valid fade script
+    if ! echo "$new_script" | grep -q "^#!/bin/bash"; then
+        echo -e "${RED}Error: Downloaded file does not appear to be a valid script.${NC}"
+        exit 1
+    fi
+
+    if ! echo "$new_script" | grep -q "FADE_VERSION="; then
+        echo -e "${RED}Error: Downloaded file does not appear to be a valid FADE script.${NC}"
+        exit 1
+    fi
+
+    # Create backup
+    local backup_path="${fade_script}.bak"
+    cp "$fade_script" "$backup_path"
+
+    # Write new script
+    echo "$new_script" > "$fade_script"
+    chmod +x "$fade_script"
+
+    echo ""
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}✓ FADE updated successfully!${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "  Before: ${BOLD}v$current_version${NC}"
+    echo -e "  After:  ${BOLD}v$latest_version${NC}"
+    echo ""
+    echo -e "Backup saved to: $backup_path"
+    echo ""
+}
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -1441,6 +1598,9 @@ case "${1:-}" in
     status)
         shift
         cmd_status "$@"
+        ;;
+    update)
+        cmd_update
         ;;
     help|--help|-h)
         cmd_help

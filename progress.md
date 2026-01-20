@@ -152,3 +152,18 @@ For blocked stories, use:
 - Documentation placed in Step 5 before Step 6 (STOP), consistent with archive running after ALL_COMPLETE signal
 - Files changed: prompt.md
 - Tests: Manual verification that documentation matches fade script archive behavior
+
+## 2026-01-20 09:30 - US-001: Update FADE CLI to latest version (FEAT-006) - COMPLETE
+
+- Added `fade update` command to fetch and install latest CLI from GitHub
+- Implemented fetch_url() function supporting both curl and wget for cross-platform compatibility
+- Shows current version before checking for updates
+- Fetches latest version from VERSION file on GitHub (themitchelli/fade/main/VERSION)
+- Compares versions and shows "already up to date" if current
+- Downloads new script from GitHub and validates it contains expected markers (#!/bin/bash, FADE_VERSION=)
+- Creates backup of existing script before overwriting
+- Shows before/after version comparison on successful update
+- Graceful error handling for network failures, missing curl/wget, and write permission issues
+- Added update command to main case statement and help text
+- Files changed: fade
+- Tests: bash -n syntax check passed, help text verified

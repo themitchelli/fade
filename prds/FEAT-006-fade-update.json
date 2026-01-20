@@ -1,0 +1,76 @@
+{
+  "type": "feature",
+  "project": "FADE Framework",
+  "id": "FEAT-006",
+  "name": "Self-Update Mechanism",
+  "description": "Enable projects using FADE to update their local installation and templates to the latest version from the FADE repository. Solves the bootstrap problem where the framework that maintains context can't update itself.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Update FADE CLI to latest version",
+      "description": "As a developer using FADE in my project, I want to run `fade update` so that I get the latest CLI commands and features without manually copying files from the FADE repo.",
+      "acceptanceCriteria": [
+        "`fade update` command exists and is documented in `fade help`",
+        "Command fetches latest fade script from GitHub (themitchelli/fade)",
+        "Updates the fade executable in place (or wherever it's installed)",
+        "Shows version before and after update",
+        "Handles network errors gracefully with clear error message",
+        "Works on macOS (iMac) and Linux (Raspberry Pi)"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Update prompt.md to latest template",
+      "description": "As a developer using FADE, I want `fade update` to also refresh my project's prompt.md so that I get the latest execution protocol, git conventions, and spike handling without losing my project-specific customizations.",
+      "acceptanceCriteria": [
+        "`fade update` checks if prompt.md differs from latest template",
+        "If different, shows diff summary and asks for confirmation before updating",
+        "Backs up existing prompt.md to prompt.md.bak before overwriting",
+        "prompt.md is replaced with latest template from FADE repo",
+        "User can skip prompt.md update with `fade update --cli-only` flag"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Check for updates without applying",
+      "description": "As a developer, I want to check if updates are available without actually applying them, so I can decide when to update.",
+      "acceptanceCriteria": [
+        "`fade update --check` shows current version vs latest available",
+        "Lists what would be updated (CLI, prompt.md, etc.)",
+        "Does not modify any files",
+        "Exit code 0 if up-to-date, exit code 1 if updates available (useful for scripting)"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Version tracking",
+      "description": "As a developer, I want to know what version of FADE I'm running so I can tell if I need to update.",
+      "acceptanceCriteria": [
+        "`fade --version` or `fade version` shows current installed version",
+        "Version follows semver (e.g., v0.2.1)",
+        "Version is stored in the fade script itself or a companion file",
+        "FADE repo has a VERSION file or similar as source of truth"
+      ],
+      "priority": 4,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "updateSource": "https://raw.githubusercontent.com/themitchelli/fade/main/fade",
+    "versionSource": "https://raw.githubusercontent.com/themitchelli/fade/main/VERSION",
+    "implementation": "curl/wget to fetch files, simple bash comparison for versions",
+    "considerations": [
+      "Must work without npm/pip - pure bash solution",
+      "Handle case where fade is installed globally vs locally",
+      "Consider checksum verification for security (future enhancement)",
+      "prompt.md template location in repo needs to be stable"
+    ]
+  }
+}
