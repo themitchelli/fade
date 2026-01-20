@@ -105,7 +105,25 @@ Append:
 ```
 
 ### Step 2: Update learned.md (if applicable)
-Only add genuinely reusable, non-obvious discoveries.
+Add discoveries that would help future sessions. Skip if nothing new was learned.
+
+Format:
+```
+## YYYY-MM-DD - Discovery Title
+**Source:** PRD-ID US-XXX
+
+- **What:** Brief description of the discovery
+- **Why it matters:** How this helps future work
+```
+
+Examples of good learnings:
+- "macOS sed behaves differently than GNU sed - use portable alternatives"
+- "The auth module validates tokens in middleware, not in handlers"
+- "Tests require DATABASE_URL even for unit tests"
+
+Do NOT add:
+- Story-specific implementation details (that goes in progress.md)
+- Obvious patterns already documented in FADE.md
 
 ### Step 3: Update PRD
 Set `passes: true` for the completed story IMMEDIATELY. Do not wait until the end of the session.
