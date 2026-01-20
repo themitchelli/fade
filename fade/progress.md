@@ -549,3 +549,23 @@ For blocked stories, use:
   - Version info captured in session context for Claude Code
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual function tests verified both modes
+
+## 2026-01-20 - US-008: fade update checks gist for latest versions (ENH-006) - COMPLETE
+
+- Added configurable timeout support to fetch_url() function (default 10s, curl uses --connect-timeout and --max-time)
+- Added get_manifest_version() function to fetch and parse version-manifest.json
+- Function extracts release version (no args) or specific artifact version (e.g., "fade-cli", "prompt.md")
+- Updated cmd_update() to try manifest first, fall back to VERSION file if unavailable
+- Shows "Note: Manifest unavailable, using VERSION file" on fallback
+- Check-only mode now gets per-artifact versions from manifest when available
+- Uses manifest versions for fade-cli, FADE.md, and prompt.md comparisons
+- All fetch_url calls now include timeout parameter: manifest (5s), prompt.md (10s), CLI (15s)
+- Error messages updated to show both attempted URLs on failure
+- All acceptance criteria verified:
+  - fade update fetches version manifest from FADE_MANIFEST_URL
+  - Compares local artifact versions against manifest artifact versions
+  - Downloads updated artifacts from raw GitHub URLs (unchanged)
+  - Falls back to FADE_VERSION_URL if manifest unavailable
+  - Timeout handling via curl --connect-timeout/--max-time and wget --timeout
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manifest parsing tested with local file

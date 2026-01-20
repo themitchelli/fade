@@ -2685,15 +2685,42 @@ FADE_PROMPT_URL="https://raw.githubusercontent.com/themitchelli/fade/main/prompt
 FADE_MANIFEST_URL="https://raw.githubusercontent.com/themitchelli/fade/main/version-manifest.json"
 
 # Fetch content from URL using curl or wget
+# Usage: fetch_url URL [timeout_seconds]
 fetch_url() {
     local url="$1"
+    local timeout="${2:-10}"  # Default 10 second timeout
 
     if command -v curl &>/dev/null; then
-        curl -fsSL "$url" 2>/dev/null
+        curl -fsSL --connect-timeout "$timeout" --max-time "$((timeout * 3))" "$url" 2>/dev/null
     elif command -v wget &>/dev/null; then
-        wget -qO- "$url" 2>/dev/null
+        wget -qO- --timeout="$timeout" "$url" 2>/dev/null
     else
         return 1
+    fi
+}
+
+# Fetch and parse version manifest JSON
+# Returns the release version or specific artifact version
+# Usage: get_manifest_version [artifact_name]
+#   No args: returns release version
+#   With arg: returns specific artifact version (e.g., "fade-cli", "prompt.md")
+get_manifest_version() {
+    local artifact="$1"
+    local manifest_json
+
+    # Try to fetch manifest with short timeout
+    manifest_json=$(fetch_url "$FADE_MANIFEST_URL" 5) || return 1
+
+    if [[ -z "$manifest_json" ]]; then
+        return 1
+    fi
+
+    if [[ -z "$artifact" ]]; then
+        # Return release version
+        echo "$manifest_json" | grep -o '"release"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"\([^"]*\)"$/\1/'
+    else
+        # Return specific artifact version
+        echo "$manifest_json" | grep -o "\"$artifact\"[[:space:]]*:[[:space:]]*\"[^\"]*\"" | sed 's/.*"\([^"]*\)"$/\1/'
     fi
 }
 
@@ -2763,18 +2790,31 @@ cmd_update() {
     local current_version="$FADE_VERSION"
     echo -e "Current version: ${BOLD}v$current_version${NC}"
 
-    # Fetch latest version
+    # Fetch latest version - try manifest first, fall back to VERSION file
     echo -e "Checking for updates..."
     echo ""
 
     local latest_version
-    latest_version=$(fetch_url "$FADE_VERSION_URL") || true
+    local manifest_available=false
+
+    # Try manifest first (preferred source)
+    latest_version=$(get_manifest_version) || true
+
+    if [[ -n "$latest_version" ]]; then
+        manifest_available=true
+    else
+        # Fall back to VERSION file
+        echo -e "${YELLOW}Note: Manifest unavailable, using VERSION file${NC}"
+        latest_version=$(fetch_url "$FADE_VERSION_URL" 10) || true
+    fi
 
     if [[ -z "$latest_version" ]]; then
-        echo -e "${RED}Error: Could not fetch version information from GitHub.${NC}"
+        echo -e "${RED}Error: Could not fetch version information.${NC}"
         echo "Please check your internet connection and try again."
         echo ""
-        echo "URL: $FADE_VERSION_URL"
+        echo "Attempted URLs:"
+        echo "  - $FADE_MANIFEST_URL"
+        echo "  - $FADE_VERSION_URL"
         exit 1
     fi
 
@@ -2792,10 +2832,19 @@ cmd_update() {
         local has_updates=false
         local updates_available=()
 
-        # Check CLI version
-        if [[ "$current_version" != "$latest_version" ]]; then
+        # Check CLI version (use manifest artifact version if available, else release version)
+        local latest_cli_version="$latest_version"
+        if [[ "$manifest_available" == true ]]; then
+            local manifest_cli_version
+            manifest_cli_version=$(get_manifest_version "fade-cli") || true
+            if [[ -n "$manifest_cli_version" ]]; then
+                latest_cli_version="$manifest_cli_version"
+            fi
+        fi
+
+        if [[ "$current_version" != "$latest_cli_version" ]]; then
             has_updates=true
-            updates_available+=("CLI: v$current_version → v$latest_version")
+            updates_available+=("CLI: v$current_version → v$latest_cli_version")
         fi
 
         # Check artifact versions (FADE.md and prompt.md)
@@ -2813,6 +2862,24 @@ cmd_update() {
             check_fade_md_path="FADE.md"
         fi
 
+        # Get expected versions from manifest (if available)
+        local expected_fade_md_version="$latest_version"
+        local expected_prompt_version="$latest_version"
+
+        if [[ "$manifest_available" == true ]]; then
+            local manifest_fade_md
+            manifest_fade_md=$(get_manifest_version "FADE.md") || true
+            if [[ -n "$manifest_fade_md" ]]; then
+                expected_fade_md_version="$manifest_fade_md"
+            fi
+
+            local manifest_prompt
+            manifest_prompt=$(get_manifest_version "prompt.md") || true
+            if [[ -n "$manifest_prompt" ]]; then
+                expected_prompt_version="$manifest_prompt"
+            fi
+        fi
+
         # Check FADE.md version
         if [[ -n "$check_fade_md_path" ]]; then
             local fade_md_version
@@ -2820,8 +2887,8 @@ cmd_update() {
             if [[ -z "$fade_md_version" ]]; then
                 updates_available+=("FADE.md: no version stamp (run fade update)")
                 has_updates=true
-            elif [[ "$fade_md_version" != "$latest_version" ]]; then
-                updates_available+=("FADE.md: v$fade_md_version → v$latest_version")
+            elif [[ "$fade_md_version" != "$expected_fade_md_version" ]]; then
+                updates_available+=("FADE.md: v$fade_md_version → v$expected_fade_md_version")
                 has_updates=true
             fi
         fi
@@ -2834,22 +2901,22 @@ cmd_update() {
             if [[ -z "$prompt_md_version" ]]; then
                 updates_available+=("$check_prompt_path: no version stamp (run fade update)")
                 has_updates=true
-            elif [[ "$prompt_md_version" != "$latest_version" ]]; then
-                updates_available+=("$check_prompt_path: v$prompt_md_version → v$latest_version")
+            elif [[ "$prompt_md_version" != "$expected_prompt_version" ]]; then
+                updates_available+=("$check_prompt_path: v$prompt_md_version → v$expected_prompt_version")
                 has_updates=true
             fi
 
-            # Also check content diff for prompt.md
+            # Also check content diff for prompt.md (with timeout)
             local latest_prompt
-            latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
+            latest_prompt=$(fetch_url "$FADE_PROMPT_URL" 10) || true
 
-            if [[ $? -eq 0 ]] && [[ -n "$latest_prompt" ]]; then
+            if [[ -n "$latest_prompt" ]]; then
                 local current_prompt
                 current_prompt=$(cat "$check_prompt_path")
 
                 if [[ "$current_prompt" != "$latest_prompt" ]]; then
                     # Only add content diff message if we haven't already flagged version mismatch
-                    if [[ "$prompt_md_version" == "$latest_version" ]]; then
+                    if [[ "$prompt_md_version" == "$expected_prompt_version" ]]; then
                         has_updates=true
                         updates_available+=("$check_prompt_path: content differs from template")
                     fi
@@ -2905,13 +2972,13 @@ cmd_update() {
 
         echo "Downloading CLI update..."
 
-        # Fetch the new script
+        # Fetch the new script (with 15 second timeout for larger file)
         local new_script
-        new_script=$(fetch_url "$FADE_UPDATE_URL")
+        new_script=$(fetch_url "$FADE_UPDATE_URL" 15) || true
 
-        if [[ $? -ne 0 ]] || [[ -z "$new_script" ]]; then
+        if [[ -z "$new_script" ]]; then
             echo -e "${RED}Error: Could not download the update from GitHub.${NC}"
-            echo "Please check your internet connection and try again."
+            echo "This may be a network timeout or connectivity issue."
             echo ""
             echo "URL: $FADE_UPDATE_URL"
             exit 1
@@ -2967,13 +3034,13 @@ cmd_update() {
 
         echo -e "Checking $prompt_path..."
 
-        # Fetch latest prompt.md template
+        # Fetch latest prompt.md template (with timeout)
         local latest_prompt
-        latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
+        latest_prompt=$(fetch_url "$FADE_PROMPT_URL" 10) || true
 
-        if [[ $? -ne 0 ]] || [[ -z "$latest_prompt" ]]; then
+        if [[ -z "$latest_prompt" ]]; then
             echo -e "${YELLOW}Warning: Could not fetch prompt.md template from GitHub.${NC}"
-            echo "Skipping prompt.md update."
+            echo "This may be a network timeout. Skipping prompt.md update."
         else
             # Compare with current prompt.md
             local current_prompt

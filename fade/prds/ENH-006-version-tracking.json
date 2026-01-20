@@ -119,7 +119,7 @@
         "Timeout handling for network issues"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ]
 }
