@@ -46,7 +46,7 @@
         "Rationale documented: enables recovery from mid-story interruptions"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "implementationNotes": {

@@ -358,3 +358,15 @@ For blocked stories, use:
 - Helps operators monitoring YOLO loops understand work is progressing
 - Files changed: fade/prompt.md
 - Tests: Manual verification that all acceptance criteria language is present
+
+## 2026-01-20 - US-003: Acceptance criteria checkpoint (ENH-006) - COMPLETE
+
+- Added "Optional: Track acceptance criteria progress" subsection to prompt.md Story Completion Protocol
+- Subsection placed under Step 3 (Update PRD) as optional guidance
+- Suggests pattern: Update PRD with 'acPassed': ['AC-1', 'AC-2'] array as criteria are verified
+- Includes JSON example showing acPassed array alongside passes: false
+- Documents rationale: enables recovery from mid-story interruptions when sessions are killed
+- Includes "When to use" guidance: stories with 4+ criteria or time-consuming verification
+- Explicitly states this is OPTIONAL - framework doesn't require acPassed field
+- Files changed: fade/prompt.md
+- Tests: Manual verification that all acceptance criteria language is present

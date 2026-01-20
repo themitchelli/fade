@@ -86,6 +86,26 @@ Only add genuinely reusable, non-obvious discoveries.
 ### Step 3: Update PRD
 Set `passes: true` for the completed story IMMEDIATELY. Do not wait until the end of the session.
 
+#### Optional: Track acceptance criteria progress
+
+For long-running stories, consider tracking individual acceptance criteria as they pass:
+
+```json
+{
+  "id": "US-003",
+  "title": "Complex multi-part story",
+  "acceptanceCriteria": ["AC-1", "AC-2", "AC-3", "AC-4"],
+  "acPassed": ["AC-1", "AC-2"],  // Track progress mid-story
+  "passes": false
+}
+```
+
+**Why:** If a session is interrupted mid-story (rate limit, network issue, crash), the `acPassed` array preserves partial progress. The next session can see which criteria already passed and resume from there instead of re-verifying everything.
+
+**When to use:** Stories with 4+ acceptance criteria or criteria that take significant time to verify. For simple stories (1-3 quick criteria), just mark `passes: true` when done.
+
+This is OPTIONAL - the framework doesn't require `acPassed`, but it enables better recovery from mid-story interruptions.
+
 ### Step 4: Commit everything
 ```bash
 git add -A && git commit -m "feat: complete US-XXX - Story Title"
