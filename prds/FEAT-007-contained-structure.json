@@ -46,7 +46,7 @@
         "Backwards compatible: if `fade/` doesn't exist but `prds/` does at root, use root"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

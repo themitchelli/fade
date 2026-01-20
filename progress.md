@@ -242,3 +242,20 @@ For blocked stories, use:
 - Updated help text to show both PRD location options
 - Files changed: fade, prompt.md
 - Tests: bash -n syntax check passed, fade status verified working with legacy structure
+
+## 2026-01-20 15:45 - US-003: fade new creates PRDs in correct location (FEAT-007) - COMPLETE
+
+- Added cmd_new() function to create PRD files with proper naming convention
+- Supports all PRD types: feature, bug, toil (chore), enhancement, spike
+- Creates PRDs in fade/prds/ when contained structure exists (fade/ directory present)
+- Falls back to prds/ at root for legacy structure backwards compatibility
+- Auto-generates filenames using {TYPE}-{NNN}-{slug}.json convention
+- Auto-increments number by scanning existing PRDs of the same type
+- For spikes, creates and switches to a spike/{slug} feature branch (with git repo check)
+- Generates PRD template JSON with proper type, id, name, and userStories structure
+- Added error handling for missing type, missing name, unknown types, and no PRD folder
+- Added new command to main case statement
+- Added "New Command" section to help text with usage and type list
+- Added examples in help: fade new feature/bug/spike
+- Files changed: fade
+- Tests: bash -n syntax check passed, error handling verified for all edge cases

@@ -1533,6 +1533,219 @@ cmd_yolo() {
     cmd_run "--yolo" "$@"
 }
 
+cmd_new() {
+    local prd_type="${1:-}"
+    local prd_name="${2:-}"
+
+    # Validate type
+    if [[ -z "$prd_type" ]]; then
+        echo -e "${RED}Error: PRD type required.${NC}"
+        echo ""
+        echo "Usage: fade new <type> \"<name>\""
+        echo ""
+        echo "Types: feature, bug, toil, enhancement, spike"
+        echo ""
+        echo "Examples:"
+        echo "  fade new feature \"User authentication\""
+        echo "  fade new bug \"Login timeout issue\""
+        echo "  fade new spike \"Evaluate caching strategies\""
+        exit 1
+    fi
+
+    # Normalize type to lowercase
+    local type_lower=$(echo "$prd_type" | tr '[:upper:]' '[:lower:]')
+
+    # Map type to standard prefix
+    local type_prefix=""
+    local type_full=""
+    case "$type_lower" in
+        feature|feat)
+            type_prefix="FEAT"
+            type_full="feature"
+            ;;
+        bug)
+            type_prefix="BUG"
+            type_full="bug"
+            ;;
+        toil|chore)
+            type_prefix="CHORE"
+            type_full="chore"
+            ;;
+        enhancement|enh)
+            type_prefix="ENH"
+            type_full="enhancement"
+            ;;
+        spike)
+            type_prefix="SPIKE"
+            type_full="spike"
+            ;;
+        *)
+            echo -e "${RED}Error: Unknown PRD type '$prd_type'${NC}"
+            echo ""
+            echo "Valid types: feature, bug, toil, enhancement, spike"
+            exit 1
+            ;;
+    esac
+
+    # Validate name
+    if [[ -z "$prd_name" ]]; then
+        echo -e "${RED}Error: PRD name required.${NC}"
+        echo ""
+        echo "Usage: fade new $prd_type \"<name>\""
+        echo ""
+        echo "Example: fade new $prd_type \"My awesome PRD\""
+        exit 1
+    fi
+
+    # Determine PRD folder location
+    # Prefer fade/prds/ if fade/ exists, fall back to prds/ at root
+    local prds_dir=""
+    if [[ -d "fade/prds" ]]; then
+        prds_dir="fade/prds"
+    elif [[ -d "fade" ]]; then
+        # fade/ exists but prds/ doesn't - create it
+        mkdir -p "fade/prds"
+        prds_dir="fade/prds"
+    elif [[ -d "prds" ]]; then
+        # Legacy structure - prds/ at root
+        prds_dir="prds"
+    else
+        echo -e "${RED}Error: No PRD folder found.${NC}"
+        echo ""
+        echo "Run 'fade init' first to create the FADE structure."
+        exit 1
+    fi
+
+    # Generate slug from name
+    local slug=$(generate_slug "$prd_name")
+
+    # Find next available number for this type
+    local next_num=1
+    for existing_file in "$prds_dir"/${type_prefix}-*.json; do
+        [[ -f "$existing_file" ]] || continue
+        local filename=$(basename "$existing_file" .json)
+        # Extract number from filename (TYPE-NNN-slug)
+        local num=$(echo "$filename" | sed -n "s/^${type_prefix}-\([0-9]*\)-.*/\1/p")
+        if [[ -n "$num" ]]; then
+            # Remove leading zeros for comparison
+            num=$((10#$num))
+            if [[ $num -ge $next_num ]]; then
+                next_num=$((num + 1))
+            fi
+        fi
+    done
+
+    # Format number with leading zeros (3 digits)
+    local num_formatted=$(printf "%03d" "$next_num")
+
+    # Build filename
+    local prd_filename="${type_prefix}-${num_formatted}-${slug}.json"
+    local prd_path="$prds_dir/$prd_filename"
+
+    # Check if file already exists (shouldn't happen but just in case)
+    if [[ -f "$prd_path" ]]; then
+        echo -e "${RED}Error: PRD file already exists: $prd_path${NC}"
+        exit 1
+    fi
+
+    # Generate PRD ID
+    local prd_id="${type_prefix}-${num_formatted}"
+
+    # Create PRD JSON content
+    local prd_content=""
+    if [[ "$type_full" == "spike" ]]; then
+        # Spike PRD has additional fields
+        local branch_name="spike/${slug}"
+        prd_content=$(cat << PRDEOF
+{
+  "type": "$type_full",
+  "project": "$(basename "$(pwd)")",
+  "id": "$prd_id",
+  "name": "$prd_name",
+  "description": "",
+  "branchName": "$branch_name",
+  "outputArtifact": "docs/spike-${slug}.md",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Investigation and documentation",
+      "description": "Research and document findings",
+      "acceptanceCriteria": [
+        "Research completed",
+        "Findings documented in output artifact",
+        "Recommendations provided"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+PRDEOF
+)
+    else
+        # Standard PRD
+        prd_content=$(cat << PRDEOF
+{
+  "type": "$type_full",
+  "project": "$(basename "$(pwd)")",
+  "id": "$prd_id",
+  "name": "$prd_name",
+  "description": "",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "",
+      "description": "",
+      "acceptanceCriteria": [
+        ""
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+PRDEOF
+)
+    fi
+
+    # Write PRD file
+    echo "$prd_content" > "$prd_path"
+
+    echo -e "${GREEN}Created PRD:${NC} $prd_path"
+    echo ""
+    echo -e "${BOLD}$prd_name${NC}"
+    echo -e "  Type: ${YELLOW}[$type_prefix]${NC} $type_full"
+    echo -e "  ID:   $prd_id"
+    echo ""
+
+    # For spikes, create the feature branch
+    if [[ "$type_full" == "spike" ]]; then
+        local branch_name="spike/${slug}"
+        echo -e "${YELLOW}Creating spike branch...${NC}"
+
+        # Check if we're in a git repo
+        if ! git rev-parse --git-dir &>/dev/null; then
+            echo -e "${YELLOW}Warning: Not in a git repository. Skipping branch creation.${NC}"
+        else
+            # Check if branch already exists
+            if git show-ref --quiet "refs/heads/$branch_name"; then
+                echo -e "${YELLOW}Branch '$branch_name' already exists. Switching to it...${NC}"
+                git checkout "$branch_name"
+            else
+                git checkout -b "$branch_name"
+                echo -e "${GREEN}Created and switched to branch:${NC} $branch_name"
+            fi
+        fi
+        echo ""
+    fi
+
+    echo "Next steps:"
+    echo "  1. Edit $prd_path to add description and user stories"
+    echo "  2. Run 'fade run' to start working"
+}
+
 cmd_status() {
     local format="pretty"
     
@@ -1560,6 +1773,7 @@ ${YELLOW}Usage:${NC} fade <command> [options]
 
 ${YELLOW}Commands:${NC}
   init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
+  new           Create a new PRD file (fade new <type> "<name>")
   run           Show work queue, choose STOP/ALL mode, start Claude Code
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
@@ -1567,6 +1781,16 @@ ${YELLOW}Commands:${NC}
   update        Update FADE CLI and prompt.md to latest versions from GitHub
   version       Show FADE version
   help          Show this help message
+
+${YELLOW}New Command:${NC}
+  fade new <type> "<name>"
+
+  Types: feature, bug, toil, enhancement, spike
+
+  Creates a new PRD file with the naming convention: {TYPE}-{NNN}-{slug}.json
+  - Uses fade/prds/ for contained structure
+  - Falls back to prds/ for legacy structure
+  - For spikes, also creates and switches to a feature branch
 
 ${YELLOW}Run Options:${NC}
   --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
@@ -1603,16 +1827,19 @@ ${YELLOW}Git Commit Prefixes:${NC}
   spike:        Exploratory work
 
 ${YELLOW}Examples:${NC}
-  fade init                 # Set up FADE in current directory
-  fade run                  # See queue, pick mode, start working
-  fade yolo                 # 🤘 Full auto mode, no prompts
-  fade yolo --quiet         # 🤘 Full auto mode, minimal output
-  fade run --yolo --quiet   # Same as above
-  fade status               # Check work queue
-  fade status --json        # Machine-readable status
-  fade update               # Update CLI and prompt.md
-  fade update --check       # Check for updates without applying
-  fade update --cli-only    # Update CLI only, keep local prompt.md
+  fade init                              # Set up FADE in current directory
+  fade new feature "User authentication" # Create a new feature PRD
+  fade new bug "Login timeout"           # Create a new bug PRD
+  fade new spike "Evaluate caching"      # Create spike PRD and branch
+  fade run                               # See queue, pick mode, start working
+  fade yolo                              # 🤘 Full auto mode, no prompts
+  fade yolo --quiet                      # 🤘 Full auto mode, minimal output
+  fade run --yolo --quiet                # Same as above
+  fade status                            # Check work queue
+  fade status --json                     # Machine-readable status
+  fade update                            # Update CLI and prompt.md
+  fade update --check                    # Check for updates without applying
+  fade update --cli-only                 # Update CLI only, keep local prompt.md
 
 EOF
 }
@@ -1969,6 +2196,10 @@ cmd_update() {
 case "${1:-}" in
     init)
         cmd_init
+        ;;
+    new)
+        shift
+        cmd_new "$@"
         ;;
     run)
         shift
