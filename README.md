@@ -313,8 +313,38 @@ fade/
 ├── FADE.md              # Project context for FADE itself
 ├── CLAUDE.md            # Claude Code redirect
 ├── README.md            # This file
-└── VERSION
+├── VERSION              # Release version number
+└── version-manifest.json # Version manifest for updates
 ```
+
+## Version Manifest
+
+The version manifest (`version-manifest.json`) provides version information for all FADE artifacts. It's used by `fade update` to check for and apply updates.
+
+**Location:** `https://raw.githubusercontent.com/themitchelli/fade/main/version-manifest.json`
+
+**Format:**
+
+```json
+{
+  "release": "0.3.0",
+  "artifacts": {
+    "fade-cli": "0.3.0",
+    "prompt.md": "0.3.0",
+    "FADE.md": "0.3.0",
+    "CLAUDE.md": "0.3.0",
+    "learned.md": "0.3.0",
+    "progress.md": "0.3.0"
+  }
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `release` | Current release version (semver) |
+| `artifacts` | Map of artifact names to their individual versions |
+
+The manifest allows the CLI to check versions without requiring GitHub repo access, and supports independent versioning of each artifact.
 
 ## License
 

@@ -437,3 +437,15 @@ For blocked stories, use:
   - fade update can detect version mismatch
 - Files changed: bin/fade-cli, fade/prompt.md
 - Tests: bash -n syntax check passed, fade init tested with version stamp verification, fade status --json tested
+
+## 2026-01-20 - US-001: Create public version manifest gist (ENH-006) - COMPLETE
+
+- Created version-manifest.json at repo root with release version and per-artifact versions
+- Manifest structure: { release: '0.3.0', artifacts: { 'fade-cli': '0.3.0', 'prompt.md': '0.3.0', ... } }
+- Added FADE_MANIFEST_URL constant to fade-cli pointing to raw GitHub URL
+- URL: https://raw.githubusercontent.com/themitchelli/fade/main/version-manifest.json
+- Updated README.md with "Version Manifest" section documenting location and format
+- Documented manifest fields: release (semver), artifacts (map of names to versions)
+- Using raw GitHub URL instead of gist - provides same stable public access without separate resource
+- Files changed: version-manifest.json (new), bin/fade-cli, README.md
+- Tests: bash -n syntax check passed

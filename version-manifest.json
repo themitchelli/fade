@@ -1,0 +1,11 @@
+{
+  "release": "0.3.0",
+  "artifacts": {
+    "fade-cli": "0.3.0",
+    "prompt.md": "0.3.0",
+    "FADE.md": "0.3.0",
+    "CLAUDE.md": "0.3.0",
+    "learned.md": "0.3.0",
+    "progress.md": "0.3.0"
+  }
+}

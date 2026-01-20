@@ -1,0 +1,125 @@
+{
+  "type": "enhancement",
+  "project": "fade",
+  "id": "ENH-006",
+  "name": "Comprehensive version tracking",
+  "description": "Implement version tracking across all FADE artifacts with public gist-based version manifest, individual file versioning, release version coordination, and automatic version output for troubleshooting. Enables users to identify version drift and simplifies debugging across projects.",
+  "dependsOn": ["BUG-003"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create public version manifest gist",
+      "description": "As a FADE maintainer, I want a public GitHub gist containing the version manifest, so that the CLI can check versions without requiring repo access.",
+      "acceptanceCriteria": [
+        "Public gist created at a stable URL",
+        "Gist contains JSON manifest with: release version, and each artifact with its individual version",
+        "Manifest structure: { release: '0.4.0', artifacts: { 'fade-cli': '0.4.0', 'prompt.md': '0.4.0', 'FADE.md': '0.4.0', ... } }",
+        "Gist URL added as constant in fade-cli",
+        "README documents the gist location and manifest format"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Add version headers to all FADE artifacts",
+      "description": "As a developer, I want each FADE artifact to contain its own version header, so that I can identify the version of any individual file.",
+      "acceptanceCriteria": [
+        "fade-cli: FADE_VERSION already exists, add ARTIFACT_VERSION='0.4.0' constant",
+        "prompt.md: <!-- FADE prompt.md v0.4.0 --> at top of file",
+        "FADE.md template: <!-- FADE FADE.md v0.4.0 --> at top of file",
+        "CLAUDE.md template: <!-- FADE CLAUDE.md v0.4.0 --> at top of file",
+        "learned.md template: <!-- FADE learned.md v0.4.0 --> at top of file",
+        "progress.md template: <!-- FADE progress.md v0.4.0 --> at top of file",
+        "Version format is consistent: <!-- FADE {filename} v{version} -->"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "fade init stamps versions into generated files",
+      "description": "As a developer, I want fade init to stamp the current CLI version into all generated files, so that projects track which version created their artifacts.",
+      "acceptanceCriteria": [
+        "fade init replaces __VERSION__ placeholder with $FADE_VERSION in all templates",
+        "Generated FADE.md contains <!-- FADE FADE.md v{version} -->",
+        "Generated prompt.md contains <!-- FADE prompt.md v{version} -->",
+        "Generated CLAUDE.md contains <!-- FADE CLAUDE.md v{version} -->",
+        "Generated learned.md contains <!-- FADE learned.md v{version} -->",
+        "Generated progress.md contains <!-- FADE progress.md v{version} -->"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "fade version shows detailed version info",
+      "description": "As a developer, I want fade version to show both CLI version and detected artifact versions in the current project, so that I can quickly identify version drift.",
+      "acceptanceCriteria": [
+        "fade version (no args) shows CLI version (existing behaviour preserved)",
+        "fade version --all shows CLI version plus all detected artifact versions",
+        "Scans current project for FADE artifacts and extracts version headers",
+        "Shows 'not found' for missing artifacts, 'no version' for artifacts without headers",
+        "Output format: CLI: v0.4.0, prompt.md: v0.4.0, FADE.md: v0.3.0 (outdated), etc.",
+        "Highlights version mismatches with yellow colour"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "fade status outputs version info",
+      "description": "As a developer, I want fade status to show version information by default, so that I always know what versions I'm working with.",
+      "acceptanceCriteria": [
+        "fade status header shows CLI version (already does: 'FADE v0.3.0')",
+        "fade status footer shows artifact versions if any are outdated",
+        "If all versions match: no extra output (clean)",
+        "If versions differ: shows warning with list of outdated artifacts",
+        "fade status --json includes versions object in output"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Version output after FADE component changes",
+      "description": "As a developer, I want fade update to output version changes clearly, so that I can see what was updated.",
+      "acceptanceCriteria": [
+        "fade update shows before/after versions for each updated artifact",
+        "Format: 'prompt.md: v0.3.0 → v0.4.0'",
+        "Summary line: 'Updated 3 artifacts to v0.4.0'",
+        "If nothing to update: 'All artifacts at v0.4.0'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "fade run outputs version banner",
+      "description": "As a developer, I want fade run to output version info at session start, so that troubleshooting always has version context.",
+      "acceptanceCriteria": [
+        "fade run outputs version banner before launching Claude Code",
+        "Banner shows: CLI version, prompt.md version, any version warnings",
+        "Banner is concise (2-3 lines max when all versions match)",
+        "fade yolo also shows version banner",
+        "Version info captured in session context for Claude Code"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "fade update checks gist for latest versions",
+      "description": "As a developer, I want fade update to check the public gist for the latest version manifest, so that updates work without GitHub repo access.",
+      "acceptanceCriteria": [
+        "fade update fetches version manifest from public gist",
+        "Compares local artifact versions against manifest",
+        "Downloads updated artifacts from gist or raw GitHub URLs",
+        "Falls back to current GitHub raw URLs if gist unavailable",
+        "Timeout handling for network issues"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ]
+}

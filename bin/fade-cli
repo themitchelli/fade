@@ -2363,6 +2363,7 @@ cmd_migrate() {
 FADE_UPDATE_URL="https://raw.githubusercontent.com/themitchelli/fade/main/fade"
 FADE_VERSION_URL="https://raw.githubusercontent.com/themitchelli/fade/main/VERSION"
 FADE_PROMPT_URL="https://raw.githubusercontent.com/themitchelli/fade/main/prompt.md"
+FADE_MANIFEST_URL="https://raw.githubusercontent.com/themitchelli/fade/main/version-manifest.json"
 
 # Fetch content from URL using curl or wget
 fetch_url() {
