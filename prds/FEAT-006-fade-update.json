@@ -59,7 +59,7 @@
         "FADE repo has a VERSION file or similar as source of truth"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

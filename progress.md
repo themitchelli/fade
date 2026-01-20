@@ -196,3 +196,15 @@ For blocked stories, use:
 - Added example: fade update --check
 - Files changed: fade
 - Tests: bash -n syntax check passed, help text verified, error handling tested
+
+## 2026-01-20 12:30 - US-004: Version tracking (FEAT-006) - COMPLETE
+
+- Added `fade version` command to display current installed version
+- Also supports `fade --version` and `fade -v` flags for convenience
+- Version is output in semver format with leading 'v' (e.g., v0.2.3)
+- Version is stored in FADE_VERSION variable in fade script
+- Created VERSION file in repo root as source of truth (matches FADE_VERSION_URL used by update command)
+- Added cmd_version() function and version|--version|-v case in main switch
+- Updated help text to document version command
+- Files changed: fade, VERSION
+- Tests: bash -n syntax check passed, all three invocation methods tested (version, --version, -v)

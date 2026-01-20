@@ -1367,6 +1367,10 @@ cmd_status() {
     display_work_queue "$format"
 }
 
+cmd_version() {
+    echo "v$FADE_VERSION"
+}
+
 cmd_help() {
     cat << EOF
 ${CYAN}FADE v$FADE_VERSION${NC} - Framework for Agentic Development and Engineering
@@ -1380,6 +1384,7 @@ ${YELLOW}Commands:${NC}
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
   update        Update FADE CLI and prompt.md to latest versions from GitHub
+  version       Show FADE version
   help          Show this help message
 
 ${YELLOW}Run Options:${NC}
@@ -1782,6 +1787,9 @@ case "${1:-}" in
     update)
         shift
         cmd_update "$@"
+        ;;
+    version|--version|-v)
+        cmd_version
         ;;
     help|--help|-h)
         cmd_help
