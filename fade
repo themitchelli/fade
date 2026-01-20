@@ -271,6 +271,33 @@ Only add learnings that are:
 ---
 EOF
 
+read -r -d '' CLAUDE_TEMPLATE << 'EOF' || true
+# Claude Code Instructions
+
+This project uses [FADE](https://github.com/themitchelli/fade) (Framework for Agentic Development and Engineering).
+
+## Quick Start
+
+1. Read `./FADE.md` for project context, coding standards, and boundaries
+2. Read `./fade/prompt.md` for your execution instructions
+3. The prompt.md file will guide you to other FADE files
+
+## File Locations
+
+```
+./FADE.md           # Project context (read this first)
+./fade/
+  ├── prompt.md     # Your execution instructions
+  ├── progress.md   # Session history
+  ├── learned.md    # Cumulative discoveries
+  ├── prds/         # PRD queue
+  ├── prd.json      # Priority PRD (optional)
+  └── prd-archive/  # Completed PRDs
+```
+
+For more information, see the [FADE documentation](https://github.com/themitchelli/fade).
+EOF
+
 read -r -d '' PROMPT_TEMPLATE << 'EOF' || true
 # FADE Execution Prompt
 
@@ -1119,15 +1146,30 @@ cmd_init() {
 
     local created=0
 
+    # FADE.md stays at project root (visible, human-curated)
     create_file_if_missing "FADE.md" "$FADE_TEMPLATE" && ((created++)) || true
-    create_file_if_missing "progress.md" "$PROGRESS_TEMPLATE" && ((created++)) || true
-    create_file_if_missing "learned.md" "$LEARNED_TEMPLATE" && ((created++)) || true
-    create_file_if_missing "prompt.md" "$PROMPT_TEMPLATE" && ((created++)) || true
 
-    # Create prds/ folder
-    if [[ ! -d "prds" ]]; then
-        mkdir -p "prds"
-        cat > "prds/README.md" << 'PRDS_EOF'
+    # CLAUDE.md redirect at project root (for Claude Code discovery)
+    create_file_if_missing "CLAUDE.md" "$CLAUDE_TEMPLATE" && ((created++)) || true
+
+    # Create fade/ directory for other FADE files
+    if [[ ! -d "fade" ]]; then
+        mkdir -p "fade"
+        echo -e "  ${GREEN}create${NC}: fade/"
+        ((created++))
+    else
+        echo -e "  ${YELLOW}skip${NC}: fade/ (already exists)"
+    fi
+
+    # Other FADE files go inside fade/
+    create_file_if_missing "fade/progress.md" "$PROGRESS_TEMPLATE" && ((created++)) || true
+    create_file_if_missing "fade/learned.md" "$LEARNED_TEMPLATE" && ((created++)) || true
+    create_file_if_missing "fade/prompt.md" "$PROMPT_TEMPLATE" && ((created++)) || true
+
+    # Create fade/prds/ folder
+    if [[ ! -d "fade/prds" ]]; then
+        mkdir -p "fade/prds"
+        cat > "fade/prds/README.md" << 'PRDS_EOF'
 # PRDs Folder
 
 Place your PRD files here using the naming convention:
@@ -1147,22 +1189,22 @@ Place your PRD files here using the naming convention:
 ## Selection Order
 
 FADE picks the lowest-numbered PRD with incomplete stories.
-Priority: prd.json (if exists) → prds/ folder (by number)
+Priority: fade/prd.json (if exists) → fade/prds/ folder (by number)
 PRDS_EOF
-        echo -e "  ${GREEN}create${NC}: prds/"
+        echo -e "  ${GREEN}create${NC}: fade/prds/"
         ((created++))
     else
-        echo -e "  ${YELLOW}skip${NC}: prds/ (already exists)"
+        echo -e "  ${YELLOW}skip${NC}: fade/prds/ (already exists)"
     fi
 
-    # Create prd-archive/ folder
-    if [[ ! -d "prd-archive" ]]; then
-        mkdir -p "prd-archive"
-        touch "prd-archive/.gitkeep"
-        echo -e "  ${GREEN}create${NC}: prd-archive/"
+    # Create fade/prd-archive/ folder
+    if [[ ! -d "fade/prd-archive" ]]; then
+        mkdir -p "fade/prd-archive"
+        touch "fade/prd-archive/.gitkeep"
+        echo -e "  ${GREEN}create${NC}: fade/prd-archive/"
         ((created++))
     else
-        echo -e "  ${YELLOW}skip${NC}: prd-archive/ (already exists)"
+        echo -e "  ${YELLOW}skip${NC}: fade/prd-archive/ (already exists)"
     fi
 
     echo ""
@@ -1171,11 +1213,11 @@ PRDS_EOF
     else
         echo -e "${GREEN}Created $created file(s).${NC}"
     fi
-    
+
     echo ""
     echo "Next steps:"
     echo "  1. Edit FADE.md with your project context"
-    echo "  2. Create a PRD in prds/ folder"
+    echo "  2. Create a PRD in fade/prds/ folder"
     echo "  3. Run 'fade run' to start working"
 }
 

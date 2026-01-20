@@ -20,7 +20,7 @@
         "Project root has FADE.md, CLAUDE.md redirect, and `fade/` directory"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

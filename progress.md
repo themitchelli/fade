@@ -208,3 +208,18 @@ For blocked stories, use:
 - Updated help text to document version command
 - Files changed: fade, VERSION
 - Tests: bash -n syntax check passed, all three invocation methods tested (version, --version, -v)
+
+## 2026-01-20 10:14 - US-001: New projects use contained structure (FEAT-007) - COMPLETE
+
+- Updated cmd_init() to create new contained file structure with fade/ directory
+- FADE.md stays at project root (visible, human-curated)
+- Added CLAUDE.md template with redirect instructions for Claude Code discovery
+- CLAUDE.md created at project root pointing to ./FADE.md and ./fade/prompt.md
+- Other FADE files (progress.md, learned.md, prompt.md) now created inside fade/
+- PRDs folder moved to fade/prds/
+- prd.json priority injection now lives in fade/ (documented in CLAUDE.md)
+- prd-archive folder moved to fade/prd-archive/
+- Updated prds/README.md to reference fade/prd.json as priority location
+- Project root now contains: FADE.md, CLAUDE.md, and fade/ directory
+- Files changed: fade
+- Tests: bash -n syntax check passed, manual init test verified correct structure creation
