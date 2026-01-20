@@ -328,3 +328,21 @@ For blocked stories, use:
   - Moves to corresponding archive folder
 - Files changed: none (already implemented)
 - Tests: Code review verified correct conditional logic for both structures
+
+## 2026-01-20 - US-001: Story completion checkpoint protocol in prompt.md (ENH-006) - COMPLETE
+
+- Enhanced Story Completion Protocol section in prompt.md with explicit checkpointing instructions
+- Added "CRITICAL: Checkpoint after EVERY story. Do NOT batch status updates." header
+- Added "before proceeding to the next story" to step ordering instruction
+- Updated Step 3 to explicitly state "IMMEDIATELY. Do not wait until the end of the session."
+- Added new Step 5: Output status line with 'US-XXX: [Story Title] ✅' pattern
+- Renumbered Step 6 (Signal completion) and Step 7 (STOP) accordingly
+- All acceptance criteria satisfied:
+  - prompt.md includes 'Story Completion Protocol' section
+  - Protocol requires immediate passes: true update after story completion
+  - Protocol requires git commit with appropriate prefix
+  - Protocol requires output of brief status line: 'US-XXX: [title] ✅'
+  - Protocol explicitly states 'Do NOT batch status updates'
+  - Protocol explicitly states 'Checkpoint after every story before proceeding'
+- Files changed: fade/prompt.md
+- Tests: Manual verification that all required language is present

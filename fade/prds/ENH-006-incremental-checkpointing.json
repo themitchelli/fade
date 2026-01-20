@@ -1,0 +1,65 @@
+{
+  "type": "enhancement",
+  "project": "FADE Framework",
+  "id": "ENH-006",
+  "name": "Incremental Story Checkpointing",
+  "description": "Add explicit checkpointing instructions to prompt.md requiring Claude to update PRD status, commit code, and output progress after EACH user story completion - not in batch at the end. Prevents silent marathon sessions where 20+ minutes pass with no visible output or recoverable state.",
+  "dependsOn": ["ENH-004"],
+  "rationale": "During PRD-015 execution on Assumptions Manager, Claude completed all 7 user stories in a 13-minute session but only updated passes: true for all stories at the very end. In YOLO mode, this meant 20 minutes of no visible output. If the session had been killed mid-execution, all work would have been lost with no record of what passed.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Story completion checkpoint protocol in prompt.md",
+      "description": "As a developer using FADE, I want prompt.md to instruct Claude to checkpoint after EACH user story, so that I can see incremental progress and recover from interrupted sessions.",
+      "acceptanceCriteria": [
+        "prompt.md includes a 'Story Completion Protocol' section",
+        "Protocol requires: 1) Update passes: true immediately after story completion",
+        "Protocol requires: 2) Git commit the functional code with appropriate prefix",
+        "Protocol requires: 3) Output brief status line: 'US-XXX: [title] ✅'",
+        "Protocol explicitly states: 'Do NOT batch status updates'",
+        "Protocol explicitly states: 'Checkpoint after every story before proceeding'"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "YOLO mode observability guidance",
+      "description": "As a developer running FADE in YOLO/ALL mode, I want Claude to still output periodic status updates, so that I know work is progressing even without interactive prompts.",
+      "acceptanceCriteria": [
+        "prompt.md includes guidance for autonomous execution modes",
+        "Guidance states: 'Even in autonomous/YOLO mode, output status after each story'",
+        "Guidance states: 'Never go more than 5 minutes without visible output'",
+        "Recommends progress indicator pattern: 'Working on US-XXX... [brief description]'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Acceptance criteria checkpoint",
+      "description": "As a developer, I want Claude to mark individual acceptance criteria as they pass (not just the whole story), so that partial progress is captured if a story is interrupted mid-execution.",
+      "acceptanceCriteria": [
+        "prompt.md recommends tracking AC progress within stories",
+        "Suggests pattern: Update PRD with 'acPassed': ['AC-1', 'AC-2'] array as criteria are verified",
+        "This is OPTIONAL guidance, not mandatory schema change",
+        "Rationale documented: enables recovery from mid-story interruptions"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "implementationNotes": {
+    "targetFile": "prompt.md template in FADE CLI",
+    "backwardsCompatible": true,
+    "breakingChanges": "None - adds guidance only, no schema changes required",
+    "testingApproach": "Dogfood on next Assumptions Manager PRD"
+  },
+  "incidentTrigger": {
+    "date": "2026-01-20",
+    "project": "Assumptions Manager",
+    "prd": "PRD-015 Bulk CSV Import",
+    "symptom": "20 minutes no output in YOLO mode, all 7 US status updates batched at end",
+    "impact": "No way to know if session was working or hung; no recovery point if killed"
+  }
+}

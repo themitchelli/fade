@@ -66,7 +66,9 @@ If PRD has `"type": "spike"`:
 
 ## Story Completion Protocol
 
-After completing a story, you MUST do these steps IN ORDER:
+**CRITICAL: Checkpoint after EVERY story. Do NOT batch status updates.**
+
+After completing a story, you MUST do these steps IN ORDER before proceeding to the next story:
 
 ### Step 1: Update progress.md
 Append:
@@ -82,14 +84,21 @@ Append:
 Only add genuinely reusable, non-obvious discoveries.
 
 ### Step 3: Update PRD
-Set `passes: true` for the completed story.
+Set `passes: true` for the completed story IMMEDIATELY. Do not wait until the end of the session.
 
 ### Step 4: Commit everything
 ```bash
 git add -A && git commit -m "feat: complete US-XXX - Story Title"
 ```
 
-### Step 5: Signal completion
+### Step 5: Output status line
+Output a brief status line to confirm checkpoint:
+```
+US-XXX: [Story Title] ✅
+```
+This provides visible progress during autonomous execution.
+
+### Step 6: Signal completion
 
 Check if there are more incomplete stories in the queue:
 - If MORE work remains: Output exactly `STORY_DONE: US-XXX`
@@ -111,7 +120,7 @@ When `prd.json` is archived, it's renamed to: `{TYPE}-{ID}-{slug}.json`
 
 Example: A PRD with `type: "bug"`, `id: "009"`, `name: "Fix broken widget"` becomes `BUG-009-fix-broken-widget.json`
 
-### Step 6: STOP
+### Step 7: STOP
 
 After outputting the signal, STOP IMMEDIATELY.
 - Do NOT continue to the next story
