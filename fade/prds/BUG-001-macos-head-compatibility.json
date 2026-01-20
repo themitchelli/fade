@@ -1,0 +1,46 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "BUG-001",
+  "name": "macOS head -n compatibility in archive script",
+  "description": "The PRD archive functionality fails silently on macOS because it uses GNU-specific `head -n -1` syntax which isn't supported by BSD head.",
+  "dependsOn": [],
+  "context": {
+    "symptom": "After ALL_COMPLETE, archive step outputs 'head: illegal line count -- -1' and completed PRDs remain in prds/ instead of moving to prd-archive/",
+    "rootCause": "GNU coreutils `head -n -1` (remove last line) doesn't work on macOS BSD head",
+    "impact": "Completed PRDs accumulate in prds/ folder, cluttering the work queue view"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Archive works on macOS",
+      "description": "As a FADE user on macOS, I want completed PRDs to be archived properly so that my prds/ folder only contains active work.",
+      "acceptanceCriteria": [
+        "Archive functionality works on macOS (BSD head/sed)",
+        "Archive functionality still works on Linux (GNU coreutils)",
+        "Completed PRDs are moved from fade/prds/ to fade/prd-archive/",
+        "No error messages during archive process"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Archive handles legacy structure",
+      "description": "As a FADE user with legacy project structure, I want archive to work with prds/ at root as well as fade/prds/.",
+      "acceptanceCriteria": [
+        "Archive checks fade/prds/ first (new structure)",
+        "Falls back to prds/ at root (legacy structure)",
+        "Moves to corresponding archive folder (fade/prd-archive/ or prd-archive/)"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "currentCode": "Likely uses `head -n -1` somewhere in archive logic",
+    "fix": "Replace `head -n -1 file` with `sed '$d' file` for cross-platform compatibility",
+    "alternative": "Or use `ghead` from Homebrew coreutils, but sed is more portable",
+    "testOn": "Verify fix works on both macOS and Linux"
+  }
+}

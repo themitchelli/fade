@@ -303,3 +303,13 @@ For blocked stories, use:
 - All interruption handlers show current PRD context and suggest fade run/yolo to resume
 - Files changed: fade
 - Tests: bash -n syntax check passed, detect_interruption() function tested with various patterns
+
+## 2026-01-20 - US-001: Archive works on macOS (BUG-001) - COMPLETE
+
+- Replaced `head -n -1` with `sed '$d'` for cross-platform compatibility
+- GNU `head -n -1` (remove last line) doesn't work on macOS BSD head
+- `sed '$d'` (delete last line) works identically on both BSD and GNU sed
+- Two occurrences fixed at lines 1629 and 1635 in bin/fade-cli
+- Archive display code now properly shows archive messages without errors
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, sed '$d' tested on macOS Darwin 24.6.0

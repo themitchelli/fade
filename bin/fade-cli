@@ -1626,13 +1626,13 @@ cmd_run() {
                 local priority_output=$(archive_priority_prd)
                 local priority_archived=$(echo "$priority_output" | tail -1)
                 # Display archive message (all but last line which is the count)
-                echo "$priority_output" | head -n -1
+                echo "$priority_output" | sed '$d'
 
                 # Archive completed PRDs from prds/ folder
                 local archived_output=$(archive_completed_prds)
                 local archived_count=$(echo "$archived_output" | tail -1)
                 # Display archive messages (all but last line which is the count)
-                echo "$archived_output" | head -n -1
+                echo "$archived_output" | sed '$d'
 
                 # Calculate total archived
                 local total_archived=$((${priority_archived:-0} + ${archived_count:-0}))
