@@ -391,3 +391,19 @@ For blocked stories, use:
 - prd_is_fully_complete() already requires explicit passes:true on ALL stories (verified from US-001)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, fade status verified working
+
+## 2026-01-20 - US-004: Add PRD integrity rules to prompt.md (BUG-003) - COMPLETE
+
+- Added new "PRD Integrity Rules" section to prompt.md after Execution Rules
+- Section includes "File Handling" subsection with explicit instructions:
+  - NEVER create copies of PRD files
+  - ALWAYS update the ORIGINAL file in prds/ or fade/prds/
+  - NEVER write directly to prd-archive/
+- Section includes "Completion Verification" subsection with:
+  - Verify passes:true BEFORE signalling completion
+  - Only signal STORY_DONE or ALL_COMPLETE after verification
+- Added "Why This Matters" explanation of consequences for each violation
+- Updated Step 3 in Story Completion Protocol to reference PRD Integrity Rules
+- Added re-read verification reminder after editing PRD
+- Files changed: fade/prompt.md
+- Tests: Manual verification that all acceptance criteria language is present

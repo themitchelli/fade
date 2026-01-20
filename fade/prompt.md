@@ -45,6 +45,28 @@ PRD files in `prds/` follow: `{TYPE}-{NUMBER}-{slug}.json`
 - **Small commits** - working increments, not big bangs
 - **Test before done** - all acceptance criteria must pass
 
+## PRD Integrity Rules
+
+**CRITICAL: These rules prevent data corruption and false completion states.**
+
+### File Handling
+
+- **NEVER create copies of PRD files** - Do not duplicate, clone, or create alternative versions of PRD files
+- **ALWAYS update the ORIGINAL file** - When marking stories complete, edit the file in its current location (`prds/` or `fade/prds/`)
+- **NEVER write directly to prd-archive/** - The archive folder is managed exclusively by the fade script; writing there directly corrupts the workflow
+
+### Completion Verification
+
+- **Verify `passes: true` BEFORE signalling completion** - After editing the PRD, re-read it to confirm your changes persisted
+- **Only signal STORY_DONE or ALL_COMPLETE after verification** - The fade script trusts your signal; false signals corrupt state
+
+### Why This Matters
+
+The fade script archives PRDs based on your signals. If you:
+- Create a copy instead of editing the original → the real PRD stays incomplete
+- Write to prd-archive directly → the PRD exists in two places
+- Signal completion without verification → the archive may contain incomplete work
+
 ## Git Conventions
 
 | Prefix | Use |
@@ -85,6 +107,8 @@ Only add genuinely reusable, non-obvious discoveries.
 
 ### Step 3: Update PRD
 Set `passes: true` for the completed story IMMEDIATELY. Do not wait until the end of the session.
+
+**Important:** Edit the ORIGINAL PRD file (see PRD Integrity Rules). After editing, re-read the file to verify your change persisted before proceeding.
 
 #### Optional: Track acceptance criteria progress
 
