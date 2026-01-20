@@ -431,13 +431,31 @@ If blocked:
 
 ## File Locations
 
+### Contained Structure (New)
+```
+./FADE.md           # Project context (read-only)
+./CLAUDE.md         # Redirect for Claude Code
+./fade/
+  ├── prompt.md     # Execution instructions
+  ├── progress.md   # Session history (append-only)
+  ├── learned.md    # Cumulative memory (append-only)
+  ├── prd.json      # Priority PRD (optional)
+  ├── prds/         # PRD queue
+  └── prd-archive/  # Completed PRDs
+```
+
+### Legacy Structure (Backwards Compatible)
 ```
 ./FADE.md       # Project context (read-only)
+./prompt.md     # Execution instructions
 ./progress.md   # Session history (append-only)
 ./learned.md    # Cumulative memory (append-only)
 ./prd.json      # Priority PRD (optional)
 ./prds/         # PRD queue
+./prd-archive/  # Completed PRDs
 ```
+
+The fade script checks both locations, preferring the contained structure (`fade/`) when present.
 
 ---
 
@@ -523,12 +541,32 @@ count_complete_stories() {
 }
 
 # Get the active PRD (priority prd.json or first incomplete in prds/)
+# Checks fade/ directory first, falls back to root for backwards compatibility
 get_active_prd() {
+    # Check fade/prd.json first (new contained structure)
+    if [[ -f "fade/prd.json" ]] && prd_has_incomplete_stories "fade/prd.json"; then
+        echo "fade/prd.json"
+        return
+    fi
+
+    # Fall back to root prd.json (legacy structure)
     if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
         echo "prd.json"
         return
     fi
 
+    # Check fade/prds/ first (new contained structure)
+    if [[ -d "fade/prds" ]]; then
+        for prd_file in $(ls fade/prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                echo "$prd_file"
+                return
+            fi
+        done
+    fi
+
+    # Fall back to root prds/ (legacy structure)
     if [[ -d "prds" ]]; then
         for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
@@ -590,16 +628,25 @@ get_latest_commit_message() {
 
 # Display learned.md changes if any were detected
 # Takes before_content_file (temp file path) as argument
+# Checks fade/ directory first, falls back to root for backwards compatibility
 display_learned_changes() {
     local before_file="$1"
 
+    # Determine learned.md path (prefer fade/ if exists, fall back to root)
+    local learned_path=""
+    if [[ -f "fade/learned.md" ]]; then
+        learned_path="fade/learned.md"
+    elif [[ -f "learned.md" ]]; then
+        learned_path="learned.md"
+    fi
+
     # If no before file provided or learned.md doesn't exist, skip
-    if [[ -z "$before_file" ]] || [[ ! -f "learned.md" ]]; then
+    if [[ -z "$before_file" ]] || [[ -z "$learned_path" ]]; then
         return
     fi
 
     # Compare before and after using diff
-    local diff_output=$(diff "$before_file" learned.md 2>/dev/null | grep '^>' | sed 's/^> //')
+    local diff_output=$(diff "$before_file" "$learned_path" 2>/dev/null | grep '^>' | sed 's/^> //')
 
     # If no changes, display nothing (no noise)
     if [[ -z "$diff_output" ]]; then
@@ -638,24 +685,33 @@ prd_is_fully_complete() {
 }
 
 # Archive completed PRDs from prds/ folder
+# Checks fade/ directory first, falls back to root for backwards compatibility
 # Returns the number of files archived
 archive_completed_prds() {
     local archived_count=0
 
-    # Ensure prd-archive/ exists
-    if [[ ! -d "prd-archive" ]]; then
-        mkdir -p "prd-archive"
-        touch "prd-archive/.gitkeep"
+    # Determine archive path (prefer fade/ if prds exists there, else root)
+    local archive_path="prd-archive"
+    local prds_path="prds"
+    if [[ -d "fade/prds" ]]; then
+        archive_path="fade/prd-archive"
+        prds_path="fade/prds"
     fi
 
-    # Scan prds/ folder for completed PRDs
-    if [[ -d "prds" ]]; then
-        for prd_file in prds/*.json; do
+    # Ensure archive folder exists
+    if [[ ! -d "$archive_path" ]]; then
+        mkdir -p "$archive_path"
+        touch "$archive_path/.gitkeep"
+    fi
+
+    # Scan prds folder for completed PRDs
+    if [[ -d "$prds_path" ]]; then
+        for prd_file in "$prds_path"/*.json; do
             [[ -f "$prd_file" ]] || continue
 
             if prd_is_fully_complete "$prd_file"; then
                 local filename=$(basename "$prd_file")
-                mv "$prd_file" "prd-archive/$filename"
+                mv "$prd_file" "$archive_path/$filename"
                 echo -e "  ${GREEN}archived${NC}: $filename"
                 ((archived_count++))
             fi
@@ -719,27 +775,37 @@ get_prd_id() {
 }
 
 # Archive prd.json with standard naming convention
+# Checks fade/ directory first, falls back to root for backwards compatibility
 # If prd.json exists and is fully complete, rename and move to prd-archive/
 # Returns 1 if archived, 0 otherwise
 archive_priority_prd() {
-    if [[ ! -f "prd.json" ]]; then
+    # Determine prd.json location (prefer fade/ if exists)
+    local prd_path=""
+    local archive_path=""
+    if [[ -f "fade/prd.json" ]]; then
+        prd_path="fade/prd.json"
+        archive_path="fade/prd-archive"
+    elif [[ -f "prd.json" ]]; then
+        prd_path="prd.json"
+        archive_path="prd-archive"
+    else
         return 0
     fi
 
-    if ! prd_is_fully_complete "prd.json"; then
+    if ! prd_is_fully_complete "$prd_path"; then
         return 0
     fi
 
-    # Ensure prd-archive/ exists
-    if [[ ! -d "prd-archive" ]]; then
-        mkdir -p "prd-archive"
-        touch "prd-archive/.gitkeep"
+    # Ensure archive folder exists
+    if [[ ! -d "$archive_path" ]]; then
+        mkdir -p "$archive_path"
+        touch "$archive_path/.gitkeep"
     fi
 
     # Extract metadata for naming
-    local prd_type=$(get_prd_type "prd.json")
-    local prd_id=$(get_prd_id "prd.json")
-    local prd_name=$(get_prd_name "prd.json")
+    local prd_type=$(get_prd_type "$prd_path")
+    local prd_id=$(get_prd_id "$prd_path")
+    local prd_name=$(get_prd_name "$prd_path")
 
     # Generate slug from name
     local slug=$(generate_slug "$prd_name")
@@ -758,26 +824,46 @@ archive_priority_prd() {
     fi
 
     # Move to archive with new name
-    mv "prd.json" "prd-archive/$new_filename"
-    echo -e "  ${GREEN}archived${NC}: prd.json → $new_filename"
+    mv "$prd_path" "$archive_path/$new_filename"
+    echo -e "  ${GREEN}archived${NC}: $(basename "$prd_path") → $new_filename"
 
     echo "1"
 }
 
 # Get total story counts across all PRDs with incomplete work
+# Checks fade/ directory first, falls back to root for backwards compatibility
 get_total_progress() {
     local total_complete=0
     local total_stories=0
 
-    # Check prd.json
-    if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
+    # Check fade/prd.json first (new contained structure)
+    if [[ -f "fade/prd.json" ]] && prd_has_incomplete_stories "fade/prd.json"; then
+        local complete=$(count_complete_stories "fade/prd.json")
+        local incomplete=$(count_incomplete_stories "fade/prd.json")
+        ((total_complete += complete))
+        ((total_stories += complete + incomplete))
+    # Fall back to root prd.json (legacy structure)
+    elif [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
         local complete=$(count_complete_stories "prd.json")
         local incomplete=$(count_incomplete_stories "prd.json")
         ((total_complete += complete))
         ((total_stories += complete + incomplete))
     fi
 
-    # Check prds/
+    # Check fade/prds/ first (new contained structure)
+    if [[ -d "fade/prds" ]]; then
+        for prd_file in $(ls fade/prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                local complete=$(count_complete_stories "$prd_file")
+                local incomplete=$(count_incomplete_stories "$prd_file")
+                ((total_complete += complete))
+                ((total_stories += complete + incomplete))
+            fi
+        done
+    fi
+
+    # Fall back to root prds/ (legacy structure)
     if [[ -d "prds" ]]; then
         for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
@@ -912,9 +998,11 @@ display_iteration_summary() {
 }
 
 # Build context from FADE files
+# Checks fade/ directory first, falls back to root for backwards compatibility
 build_context() {
     local context=""
 
+    # FADE.md always at root
     if [[ -f "FADE.md" ]]; then
         context+="# PROJECT CONTEXT (FADE.md)
 
@@ -925,7 +1013,16 @@ $(cat FADE.md)
 "
     fi
 
-    if [[ -f "progress.md" ]]; then
+    # progress.md: check fade/ first, then root
+    if [[ -f "fade/progress.md" ]]; then
+        context+="# SESSION HISTORY (progress.md)
+
+$(cat fade/progress.md)
+
+---
+
+"
+    elif [[ -f "progress.md" ]]; then
         context+="# SESSION HISTORY (progress.md)
 
 $(cat progress.md)
@@ -935,7 +1032,16 @@ $(cat progress.md)
 "
     fi
 
-    if [[ -f "learned.md" ]]; then
+    # learned.md: check fade/ first, then root
+    if [[ -f "fade/learned.md" ]]; then
+        context+="# LEARNED (learned.md)
+
+$(cat fade/learned.md)
+
+---
+
+"
+    elif [[ -f "learned.md" ]]; then
         context+="# LEARNED (learned.md)
 
 $(cat learned.md)
@@ -945,7 +1051,16 @@ $(cat learned.md)
 "
     fi
 
-    if [[ -f "prompt.md" ]]; then
+    # prompt.md: check fade/ first, then root
+    if [[ -f "fade/prompt.md" ]]; then
+        context+="# EXECUTION INSTRUCTIONS (prompt.md)
+
+$(cat fade/prompt.md)
+
+---
+
+"
+    elif [[ -f "prompt.md" ]]; then
         context+="# EXECUTION INSTRUCTIONS (prompt.md)
 
 $(cat prompt.md)
@@ -970,29 +1085,50 @@ After completing the story, output STORY_DONE, ALL_COMPLETE, or BLOCKED as appro
 
 display_work_queue() {
     local format="${1:-pretty}"  # pretty or json
-    
+
     local priority_prd=""
     local priority_name=""
     local priority_type=""
     local priority_incomplete=0
     local priority_complete=0
-    
+
     declare -a queue_prds
     declare -a queue_names
     declare -a queue_types
     declare -a queue_incomplete
     declare -a queue_complete
-    
-    # Check prd.json first
-    if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
+
+    # Check fade/prd.json first (new contained structure)
+    if [[ -f "fade/prd.json" ]] && prd_has_incomplete_stories "fade/prd.json"; then
+        priority_prd="fade/prd.json"
+        priority_name=$(get_prd_name "fade/prd.json")
+        priority_type=$(get_prd_type "fade/prd.json")
+        priority_incomplete=$(count_incomplete_stories "fade/prd.json")
+        priority_complete=$(count_complete_stories "fade/prd.json")
+    # Fall back to root prd.json (legacy structure)
+    elif [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
         priority_prd="prd.json"
         priority_name=$(get_prd_name "prd.json")
         priority_type=$(get_prd_type "prd.json")
         priority_incomplete=$(count_incomplete_stories "prd.json")
         priority_complete=$(count_complete_stories "prd.json")
     fi
-    
-    # Check prds/ folder
+
+    # Check fade/prds/ first (new contained structure)
+    if [[ -d "fade/prds" ]]; then
+        for prd_file in $(ls fade/prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                queue_prds+=("$prd_file")
+                queue_names+=("$(get_prd_name "$prd_file")")
+                queue_types+=("$(get_prd_type "$prd_file")")
+                queue_incomplete+=("$(count_incomplete_stories "$prd_file")")
+                queue_complete+=("$(count_complete_stories "$prd_file")")
+            fi
+        done
+    fi
+
+    # Fall back to root prds/ (legacy structure)
     if [[ -d "prds" ]]; then
         for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
@@ -1294,8 +1430,11 @@ cmd_run() {
             echo ""
 
             # Capture learned.md content before iteration (for change detection)
+            # Check fade/ first, fall back to root for backwards compatibility
             local learned_before_file=$(mktemp)
-            if [[ -f "learned.md" ]]; then
+            if [[ -f "fade/learned.md" ]]; then
+                cp fade/learned.md "$learned_before_file"
+            elif [[ -f "learned.md" ]]; then
                 cp learned.md "$learned_before_file"
             else
                 touch "$learned_before_file"
@@ -1446,8 +1585,9 @@ ${YELLOW}Execution Modes:${NC}
                 (Note: ALL mode may have issues with Claude's interactive terminal)
 
 ${YELLOW}PRD Locations:${NC}
-  prd.json      Priority injection (processed first if has incomplete work)
-  prds/         Standard queue (processed by filename order)
+  Contained (new):   fade/prd.json, fade/prds/
+  Legacy:            prd.json, prds/
+  (Script checks fade/ first, falls back to root for backwards compatibility)
 
 ${YELLOW}PRD Naming Convention:${NC}
   {TYPE}-{NUMBER}-{slug}.json
@@ -1600,17 +1740,25 @@ cmd_update() {
         fi
 
         # Check prompt.md (unless --cli-only)
-        if [[ "$cli_only" != true ]] && [[ -f "prompt.md" ]]; then
+        # Prefer fade/ if exists, fall back to root
+        local check_prompt_path=""
+        if [[ -f "fade/prompt.md" ]]; then
+            check_prompt_path="fade/prompt.md"
+        elif [[ -f "prompt.md" ]]; then
+            check_prompt_path="prompt.md"
+        fi
+
+        if [[ "$cli_only" != true ]] && [[ -n "$check_prompt_path" ]]; then
             local latest_prompt
             latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
 
             if [[ $? -eq 0 ]] && [[ -n "$latest_prompt" ]]; then
                 local current_prompt
-                current_prompt=$(cat "prompt.md")
+                current_prompt=$(cat "$check_prompt_path")
 
                 if [[ "$current_prompt" != "$latest_prompt" ]]; then
                     has_updates=true
-                    updates_available+=("prompt.md: differs from template")
+                    updates_available+=("$check_prompt_path: differs from template")
                 fi
             fi
         fi
@@ -1703,13 +1851,21 @@ cmd_update() {
     # PROMPT.MD UPDATE
     # ========================================================================
 
+    # Determine prompt.md location (prefer fade/ if exists, fall back to root)
+    local prompt_path=""
+    if [[ -f "fade/prompt.md" ]]; then
+        prompt_path="fade/prompt.md"
+    elif [[ -f "prompt.md" ]]; then
+        prompt_path="prompt.md"
+    fi
+
     if [[ "$cli_only" == true ]]; then
         echo -e "${CYAN}Skipping prompt.md update (--cli-only flag)${NC}"
-    elif [[ ! -f "prompt.md" ]]; then
-        echo -e "${YELLOW}No prompt.md found in current directory - skipping template update${NC}"
+    elif [[ -z "$prompt_path" ]]; then
+        echo -e "${YELLOW}No prompt.md found - skipping template update${NC}"
         echo "Run 'fade init' to create FADE structure with prompt.md"
     else
-        echo -e "Checking prompt.md..."
+        echo -e "Checking $prompt_path..."
 
         # Fetch latest prompt.md template
         local latest_prompt
@@ -1721,12 +1877,12 @@ cmd_update() {
         else
             # Compare with current prompt.md
             local current_prompt
-            current_prompt=$(cat "prompt.md")
+            current_prompt=$(cat "$prompt_path")
 
             if [[ "$current_prompt" == "$latest_prompt" ]]; then
-                echo -e "${GREEN}✓ prompt.md already matches latest template${NC}"
+                echo -e "${GREEN}✓ $prompt_path already matches latest template${NC}"
             else
-                echo -e "${YELLOW}prompt.md differs from latest template${NC}"
+                echo -e "${YELLOW}$prompt_path differs from latest template${NC}"
                 echo ""
 
                 # Show diff summary
@@ -1761,23 +1917,23 @@ cmd_update() {
                 rm -f "$temp_current" "$temp_latest"
 
                 # Ask for confirmation
-                echo -e "${YELLOW}Update prompt.md to latest template?${NC}"
-                echo -e "This will backup your current prompt.md to prompt.md.bak"
+                echo -e "${YELLOW}Update $prompt_path to latest template?${NC}"
+                echo -e "This will backup your current prompt.md to ${prompt_path}.bak"
                 echo ""
-                read -p "Update prompt.md? [y/N]: " confirm </dev/tty
+                read -p "Update $prompt_path? [y/N]: " confirm </dev/tty
 
                 if [[ "$confirm" =~ ^[Yy]$ ]]; then
                     # Create backup
-                    cp "prompt.md" "prompt.md.bak"
+                    cp "$prompt_path" "${prompt_path}.bak"
 
                     # Write new prompt.md
-                    echo "$latest_prompt" > "prompt.md"
+                    echo "$latest_prompt" > "$prompt_path"
 
-                    echo -e "${GREEN}✓ prompt.md updated${NC}"
-                    echo -e "  Backup: prompt.md.bak"
+                    echo -e "${GREEN}✓ $prompt_path updated${NC}"
+                    echo -e "  Backup: ${prompt_path}.bak"
                     prompt_updated=true
                 else
-                    echo -e "${CYAN}Skipped prompt.md update${NC}"
+                    echo -e "${CYAN}Skipped $prompt_path update${NC}"
                 fi
             fi
         fi

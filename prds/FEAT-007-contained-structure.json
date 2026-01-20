@@ -33,7 +33,7 @@
         "All file references in prompt.md use relative paths from `fade/`"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

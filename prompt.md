@@ -146,13 +146,31 @@ If blocked:
 
 ## File Locations
 
+### Contained Structure (New)
+```
+./FADE.md           # Project context (read-only)
+./CLAUDE.md         # Redirect for Claude Code
+./fade/
+  ├── prompt.md     # Execution instructions
+  ├── progress.md   # Session history (append-only)
+  ├── learned.md    # Cumulative memory (append-only)
+  ├── prd.json      # Priority PRD (optional)
+  ├── prds/         # PRD queue
+  └── prd-archive/  # Completed PRDs
+```
+
+### Legacy Structure (Backwards Compatible)
 ```
 ./FADE.md       # Project context (read-only)
+./prompt.md     # Execution instructions
 ./progress.md   # Session history (append-only)
 ./learned.md    # Cumulative memory (append-only)
 ./prd.json      # Priority PRD (optional)
 ./prds/         # PRD queue
+./prd-archive/  # Completed PRDs
 ```
+
+The fade script checks both locations, preferring the contained structure (`fade/`) when present.
 
 ---
 

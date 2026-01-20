@@ -223,3 +223,22 @@ For blocked stories, use:
 - Project root now contains: FADE.md, CLAUDE.md, and fade/ directory
 - Files changed: fade
 - Tests: bash -n syntax check passed, manual init test verified correct structure creation
+
+## 2026-01-20 14:30 - US-002: fade run finds files in new location (FEAT-007) - COMPLETE
+
+- Updated build_context() to check fade/ directory first for progress.md, learned.md, prompt.md
+- Falls back to root directory for backwards compatibility with legacy structure
+- Updated get_active_prd() to check fade/prd.json and fade/prds/ first, then root
+- Updated display_work_queue() to show PRDs from both fade/ and root locations
+- Updated get_total_progress() to count stories from both locations
+- Updated display_learned_changes() to detect learned.md path dynamically
+- Updated cmd_run() learned.md capture to check fade/ first
+- Updated archive_completed_prds() to use fade/prd-archive/ when fade/prds/ exists
+- Updated archive_priority_prd() to handle fade/prd.json location
+- Updated cmd_update --check mode to find prompt.md in either location
+- Updated cmd_update prompt.md update to work with fade/prompt.md or root prompt.md
+- Updated PROMPT_TEMPLATE embedded in fade script with new File Locations documentation
+- Updated prompt.md with both Contained Structure and Legacy Structure documentation
+- Updated help text to show both PRD location options
+- Files changed: fade, prompt.md
+- Tests: bash -n syntax check passed, fade status verified working with legacy structure
