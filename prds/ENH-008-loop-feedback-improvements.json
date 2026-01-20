@@ -61,7 +61,7 @@
         "Easy to visually scan through multiple iterations in terminal history"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

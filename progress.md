@@ -73,3 +73,15 @@ For blocked stories, use:
 - Combined with existing "Progress: X of Y stories complete" for total progress
 - Files changed: fade
 - Tests: bash -n syntax check passed, manual function test verified output
+
+## 2026-01-20 - US-004: Visual separator between iterations (ENH-008) - COMPLETE
+
+- Verified display_iteration_summary() already includes visual separators from US-001 implementation
+- Uses double-line ═══════════ characters for clear visual boundary (lines 686, 688)
+- Separator appears before summary content block
+- Displays "Iteration N Complete" prominently centered (line 687)
+- Cyan coloring provides consistent visual distinction for easy scanning
+- End separator with "Starting next iteration..." also included (lines 730-732)
+- All acceptance criteria already satisfied by existing implementation
+- Files changed: none (already implemented)
+- Tests: bash -n syntax check passed
