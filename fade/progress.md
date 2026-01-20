@@ -528,3 +528,24 @@ For blocked stories, use:
   - If nothing to update: 'All artifacts at vX.X.X'
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-007: fade run outputs version banner (ENH-006) - COMPLETE
+
+- Added display_version_banner() function to show CLI version, prompt.md version, and warnings
+- Banner format: "FADE v0.3.0 │ prompt.md v0.3.0" (concise single line when all match)
+- Added YOLO indicator when running in yolo mode: "🤘 YOLO" appended to version line
+- Shows warnings on second line when versions mismatch (e.g., "Outdated: FADE.md v0.2.0")
+- Checks FADE.md, CLAUDE.md, progress.md, learned.md for version mismatches
+- Added build_version_context() function to provide version info in Claude Code session context
+- Context includes CLI version, prompt.md version, and any version warnings
+- Updated build_context() to prepend version info at start of session context
+- Updated cmd_run() to use display_version_banner() instead of basic version output
+- fade yolo inherits banner via cmd_run("--yolo") call chain
+- All acceptance criteria verified:
+  - fade run outputs version banner before launching Claude Code
+  - Banner shows: CLI version, prompt.md version, any version warnings
+  - Banner is concise (1-2 lines when all versions match)
+  - fade yolo also shows version banner
+  - Version info captured in session context for Claude Code
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual function tests verified both modes

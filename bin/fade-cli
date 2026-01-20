@@ -640,6 +640,166 @@ display_version_warnings() {
     return 0
 }
 
+# Display version banner at start of fade run/yolo
+# Shows CLI version, prompt.md version, and any warnings
+# Concise: 2-3 lines when all versions match
+display_version_banner() {
+    local yolo_mode="${1:-false}"
+    local prompt_path=""
+    local prompt_version=""
+
+    # Find prompt.md (check fade/ first, then root)
+    if [[ -f "fade/prompt.md" ]]; then
+        prompt_path="fade/prompt.md"
+    elif [[ -f "prompt.md" ]]; then
+        prompt_path="prompt.md"
+    fi
+
+    # Get prompt.md version
+    if [[ -n "$prompt_path" ]]; then
+        prompt_version=$(get_artifact_version "$prompt_path")
+    fi
+
+    # Build the version line
+    local version_line="${CYAN}FADE v$FADE_VERSION${NC}"
+    if [[ -n "$prompt_version" ]]; then
+        if [[ "$prompt_version" == "$FADE_VERSION" ]]; then
+            version_line+=" ${CYAN}│${NC} prompt.md v$prompt_version"
+        else
+            version_line+=" ${CYAN}│${NC} ${YELLOW}prompt.md v$prompt_version (mismatch)${NC}"
+        fi
+    elif [[ -n "$prompt_path" ]]; then
+        version_line+=" ${CYAN}│${NC} ${YELLOW}prompt.md (no version)${NC}"
+    fi
+
+    # Add YOLO indicator if in yolo mode
+    if [[ "$yolo_mode" == true ]]; then
+        version_line+=" ${YELLOW}🤘 YOLO${NC}"
+    fi
+
+    echo -e "$version_line"
+
+    # Check for other version warnings (beyond prompt.md which we already showed)
+    local -a other_outdated=()
+    local -a other_missing=()
+
+    for artifact in "FADE.md" "CLAUDE.md" "progress.md" "learned.md"; do
+        local path=""
+        local version=""
+
+        # Check both contained (fade/) and legacy (root) locations
+        if [[ "$artifact" == "FADE.md" ]]; then
+            # FADE.md stays at root in both structures
+            if [[ -f "FADE.md" ]]; then
+                path="FADE.md"
+            fi
+        else
+            # Other artifacts: check fade/ first, then root
+            if [[ -f "fade/$artifact" ]]; then
+                path="fade/$artifact"
+            elif [[ -f "$artifact" ]]; then
+                path="$artifact"
+            fi
+        fi
+
+        # Skip if artifact not found
+        [[ -z "$path" ]] && continue
+
+        version=$(get_artifact_version "$path")
+
+        if [[ -z "$version" ]]; then
+            other_missing+=("$artifact")
+        elif [[ "$version" != "$FADE_VERSION" ]]; then
+            other_outdated+=("$artifact v$version")
+        fi
+    done
+
+    # Show additional warnings if any
+    if [[ ${#other_outdated[@]} -gt 0 || ${#other_missing[@]} -gt 0 ]]; then
+        local warnings=""
+        if [[ ${#other_outdated[@]} -gt 0 ]]; then
+            warnings+="${YELLOW}Outdated: ${other_outdated[*]}${NC}"
+        fi
+        if [[ ${#other_missing[@]} -gt 0 ]]; then
+            [[ -n "$warnings" ]] && warnings+=" "
+            warnings+="${YELLOW}No version: ${other_missing[*]}${NC}"
+        fi
+        echo -e "$warnings"
+    fi
+}
+
+# Build version info string for session context (plain text, no ANSI)
+build_version_context() {
+    local version_info="# SESSION VERSION INFO
+
+CLI: v$FADE_VERSION"
+
+    local prompt_path=""
+    local prompt_version=""
+
+    # Find prompt.md
+    if [[ -f "fade/prompt.md" ]]; then
+        prompt_path="fade/prompt.md"
+    elif [[ -f "prompt.md" ]]; then
+        prompt_path="prompt.md"
+    fi
+
+    # Get prompt.md version
+    if [[ -n "$prompt_path" ]]; then
+        prompt_version=$(get_artifact_version "$prompt_path")
+        if [[ -n "$prompt_version" ]]; then
+            version_info+="
+prompt.md: v$prompt_version"
+        else
+            version_info+="
+prompt.md: no version stamp"
+        fi
+    fi
+
+    # Check other artifacts for warnings
+    local warnings=""
+    for artifact in "FADE.md" "CLAUDE.md" "progress.md" "learned.md"; do
+        local path=""
+        local version=""
+
+        if [[ "$artifact" == "FADE.md" ]]; then
+            if [[ -f "FADE.md" ]]; then
+                path="FADE.md"
+            fi
+        else
+            if [[ -f "fade/$artifact" ]]; then
+                path="fade/$artifact"
+            elif [[ -f "$artifact" ]]; then
+                path="$artifact"
+            fi
+        fi
+
+        [[ -z "$path" ]] && continue
+        version=$(get_artifact_version "$path")
+
+        if [[ -z "$version" ]]; then
+            warnings+="
+- $artifact: no version stamp"
+        elif [[ "$version" != "$FADE_VERSION" ]]; then
+            warnings+="
+- $artifact: v$version (outdated)"
+        fi
+    done
+
+    if [[ -n "$warnings" ]]; then
+        version_info+="
+
+Version warnings:$warnings"
+    fi
+
+    version_info+="
+
+---
+
+"
+    echo "$version_info"
+}
+
 # Get the active PRD (priority prd.json or first incomplete in prds/)
 # Checks fade/ directory first, falls back to root for backwards compatibility
 get_active_prd() {
@@ -1277,6 +1437,9 @@ display_iteration_summary() {
 build_context() {
     local context=""
 
+    # Add version info at the start of context
+    context+="$(build_version_context)"
+
     # FADE.md always at root
     if [[ -f "FADE.md" ]]; then
         context+="# PROJECT CONTEXT (FADE.md)
@@ -1715,11 +1878,8 @@ cmd_run() {
         esac
     done
 
-    if [[ "$yolo_mode" == true ]]; then
-        echo -e "${CYAN}FADE v$FADE_VERSION${NC} ${YELLOW}🤘 YOLO MODE${NC}"
-    else
-        echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
-    fi
+    # Display version banner (CLI version, prompt.md version, any warnings)
+    display_version_banner "$yolo_mode"
     echo ""
 
     # Check for FADE files
