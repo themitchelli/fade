@@ -78,7 +78,7 @@
         "fade status --json includes versions object in output"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

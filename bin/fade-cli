@@ -581,6 +581,65 @@ get_artifact_version() {
     echo "$version"
 }
 
+# Display version warnings footer if any artifacts are outdated
+# Returns 0 if warnings displayed, 1 if all versions match (clean)
+display_version_warnings() {
+    local -a artifacts=("FADE.md" "prompt.md" "CLAUDE.md" "progress.md" "learned.md")
+    local -a outdated=()
+    local -a missing_version=()
+
+    for artifact in "${artifacts[@]}"; do
+        local path=""
+        local version=""
+
+        # Check both contained (fade/) and legacy (root) locations
+        if [[ "$artifact" == "FADE.md" ]]; then
+            # FADE.md stays at root in both structures
+            if [[ -f "FADE.md" ]]; then
+                path="FADE.md"
+            fi
+        else
+            # Other artifacts: check fade/ first, then root
+            if [[ -f "fade/$artifact" ]]; then
+                path="fade/$artifact"
+            elif [[ -f "$artifact" ]]; then
+                path="$artifact"
+            fi
+        fi
+
+        # Skip if artifact not found (that's OK, not all projects have all artifacts)
+        [[ -z "$path" ]] && continue
+
+        version=$(get_artifact_version "$path")
+
+        if [[ -z "$version" ]]; then
+            missing_version+=("$artifact")
+        elif [[ "$version" != "$FADE_VERSION" ]]; then
+            outdated+=("$artifact (v$version)")
+        fi
+    done
+
+    # If all versions match: no extra output (clean)
+    if [[ ${#outdated[@]} -eq 0 && ${#missing_version[@]} -eq 0 ]]; then
+        return 1
+    fi
+
+    # Display warnings
+    echo ""
+    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+    echo -e "${YELLOW}⚠ Version warnings:${NC}"
+
+    if [[ ${#outdated[@]} -gt 0 ]]; then
+        echo -e "  ${YELLOW}Outdated:${NC} ${outdated[*]}"
+    fi
+    if [[ ${#missing_version[@]} -gt 0 ]]; then
+        echo -e "  ${YELLOW}No version stamp:${NC} ${missing_version[*]}"
+    fi
+    echo -e "  Run '${GREEN}fade update${NC}' to sync artifacts to v$FADE_VERSION"
+    echo ""
+    return 0
+}
+
 # Get the active PRD (priority prd.json or first incomplete in prds/)
 # Checks fade/ directory first, falls back to root for backwards compatibility
 get_active_prd() {
@@ -2041,17 +2100,22 @@ PRDEOF
 
 cmd_status() {
     local format="pretty"
-    
+
     # Check for --json flag
     if [[ "${1:-}" == "--json" ]]; then
         format="json"
     fi
-    
+
     if [[ "$format" == "pretty" ]]; then
         echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
     fi
-    
+
     display_work_queue "$format"
+
+    # Show version warnings footer for pretty mode (only if versions differ)
+    if [[ "$format" == "pretty" ]]; then
+        display_version_warnings || true
+    fi
 }
 
 cmd_version() {

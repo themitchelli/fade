@@ -492,3 +492,21 @@ For blocked stories, use:
 - Added examples: fade version, fade version --all
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests verified both modes
+
+## 2026-01-20 - US-005: fade status outputs version info (ENH-006) - COMPLETE
+
+- Added display_version_warnings() function to detect and display version mismatches
+- Function checks all 5 FADE artifacts: FADE.md, prompt.md, CLAUDE.md, progress.md, learned.md
+- Supports both contained (fade/) and legacy (root) file locations
+- Displays warning footer with list of outdated artifacts (shows version) and missing version stamps
+- Footer only appears if versions differ; clean output when all match
+- Updated cmd_status() to call display_version_warnings() after display_work_queue() for pretty mode
+- JSON output already includes version and artifacts object (from US-004 BUG-003)
+- All acceptance criteria verified:
+  - fade status header shows CLI version (already done)
+  - fade status footer shows artifact versions if any are outdated
+  - If all versions match: no extra output (clean)
+  - If versions differ: shows warning with list of outdated artifacts
+  - fade status --json includes versions object in output
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests verified pretty and JSON output
