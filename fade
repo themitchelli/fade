@@ -1020,11 +1020,24 @@ PRDS_EOF
 
 cmd_run() {
     local yolo_mode=false
+    local quiet_mode=false
 
-    # Check for --yolo flag
-    if [[ "${1:-}" == "--yolo" ]]; then
-        yolo_mode=true
-    fi
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yolo)
+                yolo_mode=true
+                shift
+                ;;
+            --quiet|-q)
+                quiet_mode=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
 
     if [[ "$yolo_mode" == true ]]; then
         echo -e "${CYAN}FADE v$FADE_VERSION${NC} ${YELLOW}🤘 YOLO MODE${NC}"
@@ -1120,8 +1133,10 @@ cmd_run() {
                 # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
                 local story_id=$(echo "$output" | grep -o 'STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
 
-                # Display iteration summary with learned.md change detection
-                display_iteration_summary "$iteration" "$story_id" "$learned_before_file"
+                # Display iteration summary (unless --quiet flag is set)
+                if [[ "$quiet_mode" != true ]]; then
+                    display_iteration_summary "$iteration" "$story_id" "$learned_before_file"
+                fi
 
                 rm -f "$learned_before_file"
                 ((iteration++))
@@ -1146,7 +1161,8 @@ cmd_run() {
 
 cmd_yolo() {
     # Convenience command: fade yolo is equivalent to fade run --yolo
-    cmd_run "--yolo"
+    # Pass through any additional arguments (e.g., --quiet)
+    cmd_run "--yolo" "$@"
 }
 
 cmd_status() {
@@ -1178,6 +1194,10 @@ ${YELLOW}Commands:${NC}
   status        Show current work queue
   help          Show this help message
 
+${YELLOW}Run Options:${NC}
+  --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
+  --quiet, -q   Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+
 ${YELLOW}Status Options:${NC}
   --json        Output status as JSON (for scripting)
 
@@ -1207,6 +1227,8 @@ ${YELLOW}Examples:${NC}
   fade init                 # Set up FADE in current directory
   fade run                  # See queue, pick mode, start working
   fade yolo                 # 🤘 Full auto mode, no prompts
+  fade yolo --quiet         # 🤘 Full auto mode, minimal output
+  fade run --yolo --quiet   # Same as above
   fade status               # Check work queue
   fade status --json        # Machine-readable status
 
@@ -1226,7 +1248,8 @@ case "${1:-}" in
         cmd_run "$@"
         ;;
     yolo)
-        cmd_yolo
+        shift
+        cmd_yolo "$@"
         ;;
     status)
         shift

@@ -85,3 +85,16 @@ For blocked stories, use:
 - All acceptance criteria already satisfied by existing implementation
 - Files changed: none (already implemented)
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-005: Add --quiet flag to suppress iteration summaries (ENH-008) - COMPLETE
+
+- Added --quiet/-q flag support to cmd_run() with proper flag parsing loop
+- When --quiet is set, display_iteration_summary() call is skipped after STORY_DONE
+- Final completion messages (ALL_COMPLETE, BLOCKED) still displayed regardless of quiet mode
+- Commits and learned.md updates still captured normally
+- Updated cmd_yolo() to pass through additional arguments to cmd_run()
+- Updated main case statement to pass arguments to cmd_yolo (fade yolo --quiet works)
+- Added "Run Options:" section to help text documenting --yolo and --quiet/-q flags
+- Added examples: fade yolo --quiet, fade run --yolo --quiet
+- Files changed: fade
+- Tests: bash -n syntax check passed
