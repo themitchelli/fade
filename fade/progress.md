@@ -463,3 +463,16 @@ For blocked stories, use:
 - All version headers follow consistent format: `<!-- FADE {filename} v{version} -->`
 - Files changed: bin/fade-cli, fade/prompt.md
 - Tests: bash -n syntax check passed, regex tested for both old and new formats
+
+## 2026-01-20 - US-003: fade init stamps versions into generated files (ENH-006) - COMPLETE
+
+- Verified create_file_if_missing() already replaces __FADE_VERSION__ placeholder with $FADE_VERSION (line 489)
+- Tested fade init in clean directory - all 5 artifacts receive version stamps
+- Generated FADE.md contains `<!-- FADE FADE.md v0.3.0 -->`
+- Generated prompt.md contains `<!-- FADE prompt.md v0.3.0 -->`
+- Generated CLAUDE.md contains `<!-- FADE CLAUDE.md v0.3.0 -->`
+- Generated learned.md contains `<!-- FADE learned.md v0.3.0 -->`
+- Generated progress.md contains `<!-- FADE progress.md v0.3.0 -->`
+- All acceptance criteria satisfied by existing implementation from US-002
+- Files changed: none (already implemented)
+- Tests: Manual test of fade init verified all files receive version stamps
