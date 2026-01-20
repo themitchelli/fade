@@ -418,3 +418,22 @@ For blocked stories, use:
 - Handles edge case where mv might succeed but not remove source (rare filesystem scenarios)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-005: Add version stamps to FADE artifacts (BUG-003) - COMPLETE
+
+- Added version comment to prompt.md template: `<!-- FADE v__FADE_VERSION__ -->`
+- Added version comment to FADE.md template: `<!-- FADE v__FADE_VERSION__ -->`
+- Updated create_file_if_missing() to replace __FADE_VERSION__ placeholder with actual version
+- Added get_artifact_version() helper function to extract version from artifact files
+- Updated fade status --json to include artifacts section with fade_md and prompt_md versions
+- Updated fade update --check to detect version mismatches in FADE.md and prompt.md
+- Version detection uses regex pattern: `FADE v[0-9]+\.[0-9]+\.[0-9]+`
+- Artifacts without version stamp show null in JSON and trigger "no version stamp" warning
+- All acceptance criteria verified:
+  - prompt.md includes version comment at top
+  - FADE.md template includes version comment at top
+  - fade init stamps current version into generated files
+  - fade status --json includes artifact versions
+  - fade update can detect version mismatch
+- Files changed: bin/fade-cli, fade/prompt.md
+- Tests: bash -n syntax check passed, fade init tested with version stamp verification, fade status --json tested

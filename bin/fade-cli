@@ -21,6 +21,8 @@ NC='\033[0m' # No Color
 # ============================================================================
 
 read -r -d '' FADE_TEMPLATE << 'EOF' || true
+<!-- FADE v__FADE_VERSION__ -->
+
 # Project Name
 
 <!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
@@ -299,6 +301,8 @@ For more information, see the [FADE documentation](https://github.com/themitchel
 EOF
 
 read -r -d '' PROMPT_TEMPLATE << 'EOF' || true
+<!-- FADE v__FADE_VERSION__ -->
+
 # FADE Execution Prompt
 
 You are an AI developer working within the FADE (Framework for Agentic Development and Engineering) system. Your job is to implement user stories from PRD files while maintaining session continuity.
@@ -474,6 +478,8 @@ create_file_if_missing() {
         echo -e "  ${YELLOW}skip${NC}: $file (already exists)"
         return 1
     else
+        # Replace version placeholder with actual version
+        content="${content//__FADE_VERSION__/$FADE_VERSION}"
         echo "$content" > "$file"
         echo -e "  ${GREEN}create${NC}: $file"
         return 0
@@ -552,6 +558,19 @@ count_complete_stories() {
     local count
     count=$(grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null) || count=0
     echo "$count"
+}
+
+# Extract version from FADE artifact file (reads first line for <!-- FADE vX.X.X -->)
+get_artifact_version() {
+    local file="$1"
+    if [[ ! -f "$file" ]]; then
+        echo ""
+        return
+    fi
+    # Look for <!-- FADE vX.X.X --> pattern in first line
+    local version
+    version=$(head -1 "$file" | grep -oE 'FADE v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/FADE v//' 2>/dev/null) || version=""
+    echo "$version"
 }
 
 # Get the active PRD (priority prd.json or first incomplete in prds/)
@@ -1337,10 +1356,55 @@ display_work_queue() {
     
     # JSON output
     if [[ "$format" == "json" ]]; then
+        # Detect artifact paths and versions
+        local fade_md_path=""
+        local prompt_md_path=""
+        local fade_md_version=""
+        local prompt_md_version=""
+
+        if [[ -f "FADE.md" ]]; then
+            fade_md_path="FADE.md"
+            fade_md_version=$(get_artifact_version "FADE.md")
+        fi
+
+        if [[ -f "fade/prompt.md" ]]; then
+            prompt_md_path="fade/prompt.md"
+            prompt_md_version=$(get_artifact_version "fade/prompt.md")
+        elif [[ -f "prompt.md" ]]; then
+            prompt_md_path="prompt.md"
+            prompt_md_version=$(get_artifact_version "prompt.md")
+        fi
+
         echo "{"
         echo "  \"version\": \"$FADE_VERSION\","
+        echo "  \"artifacts\": {"
+        if [[ -n "$fade_md_path" ]]; then
+            echo "    \"fade_md\": {"
+            echo "      \"path\": \"$fade_md_path\","
+            if [[ -n "$fade_md_version" ]]; then
+                echo "      \"version\": \"$fade_md_version\""
+            else
+                echo "      \"version\": null"
+            fi
+            echo "    },"
+        else
+            echo "    \"fade_md\": null,"
+        fi
+        if [[ -n "$prompt_md_path" ]]; then
+            echo "    \"prompt_md\": {"
+            echo "      \"path\": \"$prompt_md_path\","
+            if [[ -n "$prompt_md_version" ]]; then
+                echo "      \"version\": \"$prompt_md_version\""
+            else
+                echo "      \"version\": null"
+            fi
+            echo "    }"
+        else
+            echo "    \"prompt_md\": null"
+        fi
+        echo "  },"
         echo "  \"total_items\": $total_items,"
-        
+
         if [[ -n "$priority_prd" ]]; then
             echo "  \"priority\": {"
             echo "    \"file\": \"$priority_prd\","
@@ -1352,7 +1416,7 @@ display_work_queue() {
         else
             echo "  \"priority\": null,"
         fi
-        
+
         echo "  \"queue\": ["
         for i in "${!queue_prds[@]}"; do
             echo "    {"
@@ -1659,7 +1723,7 @@ cmd_run() {
             rm -f "$output_file"
 
             # Check for signals in output
-            if echo "$output" | grep -q "ALL_COMPLETE"; then
+            if echo "$output" | grep -qx "ALL_COMPLETE"; then
                 rm -f "$learned_before_file"
                 echo ""
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -2414,16 +2478,48 @@ cmd_update() {
             updates_available+=("CLI: v$current_version → v$latest_version")
         fi
 
-        # Check prompt.md (unless --cli-only)
+        # Check artifact versions (FADE.md and prompt.md)
         # Prefer fade/ if exists, fall back to root
         local check_prompt_path=""
+        local check_fade_md_path=""
+
         if [[ -f "fade/prompt.md" ]]; then
             check_prompt_path="fade/prompt.md"
         elif [[ -f "prompt.md" ]]; then
             check_prompt_path="prompt.md"
         fi
 
+        if [[ -f "FADE.md" ]]; then
+            check_fade_md_path="FADE.md"
+        fi
+
+        # Check FADE.md version
+        if [[ -n "$check_fade_md_path" ]]; then
+            local fade_md_version
+            fade_md_version=$(get_artifact_version "$check_fade_md_path")
+            if [[ -z "$fade_md_version" ]]; then
+                updates_available+=("FADE.md: no version stamp (run fade update)")
+                has_updates=true
+            elif [[ "$fade_md_version" != "$latest_version" ]]; then
+                updates_available+=("FADE.md: v$fade_md_version → v$latest_version")
+                has_updates=true
+            fi
+        fi
+
+        # Check prompt.md version and content (unless --cli-only)
         if [[ "$cli_only" != true ]] && [[ -n "$check_prompt_path" ]]; then
+            local prompt_md_version
+            prompt_md_version=$(get_artifact_version "$check_prompt_path")
+
+            if [[ -z "$prompt_md_version" ]]; then
+                updates_available+=("$check_prompt_path: no version stamp (run fade update)")
+                has_updates=true
+            elif [[ "$prompt_md_version" != "$latest_version" ]]; then
+                updates_available+=("$check_prompt_path: v$prompt_md_version → v$latest_version")
+                has_updates=true
+            fi
+
+            # Also check content diff for prompt.md
             local latest_prompt
             latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
 
@@ -2432,8 +2528,11 @@ cmd_update() {
                 current_prompt=$(cat "$check_prompt_path")
 
                 if [[ "$current_prompt" != "$latest_prompt" ]]; then
-                    has_updates=true
-                    updates_available+=("$check_prompt_path: differs from template")
+                    # Only add content diff message if we haven't already flagged version mismatch
+                    if [[ "$prompt_md_version" == "$latest_version" ]]; then
+                        has_updates=true
+                        updates_available+=("$check_prompt_path: content differs from template")
+                    fi
                 fi
             fi
         fi
