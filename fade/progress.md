@@ -510,3 +510,21 @@ For blocked stories, use:
   - fade status --json includes versions object in output
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests verified pretty and JSON output
+
+## 2026-01-20 - US-006: Version output after FADE component changes (ENH-006) - COMPLETE
+
+- Enhanced cmd_update() to show version transitions for all updated artifacts
+- CLI update already showed 'v0.3.0 → v0.4.0' format (verified unchanged)
+- Added prompt_version_before capture before any updates using get_artifact_version()
+- Updated prompt.md update message to show version transition: 'v$prompt_version_before → v$latest_version'
+- Added artifacts_updated counter to track number of artifacts updated
+- Updated summary section to show version transitions for both CLI and prompt.md
+- Added summary line: "Updated N artifact(s) to vX.X.X" with proper singular/plural handling
+- Changed "Everything is up to date!" to "All artifacts at vX.X.X" when nothing to update
+- All acceptance criteria verified:
+  - fade update shows before/after versions for each updated artifact
+  - Format: 'prompt.md: v0.3.0 → v0.4.0' in summary section
+  - Summary line: 'Updated N artifacts to vX.X.X'
+  - If nothing to update: 'All artifacts at vX.X.X'
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

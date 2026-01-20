@@ -2707,6 +2707,8 @@ cmd_update() {
 
     local cli_updated=false
     local prompt_updated=false
+    local prompt_version_before=""
+    local artifacts_updated=0
 
     # ========================================================================
     # CLI UPDATE
@@ -2770,6 +2772,7 @@ cmd_update() {
         echo -e "${GREEN}✓ CLI updated: v$current_version → v$latest_version${NC}"
         echo -e "  Backup: $cli_backup_path"
         cli_updated=true
+        ((artifacts_updated++))
     fi
 
     echo ""
@@ -2792,6 +2795,9 @@ cmd_update() {
         echo -e "${YELLOW}No prompt.md found - skipping template update${NC}"
         echo "Run 'fade init' to create FADE structure with prompt.md"
     else
+        # Capture current version before any updates
+        prompt_version_before=$(get_artifact_version "$prompt_path")
+
         echo -e "Checking $prompt_path..."
 
         # Fetch latest prompt.md template
@@ -2856,9 +2862,15 @@ cmd_update() {
                     # Write new prompt.md
                     echo "$latest_prompt" > "$prompt_path"
 
-                    echo -e "${GREEN}✓ $prompt_path updated${NC}"
+                    # Show version transition
+                    if [[ -n "$prompt_version_before" ]]; then
+                        echo -e "${GREEN}✓ $prompt_path updated: v$prompt_version_before → v$latest_version${NC}"
+                    else
+                        echo -e "${GREEN}✓ $prompt_path updated: (no version) → v$latest_version${NC}"
+                    fi
                     echo -e "  Backup: ${prompt_path}.bak"
                     prompt_updated=true
+                    ((artifacts_updated++))
                 else
                     echo -e "${CYAN}Skipped $prompt_path update${NC}"
                 fi
@@ -2881,11 +2893,22 @@ cmd_update() {
             echo -e "  CLI:       ${BOLD}v$current_version → v$latest_version${NC}"
         fi
         if [[ "$prompt_updated" == true ]]; then
-            echo -e "  prompt.md: ${BOLD}updated to latest template${NC}"
+            if [[ -n "$prompt_version_before" ]]; then
+                echo -e "  prompt.md: ${BOLD}v$prompt_version_before → v$latest_version${NC}"
+            else
+                echo -e "  prompt.md: ${BOLD}(no version) → v$latest_version${NC}"
+            fi
         fi
         echo ""
+        # Summary line showing count
+        local artifact_word="artifact"
+        if [[ $artifacts_updated -gt 1 ]]; then
+            artifact_word="artifacts"
+        fi
+        echo -e "  ${GREEN}Updated $artifacts_updated $artifact_word to v$latest_version${NC}"
+        echo ""
     else
-        echo -e "${GREEN}✓ Everything is up to date!${NC}"
+        echo -e "${GREEN}✓ All artifacts at v$latest_version${NC}"
     fi
 }
 

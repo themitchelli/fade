@@ -91,7 +91,7 @@
         "If nothing to update: 'All artifacts at v0.4.0'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
