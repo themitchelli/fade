@@ -370,3 +370,14 @@ For blocked stories, use:
 - Explicitly states this is OPTIONAL - framework doesn't require acPassed field
 - Files changed: fade/prompt.md
 - Tests: Manual verification that all acceptance criteria language is present
+
+## 2026-01-20 - US-001: Scanner treats missing passes field as incomplete (BUG-003) - COMPLETE
+
+- Updated prd_has_incomplete_stories() to compare total stories vs complete stories instead of checking for passes:false
+- Updated count_incomplete_stories() to return (total - complete) count, catching both passes:false AND missing passes field
+- Verified count_complete_stories() already only counts explicit passes:true (added clarifying comment)
+- Updated prd_is_fully_complete() to require total_stories == complete_stories for completion
+- All functions now use "id": "US-" pattern to count total stories
+- Functions now correctly detect PRDs with missing passes fields as having incomplete work
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual function tests verified correct behavior

@@ -1,0 +1,76 @@
+{
+  "type": "bug",
+  "project": "fade",
+  "id": "BUG-003",
+  "name": "PRD completion integrity",
+  "description": "Multiple related bugs that allowed incomplete PRDs to be archived and new PRDs to be invisible to the scanner. Discovered during Assumptions Manager dogfooding.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scanner treats missing passes field as incomplete",
+      "description": "As a developer, I want PRDs without a passes field on user stories to be treated as incomplete, so that manually created or Claude-generated PRDs without the field are still picked up for work.",
+      "acceptanceCriteria": [
+        "prd_has_incomplete_stories() returns true if any story lacks passes field",
+        "count_incomplete_stories() counts stories with passes:false OR missing passes field",
+        "count_complete_stories() only counts stories with explicit passes:true",
+        "fade status shows PRDs with missing passes fields as having incomplete work"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Validate PRD completion before archive",
+      "description": "As a developer, I want the archive function to verify the source file has all passes:true before archiving, so that incomplete PRDs cannot be falsely archived.",
+      "acceptanceCriteria": [
+        "archive_completed_prds() re-reads source file immediately before mv",
+        "Archive aborts if any story has passes:false or missing passes field",
+        "Warning message displayed if archive validation fails",
+        "prd_is_fully_complete() requires explicit passes:true on ALL stories"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Archive verifies source file deleted after move",
+      "description": "As a developer, I want the archive function to verify the source file no longer exists after mv, so that duplicate files cannot exist in both locations.",
+      "acceptanceCriteria": [
+        "After mv command, check source file no longer exists",
+        "If source still exists, display error and abort",
+        "Archive count only incremented after successful verification"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Add PRD integrity rules to prompt.md",
+      "description": "As a developer, I want explicit instructions in prompt.md about PRD file handling, so that Claude cannot create modified copies or falsify completion status.",
+      "acceptanceCriteria": [
+        "New 'PRD Integrity Rules' section added to prompt.md",
+        "Explicit instruction: NEVER create copies of PRD files",
+        "Explicit instruction: ALWAYS update the ORIGINAL file in prds/ or fade/prds/",
+        "Explicit instruction: NEVER write directly to prd-archive/",
+        "Explicit instruction: Verify passes:true BEFORE signalling completion"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Add version stamps to FADE artifacts",
+      "description": "As a developer, I want FADE artifacts to include version metadata, so that I can identify version drift between projects and know when to run fade update.",
+      "acceptanceCriteria": [
+        "prompt.md includes version comment at top: <!-- FADE vX.X.X -->",
+        "FADE.md template includes version comment at top",
+        "fade init stamps current version into generated files",
+        "fade status --json includes artifact versions",
+        "fade update can detect version mismatch"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}

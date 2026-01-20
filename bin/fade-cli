@@ -483,10 +483,20 @@ create_file_if_missing() {
 # Check if a PRD has incomplete stories
 prd_has_incomplete_stories() {
     local prd_file="$1"
-    if [[ -f "$prd_file" ]]; then
-        if grep -q '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null; then
-            return 0
-        fi
+    if [[ ! -f "$prd_file" ]]; then
+        return 1
+    fi
+
+    # Count total stories and complete stories
+    # A story is incomplete if passes:false OR missing passes field entirely
+    local total_stories
+    local complete_stories
+    total_stories=$(grep -c '"id"[[:space:]]*:[[:space:]]*"US-' "$prd_file" 2>/dev/null) || total_stories=0
+    complete_stories=$(grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null) || complete_stories=0
+
+    # Has incomplete if total > complete (catches both passes:false AND missing passes)
+    if [[ "$total_stories" -gt "$complete_stories" ]]; then
+        return 0
     fi
     return 1
 }
@@ -525,14 +535,18 @@ get_prd_type() {
 }
 
 # Count incomplete stories in a PRD
+# A story is incomplete if passes:false OR missing passes field entirely
 count_incomplete_stories() {
     local prd_file="$1"
-    local count
-    count=$(grep -c '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null) || count=0
-    echo "$count"
+    local total_stories
+    local complete_stories
+    total_stories=$(grep -c '"id"[[:space:]]*:[[:space:]]*"US-' "$prd_file" 2>/dev/null) || total_stories=0
+    complete_stories=$(grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null) || complete_stories=0
+    echo $((total_stories - complete_stories))
 }
 
 # Count complete stories in a PRD
+# Only counts stories with EXPLICIT passes:true (missing passes field = incomplete)
 count_complete_stories() {
     local prd_file="$1"
     local count
@@ -665,20 +679,20 @@ display_learned_changes() {
 }
 
 # Check if a PRD is fully complete (all stories have passes: true)
+# Requires EXPLICIT passes:true on ALL stories - missing passes field = incomplete
 prd_is_fully_complete() {
     local prd_file="$1"
     if [[ ! -f "$prd_file" ]]; then
         return 1
     fi
 
-    # A PRD is fully complete if it has at least one story AND no incomplete stories
-    local has_stories
-    has_stories=$(grep -c '"passes"' "$prd_file" 2>/dev/null) || has_stories=0
-    local incomplete
-    incomplete=$(count_incomplete_stories "$prd_file")
-    incomplete=${incomplete:-0}
+    # A PRD is fully complete if it has at least one story AND all stories have passes:true
+    local total_stories
+    local complete_stories
+    total_stories=$(grep -c '"id"[[:space:]]*:[[:space:]]*"US-' "$prd_file" 2>/dev/null) || total_stories=0
+    complete_stories=$(grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null) || complete_stories=0
 
-    if [[ "$has_stories" -gt 0 && "$incomplete" -eq 0 ]]; then
+    if [[ "$total_stories" -gt 0 && "$total_stories" -eq "$complete_stories" ]]; then
         return 0
     fi
     return 1
