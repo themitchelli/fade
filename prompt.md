@@ -95,6 +95,22 @@ Check if there are more incomplete stories in the queue:
 - If MORE work remains: Output exactly `STORY_DONE: US-XXX`
 - If ALL work complete: Output exactly `ALL_COMPLETE`
 
+**Note:** When you output `ALL_COMPLETE`, the fade script automatically archives completed PRDs:
+- PRDs in `prds/` where all stories have `passes: true` are moved to `prd-archive/`
+- If `prd.json` exists and is complete, it's renamed and archived using the naming convention below
+
+### PRD Archive Naming Convention
+
+When `prd.json` is archived, it's renamed to: `{TYPE}-{ID}-{slug}.json`
+
+| Field | Source | Example |
+|-------|--------|---------|
+| TYPE | `type` field mapped to prefix | `feature` → `FEAT`, `bug` → `BUG`, `enhancement` → `ENH`, `chore` → `CHORE`, `spike` → `SPIKE` |
+| ID | `id` field | `BUG-009` or `009` |
+| slug | `name` field (lowercase, spaces→hyphens, max 50 chars) | `fix-broken-widget` |
+
+Example: A PRD with `type: "bug"`, `id: "009"`, `name: "Fix broken widget"` becomes `BUG-009-fix-broken-widget.json`
+
 ### Step 6: STOP
 
 After outputting the signal, STOP IMMEDIATELY.

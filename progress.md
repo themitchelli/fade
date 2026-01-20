@@ -141,3 +141,14 @@ For blocked stories, use:
 - Total archived count includes both prd.json and prds/ folder PRDs
 - Files changed: fade
 - Tests: bash -n syntax check passed, manual function tests verified correct naming for both ID formats
+
+## 2026-01-20 08:15 - US-004: Update prompt.md exit protocol (ENH-006) - COMPLETE
+
+- Added archive documentation to prompt.md Story Completion Protocol section
+- Documented that fade script automatically archives completed PRDs when ALL_COMPLETE is output
+- Added "PRD Archive Naming Convention" subsection with table explaining TYPE, ID, and slug fields
+- Included type-to-prefix mapping (feature→FEAT, bug→BUG, enhancement→ENH, chore→CHORE, spike→SPIKE)
+- Added example showing how prd.json gets renamed during archive
+- Documentation placed in Step 5 before Step 6 (STOP), consistent with archive running after ALL_COMPLETE signal
+- Files changed: prompt.md
+- Tests: Manual verification that documentation matches fade script archive behavior
