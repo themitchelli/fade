@@ -1248,6 +1248,12 @@ detect_interruption() {
         return 0
     fi
 
+    # API empty response: transient error from Claude CLI
+    if echo "$output" | grep -qi "No messages returned"; then
+        echo "service_error"
+        return 0
+    fi
+
     # No known interruption detected
     echo ""
 }
@@ -1763,7 +1769,8 @@ ask_execution_mode() {
 # --------------- ------------------------------------- ---------
 # rate_limit      "You've hit your limit"               2
 # network_error   "connection refused", "unreachable"   3
-# service_error   "service unavailable", "503", "502"   3
+# service_error   "service unavailable", "503", "502",  3
+#                 "No messages returned"
 #
 # Exit codes:
 #   0 = success (ALL_COMPLETE)
