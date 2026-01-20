@@ -181,6 +181,63 @@ Examples:
 - Loop detects signals and restarts Claude automatically
 - Continues until `ALL_COMPLETE` or `BLOCKED`
 
+### Iteration Feedback (ALL/YOLO Mode)
+
+After each story completion, the loop displays a rich summary:
+
+| Information | Description |
+|-------------|-------------|
+| **Story Passed** | Shows `US-XXX - Story Title` |
+| **Acceptance Criteria** | Lists all criteria accomplished |
+| **New Learnings** | Shows any additions to `learned.md` |
+| **Git Commit** | Displays the commit message used |
+| **Progress** | Shows `X of Y stories complete` |
+| **PRD Status** | Checkboxes showing story completion status |
+
+Use `--quiet` or `-q` to suppress iteration summaries while keeping final messages:
+
+```bash
+fade run --yolo --quiet   # Minimal output, max speed
+fade yolo --quiet         # Same as above
+```
+
+**Example iteration summary:**
+
+```
+═══════════════════════════════════════════════════════════════
+                    Iteration 2 Complete
+═══════════════════════════════════════════════════════════════
+
+✓ USER STORY PASSED: US-002
+  Add validation to user input form
+
+Acceptance Criteria Accomplished:
+  ✓ Form validates email format
+  ✓ Form shows inline error messages
+  ✓ Submit button disabled until valid
+
+New Learnings Captured:
+  + ## 2026-01-20 - Zod validation pattern
+  + Using Zod with React Hook Form provides type-safe validation
+
+Git Commit:
+  feat: complete US-002 - Add validation to user input form (ENH-001)
+
+Progress: 2 of 5 stories complete
+
+Current PRD Status:
+  ENH-001-user-forms.json
+    [✓] US-001: Create basic form component
+    [✓] US-002: Add validation to user input form
+    [ ] US-003: Add form submission handling
+    [ ] US-004: Add loading states
+    [ ] US-005: Add success/error feedback
+
+───────────────────────────────────────────────────────────────
+Starting next iteration...
+───────────────────────────────────────────────────────────────
+```
+
 ### Signal Protocol
 
 | Signal | Meaning |

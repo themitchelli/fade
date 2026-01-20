@@ -98,3 +98,13 @@ For blocked stories, use:
 - Added examples: fade yolo --quiet, fade run --yolo --quiet
 - Files changed: fade
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-006: Update documentation for enhanced loop feedback (ENH-008) - COMPLETE
+
+- Added "Iteration Feedback (ALL/YOLO Mode)" section to README.md
+- Documented all information shown in iteration summaries: Story Passed, Acceptance Criteria, New Learnings, Git Commit, Progress, PRD Status
+- Documented --quiet/-q flag usage with examples
+- Added full example iteration summary output showing the visual format
+- README serves as the project description (no separate fade-project-description file exists)
+- Files changed: README.md
+- Tests: Verified README renders correctly with new section

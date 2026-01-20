@@ -89,7 +89,7 @@
         "fade-project-description updated with ENH-008"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ]
 }
