@@ -6,6 +6,7 @@
 set -e
 
 FADE_VERSION="0.3.0"
+ARTIFACT_VERSION="0.3.0"
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,7 +22,7 @@ NC='\033[0m' # No Color
 # ============================================================================
 
 read -r -d '' FADE_TEMPLATE << 'EOF' || true
-<!-- FADE v__FADE_VERSION__ -->
+<!-- FADE FADE.md v__FADE_VERSION__ -->
 
 # Project Name
 
@@ -224,6 +225,8 @@ Add any other information that helps agents work effectively:
 EOF
 
 read -r -d '' PROGRESS_TEMPLATE << 'EOF' || true
+<!-- FADE progress.md v__FADE_VERSION__ -->
+
 # Progress Log
 
 Session history for this project. Append-only.
@@ -250,6 +253,8 @@ For blocked stories, use:
 EOF
 
 read -r -d '' LEARNED_TEMPLATE << 'EOF' || true
+<!-- FADE learned.md v__FADE_VERSION__ -->
+
 # Learned
 
 Discoveries and insights from development sessions. Append-only.
@@ -274,6 +279,8 @@ Only add learnings that are:
 EOF
 
 read -r -d '' CLAUDE_TEMPLATE << 'EOF' || true
+<!-- FADE CLAUDE.md v__FADE_VERSION__ -->
+
 # Claude Code Instructions
 
 This project uses [FADE](https://github.com/themitchelli/fade) (Framework for Agentic Development and Engineering).
@@ -301,7 +308,7 @@ For more information, see the [FADE documentation](https://github.com/themitchel
 EOF
 
 read -r -d '' PROMPT_TEMPLATE << 'EOF' || true
-<!-- FADE v__FADE_VERSION__ -->
+<!-- FADE prompt.md v__FADE_VERSION__ -->
 
 # FADE Execution Prompt
 
@@ -560,16 +567,17 @@ count_complete_stories() {
     echo "$count"
 }
 
-# Extract version from FADE artifact file (reads first line for <!-- FADE vX.X.X -->)
+# Extract version from FADE artifact file (reads first line for <!-- FADE {filename} vX.X.X -->)
 get_artifact_version() {
     local file="$1"
     if [[ ! -f "$file" ]]; then
         echo ""
         return
     fi
-    # Look for <!-- FADE vX.X.X --> pattern in first line
+    # Look for <!-- FADE {filename} vX.X.X --> pattern in first line (new format)
+    # Also supports legacy <!-- FADE vX.X.X --> format for backwards compatibility
     local version
-    version=$(head -1 "$file" | grep -oE 'FADE v[0-9]+\.[0-9]+\.[0-9]+' | sed 's/FADE v//' 2>/dev/null) || version=""
+    version=$(head -1 "$file" | grep -oE 'v[0-9]+\.[0-9]+\.[0-9]+' | head -1 | sed 's/v//' 2>/dev/null) || version=""
     echo "$version"
 }
 

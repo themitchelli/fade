@@ -34,7 +34,7 @@
         "Version format is consistent: <!-- FADE {filename} v{version} -->"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

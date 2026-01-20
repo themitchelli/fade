@@ -449,3 +449,17 @@ For blocked stories, use:
 - Using raw GitHub URL instead of gist - provides same stable public access without separate resource
 - Files changed: version-manifest.json (new), bin/fade-cli, README.md
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-002: Add version headers to all FADE artifacts (ENH-006) - COMPLETE
+
+- Added ARTIFACT_VERSION="0.3.0" constant to fade-cli (line 9)
+- Updated FADE_TEMPLATE to use `<!-- FADE FADE.md v__FADE_VERSION__ -->` format
+- Updated PROMPT_TEMPLATE to use `<!-- FADE prompt.md v__FADE_VERSION__ -->` format
+- Added version header to PROGRESS_TEMPLATE: `<!-- FADE progress.md v__FADE_VERSION__ -->`
+- Added version header to LEARNED_TEMPLATE: `<!-- FADE learned.md v__FADE_VERSION__ -->`
+- Added version header to CLAUDE_TEMPLATE: `<!-- FADE CLAUDE.md v__FADE_VERSION__ -->`
+- Updated actual fade/prompt.md to use new format: `<!-- FADE prompt.md v0.3.0 -->`
+- Updated get_artifact_version() function to support both old and new version header formats
+- All version headers follow consistent format: `<!-- FADE {filename} v{version} -->`
+- Files changed: bin/fade-cli, fade/prompt.md
+- Tests: bash -n syntax check passed, regex tested for both old and new formats

@@ -1,4 +1,4 @@
-<!-- FADE v0.3.0 -->
+<!-- FADE prompt.md v0.3.0 -->
 
 # FADE Execution Prompt
 
