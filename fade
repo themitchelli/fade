@@ -557,6 +557,35 @@ get_latest_commit_message() {
     git log -1 --pretty=format:"%s" 2>/dev/null || echo "No commits found"
 }
 
+# Display learned.md changes if any were detected
+# Takes before_content_file (temp file path) as argument
+display_learned_changes() {
+    local before_file="$1"
+
+    # If no before file provided or learned.md doesn't exist, skip
+    if [[ -z "$before_file" ]] || [[ ! -f "learned.md" ]]; then
+        return
+    fi
+
+    # Compare before and after using diff
+    local diff_output=$(diff "$before_file" learned.md 2>/dev/null | grep '^>' | sed 's/^> //')
+
+    # If no changes, display nothing (no noise)
+    if [[ -z "$diff_output" ]]; then
+        return
+    fi
+
+    # learned.md was modified, show the new entries
+    echo -e "${YELLOW}New Learnings Captured:${NC}"
+    echo ""
+    echo "$diff_output" | while IFS= read -r line; do
+        if [[ -n "$line" ]]; then
+            echo -e "  ${GREEN}+${NC} $line"
+        fi
+    done
+    echo ""
+}
+
 # Get total story counts across all PRDs with incomplete work
 get_total_progress() {
     local total_complete=0
@@ -590,6 +619,7 @@ get_total_progress() {
 display_iteration_summary() {
     local iteration="$1"
     local story_id="$2"
+    local learned_before_file="$3"
 
     local active_prd=$(get_active_prd)
     local story_title=""
@@ -629,6 +659,9 @@ display_iteration_summary() {
             echo ""
         fi
     fi
+
+    # Display learned.md changes (if any)
+    display_learned_changes "$learned_before_file"
 
     # Display commit message
     echo -e "${YELLOW}Git Commit:${NC}"
@@ -988,6 +1021,14 @@ cmd_run() {
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo ""
 
+            # Capture learned.md content before iteration (for change detection)
+            local learned_before_file=$(mktemp)
+            if [[ -f "learned.md" ]]; then
+                cp learned.md "$learned_before_file"
+            else
+                touch "$learned_before_file"
+            fi
+
             local context=$(build_context)
 
             # Run Claude and capture output
@@ -1002,6 +1043,7 @@ cmd_run() {
 
             # Check for signals in output
             if echo "$output" | grep -q "ALL_COMPLETE"; then
+                rm -f "$learned_before_file"
                 echo ""
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${GREEN}🎉 ALL WORK COMPLETE!${NC}"
@@ -1010,6 +1052,7 @@ cmd_run() {
             fi
 
             if echo "$output" | grep -q "BLOCKED"; then
+                rm -f "$learned_before_file"
                 echo ""
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
@@ -1021,15 +1064,17 @@ cmd_run() {
                 # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
                 local story_id=$(echo "$output" | grep -o 'STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
 
-                # Display iteration summary
-                display_iteration_summary "$iteration" "$story_id"
+                # Display iteration summary with learned.md change detection
+                display_iteration_summary "$iteration" "$story_id" "$learned_before_file"
 
+                rm -f "$learned_before_file"
                 ((iteration++))
                 sleep 2  # Brief pause for filesystem to settle
                 continue
             fi
 
             # No recognized signal
+            rm -f "$learned_before_file"
             echo ""
             echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
             echo -e "${YELLOW}⚠️  No exit signal detected. Stopping loop.${NC}"

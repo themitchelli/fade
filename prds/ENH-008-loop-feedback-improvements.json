@@ -34,7 +34,7 @@
         "Uses git diff or file comparison to detect changes"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

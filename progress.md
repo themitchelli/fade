@@ -51,3 +51,14 @@ For blocked stories, use:
 - Added helper functions: get_active_prd(), get_story_title(), get_story_acceptance_criteria(), get_latest_commit_message(), get_total_progress()
 - Files changed: fade
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-002: Display learned.md changes after each iteration (ENH-008) - COMPLETE
+
+- Added display_learned_changes() function to detect and show learned.md modifications
+- Captures learned.md content to temp file before each iteration
+- Uses diff to detect new lines added during iteration
+- Displays new entries with "New Learnings Captured:" heading (yellow) and green + prefix for each line
+- Silently skips display when learned.md unchanged (no noise)
+- Properly cleans up temp files in all code paths (STORY_DONE, ALL_COMPLETE, BLOCKED, no signal)
+- Files changed: fade
+- Tests: bash -n syntax check passed
