@@ -482,13 +482,17 @@ get_prd_type() {
 # Count incomplete stories in a PRD
 count_incomplete_stories() {
     local prd_file="$1"
-    grep -c '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null || echo "0"
+    local count
+    count=$(grep -c '"passes"[[:space:]]*:[[:space:]]*false' "$prd_file" 2>/dev/null) || count=0
+    echo "$count"
 }
 
 # Count complete stories in a PRD
 count_complete_stories() {
     local prd_file="$1"
-    grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null || echo "0"
+    local count
+    count=$(grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null) || count=0
+    echo "$count"
 }
 
 # Get the active PRD (priority prd.json or first incomplete in prds/)
@@ -584,6 +588,54 @@ display_learned_changes() {
         fi
     done
     echo ""
+}
+
+# Check if a PRD is fully complete (all stories have passes: true)
+prd_is_fully_complete() {
+    local prd_file="$1"
+    if [[ ! -f "$prd_file" ]]; then
+        return 1
+    fi
+
+    # A PRD is fully complete if it has at least one story AND no incomplete stories
+    local has_stories
+    has_stories=$(grep -c '"passes"' "$prd_file" 2>/dev/null) || has_stories=0
+    local incomplete
+    incomplete=$(count_incomplete_stories "$prd_file")
+    incomplete=${incomplete:-0}
+
+    if [[ "$has_stories" -gt 0 && "$incomplete" -eq 0 ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Archive completed PRDs from prds/ folder
+# Returns the number of files archived
+archive_completed_prds() {
+    local archived_count=0
+
+    # Ensure prd-archive/ exists
+    if [[ ! -d "prd-archive" ]]; then
+        mkdir -p "prd-archive"
+        touch "prd-archive/.gitkeep"
+    fi
+
+    # Scan prds/ folder for completed PRDs
+    if [[ -d "prds" ]]; then
+        for prd_file in prds/*.json; do
+            [[ -f "$prd_file" ]] || continue
+
+            if prd_is_fully_complete "$prd_file"; then
+                local filename=$(basename "$prd_file")
+                mv "$prd_file" "prd-archive/$filename"
+                echo -e "  ${GREEN}archived${NC}: $filename"
+                ((archived_count++))
+            fi
+        done
+    fi
+
+    echo "$archived_count"
 }
 
 # Get total story counts across all PRDs with incomplete work
@@ -1127,6 +1179,21 @@ cmd_run() {
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${GREEN}🎉 ALL WORK COMPLETE!${NC}"
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+
+                # Archive completed PRDs
+                echo -e "${YELLOW}Archiving completed PRDs...${NC}"
+                local archived_output=$(archive_completed_prds)
+                local archived_count=$(echo "$archived_output" | tail -1)
+                # Display archive messages (all but last line which is the count)
+                echo "$archived_output" | head -n -1
+
+                if [[ "$archived_count" -gt 0 ]]; then
+                    echo -e "${GREEN}Archived $archived_count PRD(s) to prd-archive/${NC}"
+                else
+                    echo -e "  ${CYAN}No completed PRDs to archive${NC}"
+                fi
+                echo ""
                 break
             fi
 

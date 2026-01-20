@@ -29,7 +29,7 @@
         "Log which files were archived"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

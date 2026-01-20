@@ -118,3 +118,14 @@ For blocked stories, use:
 - Tested fade init skips existing folder correctly
 - Files changed: fade
 - Tests: bash -n syntax check passed, manual init test verified folder creation
+
+## 2026-01-20 08:00 - US-002: Archive completed PRDs from prds/ folder (ENH-006) - COMPLETE
+
+- Added prd_is_fully_complete() function to check if all stories in a PRD have passes: true
+- Added archive_completed_prds() function to scan prds/ folder and move completed PRDs
+- Integrated archive step into ALL_COMPLETE signal handling in cmd_run()
+- Archives display "archived: filename" for each moved file with green coloring
+- Summary shows count of PRDs archived after completion
+- Fixed bug in count_incomplete_stories() and count_complete_stories() functions where grep -c returning 0 would also trigger || echo "0" causing double output
+- Files changed: fade
+- Tests: bash -n syntax check passed, manual function test verified correct archive behavior
