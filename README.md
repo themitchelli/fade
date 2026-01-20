@@ -1,4 +1,4 @@
-# FADE v0.2.3
+# FADE v0.3.0
 
 **Framework for Agentic Development and Engineering**
 
@@ -9,12 +9,13 @@ FADE provides session memory, context management, and execution orchestration fo
 ```bash
 # 1. Clone the repo
 git clone https://github.com/themitchelli/fade.git
+cd fade
 
-# 2. Add to PATH (add this line to ~/.zshrc)
-export PATH="$HOME/Documents/GitHub/fade:$PATH"
+# 2. Symlink to your PATH
+sudo ln -s "$(pwd)/bin/fade-cli" /usr/local/bin/fade
 
-# 3. Reload shell
-source ~/.zshrc
+# 3. Verify installation
+fade help
 
 # 4. Initialize FADE in your project
 cd /path/to/your/project
@@ -29,23 +30,66 @@ fade run
 
 ## Installation
 
-Add the following line to your `~/.zshrc` (or `~/.bashrc` for bash):
+### Option 1: Symlink (Recommended)
 
 ```bash
-export PATH="$HOME/Documents/GitHub/fade:$PATH"
+git clone https://github.com/themitchelli/fade.git
+sudo ln -s ~/path/to/fade/bin/fade-cli /usr/local/bin/fade
 ```
 
-Then reload your shell:
+### Option 2: Add to PATH
+
+Add to your `~/.zshrc` (or `~/.bashrc`):
 
 ```bash
-source ~/.zshrc
+export PATH="$HOME/path/to/fade/bin:$PATH"
 ```
 
-Verify installation:
+Then reload: `source ~/.zshrc`
+
+### Verify Installation
 
 ```bash
 fade help
 ```
+
+## Project Structure
+
+After running `fade init`, your project will have:
+
+```
+your-project/
+├── FADE.md              # Project context (human-curated, read-only for AI)
+├── CLAUDE.md            # Redirect for Claude Code discovery
+└── fade/
+    ├── prompt.md        # Execution protocol for Claude
+    ├── progress.md      # Session history (append-only)
+    ├── learned.md       # Cumulative discoveries (append-only)
+    ├── prd.json         # Priority PRD (optional)
+    ├── prds/            # PRD queue
+    └── prd-archive/     # Completed PRDs
+```
+
+**Key design decisions:**
+- `FADE.md` stays at root for visibility - it's the "front door" to your project context
+- `CLAUDE.md` redirects Claude Code to the right files
+- Everything else is contained in `fade/` to keep root clean
+
+### Legacy Structure (Still Supported)
+
+Projects with the old flat structure still work:
+
+```
+your-project/
+├── FADE.md
+├── prompt.md
+├── progress.md
+├── learned.md
+├── prd.json
+└── prds/
+```
+
+Use `fade migrate` to upgrade to the contained structure.
 
 ## Commands
 
@@ -57,13 +101,6 @@ Creates the FADE file structure in your project:
 fade init
 ```
 
-This creates:
-- `FADE.md` - Project context (you fill this in)
-- `progress.md` - Session history log
-- `learned.md` - Cumulative discoveries
-- `prompt.md` - Execution instructions for Claude
-- `prds/` - PRD queue folder with README
-
 ### `fade status`
 
 Shows your current work queue without starting Claude:
@@ -72,11 +109,6 @@ Shows your current work queue without starting Claude:
 fade status          # Pretty-printed with colours
 fade status --json   # Machine-readable JSON output
 ```
-
-Displays:
-- Priority PRD (`prd.json`) if present
-- Queue PRDs from `prds/` folder
-- Done/remaining counts per PRD
 
 ### `fade run`
 
@@ -95,7 +127,7 @@ Shows your work queue, then prompts for execution mode:
 
 ### `fade yolo` 🤘
 
-Skip prompts and run in full autonomous mode with no permission prompts:
+Skip prompts and run in full autonomous mode:
 
 ```bash
 fade yolo
@@ -103,22 +135,42 @@ fade yolo
 
 This is a shortcut for `fade run --yolo` that:
 - Shows your work queue
-- Skips the STOP/ALL mode prompt (goes straight to ALL mode)
-- Starts Claude with `--dangerously-skip-permissions` (no permission prompts)
+- Skips the STOP/ALL mode prompt (goes straight to ALL)
+- Starts Claude with `--dangerously-skip-permissions`
 - Displays 🤘 YOLO MODE indicator
 
-**What does `--dangerously-skip-permissions` do?**
+**Warning:** Only use YOLO mode when you trust your PRD and understand what changes will be made.
 
-Normally, Claude Code asks for permission before running commands, editing files, or performing other actions. With this flag enabled, Claude will execute all actions without asking - perfect for trusted PRDs where you want fully autonomous execution.
+### `fade new`
 
-**Warning:** Only use YOLO mode when you trust your PRD and understand what changes will be made. Review your PRD acceptance criteria carefully before running.
-
-### `fade run --yolo`
-
-Equivalent to `fade yolo`:
+Create a new PRD:
 
 ```bash
-fade run --yolo
+fade new feature "User authentication"
+fade new bug "Login timeout"  
+fade new spike "Evaluate caching options"
+fade new enhancement "Improve error messages"
+fade new chore "Update dependencies"
+```
+
+### `fade migrate`
+
+Upgrade from legacy flat structure to contained `fade/` structure:
+
+```bash
+fade migrate           # Interactive migration
+fade migrate --dry-run # Preview without changes
+fade migrate --yes     # Skip confirmation
+```
+
+### `fade update`
+
+Update FADE CLI and templates:
+
+```bash
+fade update            # Update CLI and prompt.md
+fade update --check    # Check for updates without applying
+fade update --cli-only # Update CLI only, keep local prompt.md
 ```
 
 ## PRD Management
@@ -127,8 +179,12 @@ fade run --yolo
 
 | Location | Purpose |
 |----------|---------|
-| `prd.json` | Priority PRD - processed first if it has incomplete stories |
-| `prds/` | Standard queue - processed by filename order |
+| `fade/prd.json` | Priority PRD - processed first (new structure) |
+| `fade/prds/` | Standard queue (new structure) |
+| `prd.json` | Priority PRD (legacy, still supported) |
+| `prds/` | Standard queue (legacy, still supported) |
+
+The script checks the contained structure (`fade/`) first, then falls back to root for backwards compatibility.
 
 ### PRD Naming Convention
 
@@ -183,7 +239,7 @@ Examples:
 
 ### Iteration Feedback (ALL/YOLO Mode)
 
-After each story completion, the loop displays a rich summary:
+After each story completion, the loop displays:
 
 | Information | Description |
 |-------------|-------------|
@@ -194,48 +250,10 @@ After each story completion, the loop displays a rich summary:
 | **Progress** | Shows `X of Y stories complete` |
 | **PRD Status** | Checkboxes showing story completion status |
 
-Use `--quiet` or `-q` to suppress iteration summaries while keeping final messages:
+Use `--quiet` or `-q` to suppress iteration summaries:
 
 ```bash
-fade run --yolo --quiet   # Minimal output, max speed
-fade yolo --quiet         # Same as above
-```
-
-**Example iteration summary:**
-
-```
-═══════════════════════════════════════════════════════════════
-                    Iteration 2 Complete
-═══════════════════════════════════════════════════════════════
-
-✓ USER STORY PASSED: US-002
-  Add validation to user input form
-
-Acceptance Criteria Accomplished:
-  ✓ Form validates email format
-  ✓ Form shows inline error messages
-  ✓ Submit button disabled until valid
-
-New Learnings Captured:
-  + ## 2026-01-20 - Zod validation pattern
-  + Using Zod with React Hook Form provides type-safe validation
-
-Git Commit:
-  feat: complete US-002 - Add validation to user input form (ENH-001)
-
-Progress: 2 of 5 stories complete
-
-Current PRD Status:
-  ENH-001-user-forms.json
-    [✓] US-001: Create basic form component
-    [✓] US-002: Add validation to user input form
-    [ ] US-003: Add form submission handling
-    [ ] US-004: Add loading states
-    [ ] US-005: Add success/error feedback
-
-───────────────────────────────────────────────────────────────
-Starting next iteration...
-───────────────────────────────────────────────────────────────
+fade yolo --quiet
 ```
 
 ### Signal Protocol
@@ -251,11 +269,13 @@ Starting next iteration...
 | File | Purpose | Who writes it |
 |------|---------|---------------|
 | `FADE.md` | Project context, standards, architecture | Human (read-only for Claude) |
-| `progress.md` | Log of completed stories | Claude (append-only) |
-| `learned.md` | Discoveries from sessions | Claude (append-only) |
-| `prompt.md` | Execution instructions | Generated by `fade init` |
-| `prd.json` | Priority work items | Human creates, Claude updates |
-| `prds/*.json` | Queued work items | Human creates, Claude updates |
+| `CLAUDE.md` | Redirect for Claude Code | Generated by `fade init` |
+| `fade/prompt.md` | Execution instructions | Generated by `fade init` |
+| `fade/progress.md` | Log of completed stories | Claude (append-only) |
+| `fade/learned.md` | Discoveries from sessions | Claude (append-only) |
+| `fade/prd.json` | Priority work items | Human creates, Claude updates |
+| `fade/prds/*.json` | Queued work items | Human creates, Claude updates |
+| `fade/prd-archive/` | Completed PRDs | Automatic on `ALL_COMPLETE` |
 
 ## Git Commit Conventions
 
@@ -272,9 +292,29 @@ FADE uses conventional commit prefixes:
 
 ## Requirements
 
-- macOS (primary platform)
+- macOS or Linux
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
 - bash
+
+## Repository Structure
+
+```
+fade/
+├── bin/
+│   └── fade-cli         # The CLI executable
+├── docs/
+│   └── index.html       # Configuration wizard
+├── fade/                # FADE's own context files (dogfooding!)
+│   ├── prompt.md
+│   ├── progress.md
+│   ├── learned.md
+│   ├── prds/
+│   └── prd-archive/
+├── FADE.md              # Project context for FADE itself
+├── CLAUDE.md            # Claude Code redirect
+├── README.md            # This file
+└── VERSION
+```
 
 ## License
 
