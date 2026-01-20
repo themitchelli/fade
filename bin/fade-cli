@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # FADE - Framework for Agentic Development and Engineering
-# v0.2.3 - Added 'fade yolo' command and --yolo flag for autonomous mode
+# v0.3.0 - Added 'fade yolo' command and --yolo flag for autonomous mode
 
 set -e
 
-FADE_VERSION="0.2.3"
+FADE_VERSION="0.3.0"
 
 # Colors for output
 RED='\033[0;31m'
