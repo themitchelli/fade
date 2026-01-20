@@ -46,7 +46,7 @@
         "Exit code 0 if up-to-date, exit code 1 if updates available (useful for scripting)"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

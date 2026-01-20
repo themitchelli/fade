@@ -1387,6 +1387,7 @@ ${YELLOW}Run Options:${NC}
   --quiet, -q   Suppress iteration summaries in ALL/YOLO mode (final message still shown)
 
 ${YELLOW}Update Options:${NC}
+  --check       Check for updates without applying (exit code: 0=up-to-date, 1=updates available)
   --cli-only    Only update the CLI, skip prompt.md template update
 
 ${YELLOW}Status Options:${NC}
@@ -1423,6 +1424,7 @@ ${YELLOW}Examples:${NC}
   fade status               # Check work queue
   fade status --json        # Machine-readable status
   fade update               # Update CLI and prompt.md
+  fade update --check       # Check for updates without applying
   fade update --cli-only    # Update CLI only, keep local prompt.md
 
 EOF
@@ -1483,12 +1485,17 @@ get_fade_path() {
 
 cmd_update() {
     local cli_only=false
+    local check_only=false
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --cli-only)
                 cli_only=true
+                shift
+                ;;
+            --check)
+                check_only=true
                 shift
                 ;;
             *)
@@ -1515,9 +1522,9 @@ cmd_update() {
     echo ""
 
     local latest_version
-    latest_version=$(fetch_url "$FADE_VERSION_URL")
+    latest_version=$(fetch_url "$FADE_VERSION_URL") || true
 
-    if [[ $? -ne 0 ]] || [[ -z "$latest_version" ]]; then
+    if [[ -z "$latest_version" ]]; then
         echo -e "${RED}Error: Could not fetch version information from GitHub.${NC}"
         echo "Please check your internet connection and try again."
         echo ""
@@ -1530,6 +1537,51 @@ cmd_update() {
 
     echo -e "Latest version:  ${BOLD}v$latest_version${NC}"
     echo ""
+
+    # ========================================================================
+    # CHECK-ONLY MODE
+    # ========================================================================
+
+    if [[ "$check_only" == true ]]; then
+        local has_updates=false
+        local updates_available=()
+
+        # Check CLI version
+        if [[ "$current_version" != "$latest_version" ]]; then
+            has_updates=true
+            updates_available+=("CLI: v$current_version → v$latest_version")
+        fi
+
+        # Check prompt.md (unless --cli-only)
+        if [[ "$cli_only" != true ]] && [[ -f "prompt.md" ]]; then
+            local latest_prompt
+            latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
+
+            if [[ $? -eq 0 ]] && [[ -n "$latest_prompt" ]]; then
+                local current_prompt
+                current_prompt=$(cat "prompt.md")
+
+                if [[ "$current_prompt" != "$latest_prompt" ]]; then
+                    has_updates=true
+                    updates_available+=("prompt.md: differs from template")
+                fi
+            fi
+        fi
+
+        # Report results
+        if [[ "$has_updates" == true ]]; then
+            echo -e "${YELLOW}Updates available:${NC}"
+            for item in "${updates_available[@]}"; do
+                echo -e "  • $item"
+            done
+            echo ""
+            echo "Run 'fade update' to apply updates."
+            exit 1
+        else
+            echo -e "${GREEN}✓ Everything is up to date!${NC}"
+            exit 0
+        fi
+    fi
 
     local cli_updated=false
     local prompt_updated=false

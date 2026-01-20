@@ -183,3 +183,16 @@ For blocked stories, use:
 - Handles edge cases: no prompt.md found, fetch failures, prompt already up to date
 - Files changed: fade
 - Tests: bash -n syntax check passed, help text verified
+
+## 2026-01-20 11:15 - US-003: Check for updates without applying (FEAT-006) - COMPLETE
+
+- Added `fade update --check` flag to check for available updates without applying them
+- Shows current version vs latest version comparison
+- Lists what would be updated: CLI version and/or prompt.md template changes
+- Does not modify any files when --check flag is used
+- Exit code 0 when everything is up-to-date, exit code 1 when updates are available (useful for scripting)
+- Fixed `set -e` interaction with fetch_url by using `|| true` to handle network failures gracefully
+- Added --check documentation to help text under "Update Options" section
+- Added example: fade update --check
+- Files changed: fade
+- Tests: bash -n syntax check passed, help text verified, error handling tested
