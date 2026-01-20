@@ -700,6 +700,23 @@ ask_execution_mode() {
 }
 
 # ============================================================================
+# EXIT SIGNALS (Reference)
+# ============================================================================
+# Valid exit signals for FADE session control. Claude outputs these signals
+# and this script detects them to control loop behavior.
+#
+# Source of truth: prompt.md (Exit Signals section defines Claude's behavior)
+#
+# Signal          Format                  Meaning
+# --------------- ----------------------- -------------------------------------
+# STORY_DONE      STORY_DONE: US-XXX      One story completed, more work remains
+# ALL_COMPLETE    ALL_COMPLETE            All stories in queue finished
+# BLOCKED         BLOCKED: [reason]       Cannot proceed, human intervention needed
+#
+# Detection: Simple string matching via grep (see cmd_run ALL mode loop)
+# ============================================================================
+
+# ============================================================================
 # COMMANDS
 # ============================================================================
 

@@ -29,7 +29,7 @@
         "Signal meanings: STORY_DONE (one story complete), ALL_COMPLETE (PRD complete), BLOCKED (cannot proceed)"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
