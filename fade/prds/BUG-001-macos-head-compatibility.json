@@ -34,7 +34,7 @@
         "Moves to corresponding archive folder (fade/prd-archive/ or prd-archive/)"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

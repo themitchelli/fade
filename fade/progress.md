@@ -313,3 +313,18 @@ For blocked stories, use:
 - Archive display code now properly shows archive messages without errors
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, sed '$d' tested on macOS Darwin 24.6.0
+
+## 2026-01-20 - US-002: Archive handles legacy structure (BUG-001) - COMPLETE
+
+- Verified archive_completed_prds() already handles legacy structure correctly (lines 690-722)
+- Logic: checks fade/prds first (line 696), falls back to prds/ at root using defaults
+- Verified archive_priority_prd() already handles legacy structure correctly (lines 781-831)
+- Logic: checks fade/prd.json first (line 785), falls back to prd.json at root (line 788)
+- Both functions use corresponding archive paths (fade/prd-archive/ or prd-archive/)
+- Legacy structure support was implemented in FEAT-007 US-002 (lines 236-237 in progress.md)
+- All acceptance criteria satisfied by existing implementation:
+  - Archive checks fade/prds/ first (new structure)
+  - Falls back to prds/ at root (legacy structure)
+  - Moves to corresponding archive folder
+- Files changed: none (already implemented)
+- Tests: Code review verified correct conditional logic for both structures
