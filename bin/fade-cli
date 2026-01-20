@@ -725,6 +725,14 @@ archive_completed_prds() {
 
             if prd_is_fully_complete "$prd_file"; then
                 local filename=$(basename "$prd_file")
+
+                # Re-verify completion immediately before move to prevent race conditions
+                # This catches cases where file was modified between initial check and archive
+                if ! prd_is_fully_complete "$prd_file"; then
+                    echo -e "  ${YELLOW}warning${NC}: $filename - archive aborted, PRD no longer complete"
+                    continue
+                fi
+
                 mv "$prd_file" "$archive_path/$filename"
                 echo -e "  ${GREEN}archived${NC}: $filename"
                 ((archived_count++))
@@ -835,6 +843,13 @@ archive_priority_prd() {
         # ID is just a number, prepend type prefix
         local type_prefix=$(convert_type_to_prefix "$prd_type")
         new_filename="${type_prefix}-${prd_id}-${slug}.json"
+    fi
+
+    # Re-verify completion immediately before move to prevent race conditions
+    if ! prd_is_fully_complete "$prd_path"; then
+        echo -e "  ${YELLOW}warning${NC}: prd.json - archive aborted, PRD no longer complete"
+        echo "0"
+        return 0
     fi
 
     # Move to archive with new name

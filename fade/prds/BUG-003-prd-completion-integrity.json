@@ -30,7 +30,7 @@
         "prd_is_fully_complete() requires explicit passes:true on ALL stories"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

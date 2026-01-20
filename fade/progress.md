@@ -381,3 +381,13 @@ For blocked stories, use:
 - Functions now correctly detect PRDs with missing passes fields as having incomplete work
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual function tests verified correct behavior
+
+## 2026-01-20 - US-002: Validate PRD completion before archive (BUG-003) - COMPLETE
+
+- Updated archive_completed_prds() to re-verify prd_is_fully_complete() immediately before mv
+- Updated archive_priority_prd() with same re-verification before moving prd.json
+- Both functions now abort with yellow warning message if PRD is no longer complete at move time
+- Prevents race conditions where file could be modified between initial check and archive
+- prd_is_fully_complete() already requires explicit passes:true on ALL stories (verified from US-001)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, fade status verified working
