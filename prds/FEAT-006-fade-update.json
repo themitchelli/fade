@@ -33,7 +33,7 @@
         "User can skip prompt.md update with `fade update --cli-only` flag"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

@@ -1,0 +1,107 @@
+{
+  "type": "feature",
+  "project": "FADE Framework",
+  "id": "FEAT-007",
+  "name": "Contained File Structure",
+  "description": "Move all FADE framework files into a dedicated `fade/` subfolder to stop polluting project root directories. Currently FADE.md, progress.md, learned.md, prompt.md, and prds/ all live at project root alongside actual project files like package.json, docker-compose.yml, backend/, etc. This creates visual clutter and mixes framework concerns with project concerns.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "New projects use contained structure",
+      "description": "As a developer running `fade init` on a new project, I want all FADE files created inside a `fade/` subfolder (except FADE.md which stays at root) so my project root stays clean but the main context file is visible.",
+      "acceptanceCriteria": [
+        "`fade init` creates `fade/` directory at project root",
+        "FADE.md created at project root (visible, human-curated)",
+        "Other FADE files created inside `fade/`: progress.md, learned.md, prompt.md",
+        "PRDs folder created as `fade/prds/`",
+        "prd.json (priority injection) lives in `fade/prd.json`",
+        "prd-archive folder created as `fade/prd-archive/`",
+        "Project root has FADE.md, CLAUDE.md redirect, and `fade/` directory"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "fade run finds files in new location",
+      "description": "As a developer using the contained structure, I want `fade run` to correctly locate and inject the prompt.md from `fade/` so Claude Code gets the right context.",
+      "acceptanceCriteria": [
+        "`fade run` checks for `fade/prompt.md` first",
+        "Falls back to `./prompt.md` for backwards compatibility",
+        "Claude Code is launched with correct prompt injection path",
+        "All file references in prompt.md use relative paths from `fade/`"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "fade new creates PRDs in correct location",
+      "description": "As a developer creating new PRDs, I want `fade new feature/bug/spike` to create PRD files in `fade/prds/` so they're contained with other FADE files.",
+      "acceptanceCriteria": [
+        "`fade new feature \"X\"` creates PRD in `fade/prds/`",
+        "`fade new spike \"X\"` creates PRD in `fade/prds/` and still creates feature branch",
+        "All PRD types (feature, bug, toil, enhancement, spike) use `fade/prds/`",
+        "Backwards compatible: if `fade/` doesn't exist but `prds/` does at root, use root"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Migrate existing projects to contained structure",
+      "description": "As a developer with existing FADE projects (like assumptionsmanager), I want a migration command to move my scattered FADE files into the new structure.",
+      "acceptanceCriteria": [
+        "`fade migrate` command exists",
+        "Detects FADE files at project root (FADE.md, progress.md, learned.md, prompt.md, prds/)",
+        "Creates `fade/` directory",
+        "Leaves FADE.md at root (already in correct location)",
+        "Moves progress.md, learned.md, prompt.md into `fade/`",
+        "Moves prds/ folder into `fade/prds/`",
+        "Moves prd-archive/ into `fade/prd-archive/` if it exists",
+        "Updates any internal file references in prompt.md",
+        "Creates CLAUDE.md redirect at root if it doesn't exist",
+        "Shows summary of what was moved",
+        "Dry-run mode: `fade migrate --dry-run` shows what would happen without doing it"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "CLAUDE.md redirect for Claude Code discovery",
+      "description": "As a developer, I want a CLAUDE.md file at project root that points Claude Code to FADE.md and the `fade/` directory, since Claude Code looks for CLAUDE.md by default.",
+      "acceptanceCriteria": [
+        "`fade init` creates CLAUDE.md at project root",
+        "CLAUDE.md contains instructions pointing to `./FADE.md` and `fade/prompt.md`",
+        "CLAUDE.md is minimal - just a redirect, not duplicating content",
+        "`fade migrate` also creates this redirect file"
+      ],
+      "priority": 5,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "folderName": "fade/ (visible) - discoverable and obvious the framework is in use",
+    "newStructure": {
+      "projectRoot": {
+        "FADE.md": "Project context (visible at root, human-curated)",
+        "CLAUDE.md": "Redirect file for Claude Code discovery",
+        "fade/": {
+          "progress.md": "Session history",
+          "learned.md": "Discoveries",
+          "prompt.md": "Execution protocol",
+          "prd.json": "Optional priority PRD",
+          "prds/": "PRD files",
+          "prd-archive/": "Completed PRDs"
+        }
+      }
+    },
+    "backwardsCompatibility": "All commands check both locations, prefer fade/ if exists",
+    "gitignore": "Consider whether fade/ should have its own .gitignore for temp files"
+  },
+  "openQuestions": [
+    "What about projects that want FADE files tracked in git vs ignored?"
+  ]
+}

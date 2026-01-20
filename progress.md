@@ -167,3 +167,19 @@ For blocked stories, use:
 - Added update command to main case statement and help text
 - Files changed: fade
 - Tests: bash -n syntax check passed, help text verified
+
+## 2026-01-20 10:45 - US-002: Update prompt.md to latest template (FEAT-006) - COMPLETE
+
+- Extended `fade update` command to also check and update prompt.md from GitHub
+- Added FADE_PROMPT_URL constant for fetching latest prompt.md template
+- Checks if local prompt.md differs from latest template
+- Shows diff summary with additions/deletions count and preview of first 10 changes
+- Prompts user for confirmation before updating prompt.md
+- Creates backup to prompt.md.bak before overwriting
+- Added --cli-only flag to skip prompt.md update if user wants CLI-only updates
+- Updated help text with "Update Options:" section documenting --cli-only flag
+- Added examples: fade update, fade update --cli-only
+- Updated main case statement to pass arguments to cmd_update
+- Handles edge cases: no prompt.md found, fetch failures, prompt already up to date
+- Files changed: fade
+- Tests: bash -n syntax check passed, help text verified

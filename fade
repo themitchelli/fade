@@ -1379,12 +1379,15 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
-  update        Update FADE CLI to the latest version from GitHub
+  update        Update FADE CLI and prompt.md to latest versions from GitHub
   help          Show this help message
 
 ${YELLOW}Run Options:${NC}
   --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
   --quiet, -q   Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+
+${YELLOW}Update Options:${NC}
+  --cli-only    Only update the CLI, skip prompt.md template update
 
 ${YELLOW}Status Options:${NC}
   --json        Output status as JSON (for scripting)
@@ -1419,6 +1422,8 @@ ${YELLOW}Examples:${NC}
   fade run --yolo --quiet   # Same as above
   fade status               # Check work queue
   fade status --json        # Machine-readable status
+  fade update               # Update CLI and prompt.md
+  fade update --cli-only    # Update CLI only, keep local prompt.md
 
 EOF
 }
@@ -1429,6 +1434,7 @@ EOF
 
 FADE_UPDATE_URL="https://raw.githubusercontent.com/themitchelli/fade/main/fade"
 FADE_VERSION_URL="https://raw.githubusercontent.com/themitchelli/fade/main/VERSION"
+FADE_PROMPT_URL="https://raw.githubusercontent.com/themitchelli/fade/main/prompt.md"
 
 # Fetch content from URL using curl or wget
 fetch_url() {
@@ -1476,6 +1482,21 @@ get_fade_path() {
 }
 
 cmd_update() {
+    local cli_only=false
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --cli-only)
+                cli_only=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
     echo -e "${CYAN}FADE Update${NC}"
     echo ""
 
@@ -1510,73 +1531,180 @@ cmd_update() {
     echo -e "Latest version:  ${BOLD}v$latest_version${NC}"
     echo ""
 
+    local cli_updated=false
+    local prompt_updated=false
+
+    # ========================================================================
+    # CLI UPDATE
+    # ========================================================================
+
     # Compare versions
     if [[ "$current_version" == "$latest_version" ]]; then
-        echo -e "${GREEN}✓ You already have the latest version!${NC}"
-        exit 0
-    fi
-
-    echo -e "${YELLOW}A new version is available.${NC}"
-    echo ""
-
-    # Get the path of the fade script to update
-    local fade_script="${BASH_SOURCE[0]}"
-
-    # Resolve to absolute path
-    if [[ "$fade_script" != /* ]]; then
-        fade_script="$(cd "$(dirname "$fade_script")" && pwd)/$(basename "$fade_script")"
-    fi
-
-    # Check if we have write permission
-    if [[ ! -w "$fade_script" ]]; then
-        echo -e "${RED}Error: Cannot write to $fade_script${NC}"
-        echo "You may need to run with sudo or check file permissions."
-        exit 1
-    fi
-
-    echo "Downloading update..."
-
-    # Fetch the new script
-    local new_script
-    new_script=$(fetch_url "$FADE_UPDATE_URL")
-
-    if [[ $? -ne 0 ]] || [[ -z "$new_script" ]]; then
-        echo -e "${RED}Error: Could not download the update from GitHub.${NC}"
-        echo "Please check your internet connection and try again."
+        echo -e "${GREEN}✓ CLI already at latest version${NC}"
+    else
+        echo -e "${YELLOW}CLI update available.${NC}"
         echo ""
-        echo "URL: $FADE_UPDATE_URL"
-        exit 1
+
+        # Get the path of the fade script to update
+        local fade_script="${BASH_SOURCE[0]}"
+
+        # Resolve to absolute path
+        if [[ "$fade_script" != /* ]]; then
+            fade_script="$(cd "$(dirname "$fade_script")" && pwd)/$(basename "$fade_script")"
+        fi
+
+        # Check if we have write permission
+        if [[ ! -w "$fade_script" ]]; then
+            echo -e "${RED}Error: Cannot write to $fade_script${NC}"
+            echo "You may need to run with sudo or check file permissions."
+            exit 1
+        fi
+
+        echo "Downloading CLI update..."
+
+        # Fetch the new script
+        local new_script
+        new_script=$(fetch_url "$FADE_UPDATE_URL")
+
+        if [[ $? -ne 0 ]] || [[ -z "$new_script" ]]; then
+            echo -e "${RED}Error: Could not download the update from GitHub.${NC}"
+            echo "Please check your internet connection and try again."
+            echo ""
+            echo "URL: $FADE_UPDATE_URL"
+            exit 1
+        fi
+
+        # Verify the downloaded content looks like a valid fade script
+        if ! echo "$new_script" | grep -q "^#!/bin/bash"; then
+            echo -e "${RED}Error: Downloaded file does not appear to be a valid script.${NC}"
+            exit 1
+        fi
+
+        if ! echo "$new_script" | grep -q "FADE_VERSION="; then
+            echo -e "${RED}Error: Downloaded file does not appear to be a valid FADE script.${NC}"
+            exit 1
+        fi
+
+        # Create backup
+        local cli_backup_path="${fade_script}.bak"
+        cp "$fade_script" "$cli_backup_path"
+
+        # Write new script
+        echo "$new_script" > "$fade_script"
+        chmod +x "$fade_script"
+
+        echo -e "${GREEN}✓ CLI updated: v$current_version → v$latest_version${NC}"
+        echo -e "  Backup: $cli_backup_path"
+        cli_updated=true
     fi
 
-    # Verify the downloaded content looks like a valid fade script
-    if ! echo "$new_script" | grep -q "^#!/bin/bash"; then
-        echo -e "${RED}Error: Downloaded file does not appear to be a valid script.${NC}"
-        exit 1
+    echo ""
+
+    # ========================================================================
+    # PROMPT.MD UPDATE
+    # ========================================================================
+
+    if [[ "$cli_only" == true ]]; then
+        echo -e "${CYAN}Skipping prompt.md update (--cli-only flag)${NC}"
+    elif [[ ! -f "prompt.md" ]]; then
+        echo -e "${YELLOW}No prompt.md found in current directory - skipping template update${NC}"
+        echo "Run 'fade init' to create FADE structure with prompt.md"
+    else
+        echo -e "Checking prompt.md..."
+
+        # Fetch latest prompt.md template
+        local latest_prompt
+        latest_prompt=$(fetch_url "$FADE_PROMPT_URL")
+
+        if [[ $? -ne 0 ]] || [[ -z "$latest_prompt" ]]; then
+            echo -e "${YELLOW}Warning: Could not fetch prompt.md template from GitHub.${NC}"
+            echo "Skipping prompt.md update."
+        else
+            # Compare with current prompt.md
+            local current_prompt
+            current_prompt=$(cat "prompt.md")
+
+            if [[ "$current_prompt" == "$latest_prompt" ]]; then
+                echo -e "${GREEN}✓ prompt.md already matches latest template${NC}"
+            else
+                echo -e "${YELLOW}prompt.md differs from latest template${NC}"
+                echo ""
+
+                # Show diff summary
+                echo -e "${BOLD}Changes summary:${NC}"
+                echo ""
+
+                # Create temp files for diff
+                local temp_current=$(mktemp)
+                local temp_latest=$(mktemp)
+                echo "$current_prompt" > "$temp_current"
+                echo "$latest_prompt" > "$temp_latest"
+
+                # Show abbreviated diff stats
+                local additions=$(diff "$temp_current" "$temp_latest" | grep -c '^>' || echo "0")
+                local deletions=$(diff "$temp_current" "$temp_latest" | grep -c '^<' || echo "0")
+                echo -e "  ${GREEN}+$additions${NC} additions, ${RED}-$deletions${NC} deletions"
+                echo ""
+
+                # Show first few changes as preview
+                echo -e "${BOLD}Preview (first 10 changes):${NC}"
+                diff "$temp_current" "$temp_latest" | head -20 | while IFS= read -r line; do
+                    if [[ "$line" == ">"* ]]; then
+                        echo -e "  ${GREEN}$line${NC}"
+                    elif [[ "$line" == "<"* ]]; then
+                        echo -e "  ${RED}$line${NC}"
+                    else
+                        echo "  $line"
+                    fi
+                done
+                echo ""
+
+                rm -f "$temp_current" "$temp_latest"
+
+                # Ask for confirmation
+                echo -e "${YELLOW}Update prompt.md to latest template?${NC}"
+                echo -e "This will backup your current prompt.md to prompt.md.bak"
+                echo ""
+                read -p "Update prompt.md? [y/N]: " confirm </dev/tty
+
+                if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                    # Create backup
+                    cp "prompt.md" "prompt.md.bak"
+
+                    # Write new prompt.md
+                    echo "$latest_prompt" > "prompt.md"
+
+                    echo -e "${GREEN}✓ prompt.md updated${NC}"
+                    echo -e "  Backup: prompt.md.bak"
+                    prompt_updated=true
+                else
+                    echo -e "${CYAN}Skipped prompt.md update${NC}"
+                fi
+            fi
+        fi
     fi
 
-    if ! echo "$new_script" | grep -q "FADE_VERSION="; then
-        echo -e "${RED}Error: Downloaded file does not appear to be a valid FADE script.${NC}"
-        exit 1
+    echo ""
+
+    # ========================================================================
+    # SUMMARY
+    # ========================================================================
+
+    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]]; then
+        echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+        echo -e "${GREEN}✓ FADE update complete!${NC}"
+        echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+        echo ""
+        if [[ "$cli_updated" == true ]]; then
+            echo -e "  CLI:       ${BOLD}v$current_version → v$latest_version${NC}"
+        fi
+        if [[ "$prompt_updated" == true ]]; then
+            echo -e "  prompt.md: ${BOLD}updated to latest template${NC}"
+        fi
+        echo ""
+    else
+        echo -e "${GREEN}✓ Everything is up to date!${NC}"
     fi
-
-    # Create backup
-    local backup_path="${fade_script}.bak"
-    cp "$fade_script" "$backup_path"
-
-    # Write new script
-    echo "$new_script" > "$fade_script"
-    chmod +x "$fade_script"
-
-    echo ""
-    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${GREEN}✓ FADE updated successfully!${NC}"
-    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
-    echo ""
-    echo -e "  Before: ${BOLD}v$current_version${NC}"
-    echo -e "  After:  ${BOLD}v$latest_version${NC}"
-    echo ""
-    echo -e "Backup saved to: $backup_path"
-    echo ""
 }
 
 # ============================================================================
@@ -1600,7 +1728,8 @@ case "${1:-}" in
         cmd_status "$@"
         ;;
     update)
-        cmd_update
+        shift
+        cmd_update "$@"
         ;;
     help|--help|-h)
         cmd_help
