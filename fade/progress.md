@@ -476,3 +476,19 @@ For blocked stories, use:
 - All acceptance criteria satisfied by existing implementation from US-002
 - Files changed: none (already implemented)
 - Tests: Manual test of fade init verified all files receive version stamps
+
+## 2026-01-20 - US-004: fade version shows detailed version info (ENH-006) - COMPLETE
+
+- Enhanced cmd_version() function to support --all/-a flag
+- Without flag: shows CLI version only (existing behaviour preserved)
+- With --all flag: shows CLI version plus all detected artifact versions
+- Scans for FADE.md, prompt.md, CLAUDE.md, progress.md, learned.md
+- Checks both contained (fade/) and legacy (root) locations
+- Shows 'not found' for missing artifacts, 'no version' for artifacts without headers
+- Highlights outdated versions and missing versions in yellow
+- Shows summary: "All artifacts match" or "Some artifacts have version mismatches"
+- Updated case statement to pass arguments to cmd_version
+- Added "Version Options" section to help text documenting --all/-a flag
+- Added examples: fade version, fade version --all
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests verified both modes

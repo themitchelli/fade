@@ -2055,7 +2055,82 @@ cmd_status() {
 }
 
 cmd_version() {
-    echo "v$FADE_VERSION"
+    local show_all=false
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --all|-a)
+                show_all=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    if [[ "$show_all" == "false" ]]; then
+        echo "v$FADE_VERSION"
+        return
+    fi
+
+    # --all flag: show CLI version plus all artifact versions
+    echo -e "${CYAN}FADE Version Information${NC}"
+    echo ""
+    echo -e "  CLI:         ${GREEN}v$FADE_VERSION${NC}"
+    echo ""
+
+    # Define artifacts to check (filename, display name, paths to check)
+    local -a artifacts=("FADE.md" "prompt.md" "CLAUDE.md" "progress.md" "learned.md")
+    local has_warnings=false
+
+    echo -e "  ${BOLD}Artifacts:${NC}"
+
+    for artifact in "${artifacts[@]}"; do
+        local path=""
+        local version=""
+        local display_name="$artifact"
+
+        # Check both contained (fade/) and legacy (root) locations
+        if [[ "$artifact" == "FADE.md" ]]; then
+            # FADE.md stays at root in both structures
+            if [[ -f "FADE.md" ]]; then
+                path="FADE.md"
+            fi
+        else
+            # Other artifacts: check fade/ first, then root
+            if [[ -f "fade/$artifact" ]]; then
+                path="fade/$artifact"
+            elif [[ -f "$artifact" ]]; then
+                path="$artifact"
+            fi
+        fi
+
+        if [[ -z "$path" ]]; then
+            echo -e "    $display_name:       ${YELLOW}not found${NC}"
+            continue
+        fi
+
+        version=$(get_artifact_version "$path")
+
+        if [[ -z "$version" ]]; then
+            echo -e "    $display_name:       ${YELLOW}no version${NC}"
+            has_warnings=true
+        elif [[ "$version" != "$FADE_VERSION" ]]; then
+            echo -e "    $display_name:       ${YELLOW}v$version (outdated)${NC}"
+            has_warnings=true
+        else
+            echo -e "    $display_name:       ${GREEN}v$version${NC}"
+        fi
+    done
+
+    echo ""
+    if [[ "$has_warnings" == "true" ]]; then
+        echo -e "  ${YELLOW}Note: Some artifacts have version mismatches. Run 'fade update' to sync.${NC}"
+    else
+        echo -e "  ${GREEN}All artifacts match CLI version.${NC}"
+    fi
 }
 
 cmd_help() {
@@ -2101,6 +2176,9 @@ ${YELLOW}Update Options:${NC}
 ${YELLOW}Status Options:${NC}
   --json        Output status as JSON (for scripting)
 
+${YELLOW}Version Options:${NC}
+  --all, -a     Show CLI version plus all detected artifact versions
+
 ${YELLOW}Execution Modes:${NC}
   STOP          Complete one story, then pause for human review
   ALL           Process all stories with fresh context between each
@@ -2140,6 +2218,8 @@ ${YELLOW}Examples:${NC}
   fade update                            # Update CLI and prompt.md
   fade update --check                    # Check for updates without applying
   fade update --cli-only                 # Update CLI only, keep local prompt.md
+  fade version                           # Show CLI version
+  fade version --all                     # Show CLI and all artifact versions
 
 EOF
 }
@@ -2778,7 +2858,8 @@ case "${1:-}" in
         cmd_migrate "$@"
         ;;
     version|--version|-v)
-        cmd_version
+        shift
+        cmd_version "$@"
         ;;
     help|--help|-h)
         cmd_help
