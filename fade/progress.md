@@ -346,3 +346,15 @@ For blocked stories, use:
   - Protocol explicitly states 'Checkpoint after every story before proceeding'
 - Files changed: fade/prompt.md
 - Tests: Manual verification that all required language is present
+
+## 2026-01-20 - US-002: YOLO mode observability guidance (ENH-006) - COMPLETE
+
+- Added "Autonomous Mode Observability" section to prompt.md
+- Section placed after Story Completion Protocol, before Exit Signals
+- Includes explicit guidance: "Even in autonomous/YOLO mode, output status after each story"
+- Includes explicit guidance: "Never go more than 5 minutes without visible output"
+- Documents progress indicator pattern: "Working on US-XXX... [brief description]"
+- Added example progress indicators showing different phases of story work
+- Helps operators monitoring YOLO loops understand work is progressing
+- Files changed: fade/prompt.md
+- Tests: Manual verification that all acceptance criteria language is present

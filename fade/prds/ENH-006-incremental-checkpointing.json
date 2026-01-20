@@ -33,7 +33,7 @@
         "Recommends progress indicator pattern: 'Working on US-XXX... [brief description]'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

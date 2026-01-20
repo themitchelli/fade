@@ -133,6 +133,31 @@ An external orchestrator will either:
 
 The files you updated ARE the memory for the next session.
 
+## Autonomous Mode Observability
+
+When running in autonomous/YOLO mode (where FADE loops without human prompts), maintain visibility:
+
+- **Even in autonomous/YOLO mode, output status after each story**
+- **Never go more than 5 minutes without visible output**
+
+### Progress Indicators
+
+While working on a story, periodically output progress:
+```
+Working on US-XXX... [brief description of current task]
+```
+
+Examples:
+```
+Working on US-003... reading existing test files
+Working on US-003... implementing validation logic
+Working on US-003... running tests
+```
+
+This helps operators monitoring the loop understand that work is progressing, not stuck.
+
+---
+
 ## Exit Signals (Canonical Reference)
 
 These are the ONLY valid exit signals. The fade script detects these to control loop behavior.
