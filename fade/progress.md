@@ -407,3 +407,14 @@ For blocked stories, use:
 - Added re-read verification reminder after editing PRD
 - Files changed: fade/prompt.md
 - Tests: Manual verification that all acceptance criteria language is present
+
+## 2026-01-20 - US-003: Archive verifies source file deleted after move (BUG-003) - COMPLETE
+
+- Updated archive_completed_prds() to verify source file no longer exists after mv command
+- Updated archive_priority_prd() with same verification after mv command
+- Both functions display red error message if source file still exists after move
+- Both functions clean up partial archive (rm -f) if verification fails
+- Archive count only incremented after successful source deletion verification
+- Handles edge case where mv might succeed but not remove source (rare filesystem scenarios)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

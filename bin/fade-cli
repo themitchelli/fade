@@ -734,6 +734,15 @@ archive_completed_prds() {
                 fi
 
                 mv "$prd_file" "$archive_path/$filename"
+
+                # Verify source file no longer exists after move
+                if [[ -f "$prd_file" ]]; then
+                    echo -e "  ${RED}error${NC}: $filename - source file still exists after move, archive aborted"
+                    # Remove the partial archive if it exists
+                    rm -f "$archive_path/$filename"
+                    continue
+                fi
+
                 echo -e "  ${GREEN}archived${NC}: $filename"
                 ((archived_count++))
             fi
@@ -854,6 +863,16 @@ archive_priority_prd() {
 
     # Move to archive with new name
     mv "$prd_path" "$archive_path/$new_filename"
+
+    # Verify source file no longer exists after move
+    if [[ -f "$prd_path" ]]; then
+        echo -e "  ${RED}error${NC}: $(basename "$prd_path") - source file still exists after move, archive aborted"
+        # Remove the partial archive if it exists
+        rm -f "$archive_path/$new_filename"
+        echo "0"
+        return 0
+    fi
+
     echo -e "  ${GREEN}archived${NC}: $(basename "$prd_path") → $new_filename"
 
     echo "1"

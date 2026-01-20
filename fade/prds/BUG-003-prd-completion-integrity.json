@@ -42,7 +42,7 @@
         "Archive count only incremented after successful verification"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
