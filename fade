@@ -382,6 +382,18 @@ An external orchestrator will either:
 
 The files you updated ARE the memory for the next session.
 
+## Exit Signals (Canonical Reference)
+
+These are the ONLY valid exit signals. The fade script detects these to control loop behavior.
+
+| Signal | Format | Meaning | Loop Action |
+|--------|--------|---------|-------------|
+| STORY_DONE | `STORY_DONE: US-XXX` | One story completed, more work remains | Continue to next iteration |
+| ALL_COMPLETE | `ALL_COMPLETE` | All stories in queue finished | Exit loop successfully |
+| BLOCKED | `BLOCKED: [reason]` | Cannot proceed, human intervention needed | Exit loop, await human |
+
+**Important:** Output signals exactly as shown. The fade script uses simple string matching.
+
 ## Error Handling
 
 If blocked:

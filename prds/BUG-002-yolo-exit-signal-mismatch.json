@@ -1,0 +1,35 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "BUG-002",
+  "name": "YOLO mode exit signal mismatch causes infinite loop or premature exit",
+  "description": "The FADE YOLO/ALL mode loop checks for exit signals STORY_DONE, ALL_COMPLETE, and BLOCKED, but the prompt.md template instructs Claude to output COMPLETE instead of ALL_COMPLETE when a PRD is finished. This causes the loop to fail to detect completion and display 'No exit signal detected'.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Align exit signals between fade script and prompt.md template",
+      "description": "As a FADE user running YOLO mode, I want the exit signals to be consistent so the loop terminates correctly when work is complete",
+      "acceptanceCriteria": [
+        "prompt.md template uses ALL_COMPLETE (not COMPLETE) as the signal for PRD completion",
+        "fade script expects ALL_COMPLETE, STORY_DONE, and BLOCKED as valid signals",
+        "Signal definitions are documented in one canonical location",
+        "Both fade script and prompt.md reference the same signal names"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Add signal reference comment in fade script",
+      "description": "As a FADE maintainer, I want the valid exit signals documented inline so future changes don't create mismatches",
+      "acceptanceCriteria": [
+        "Comment block in fade script lists all valid signals with their meanings",
+        "Comment references prompt.md as the source of truth for Claude's behavior",
+        "Signal meanings: STORY_DONE (one story complete), ALL_COMPLETE (PRD complete), BLOCKED (cannot proceed)"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}
