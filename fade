@@ -491,6 +491,159 @@ count_complete_stories() {
     grep -c '"passes"[[:space:]]*:[[:space:]]*true' "$prd_file" 2>/dev/null || echo "0"
 }
 
+# Get the active PRD (priority prd.json or first incomplete in prds/)
+get_active_prd() {
+    if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
+        echo "prd.json"
+        return
+    fi
+
+    if [[ -d "prds" ]]; then
+        for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                echo "$prd_file"
+                return
+            fi
+        done
+    fi
+}
+
+# Get story title from PRD by story ID
+get_story_title() {
+    local prd_file="$1"
+    local story_id="$2"
+
+    if [[ ! -f "$prd_file" ]]; then
+        return
+    fi
+
+    # Use awk to extract title for the matching story ID
+    awk -v id="$story_id" '
+        /"id"[[:space:]]*:[[:space:]]*"'"$story_id"'"/ { found=1 }
+        found && /"title"[[:space:]]*:/ {
+            gsub(/.*"title"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            print
+            exit
+        }
+    ' "$prd_file"
+}
+
+# Get acceptance criteria for a story from PRD
+get_story_acceptance_criteria() {
+    local prd_file="$1"
+    local story_id="$2"
+
+    if [[ ! -f "$prd_file" ]]; then
+        return
+    fi
+
+    # Use awk to extract acceptance criteria array for the matching story
+    awk -v id="$story_id" '
+        /"id"[[:space:]]*:[[:space:]]*"'"$story_id"'"/ { found=1 }
+        found && /"acceptanceCriteria"[[:space:]]*:/ { in_criteria=1; next }
+        in_criteria && /\]/ { exit }
+        in_criteria && /"[^"]+"/  {
+            gsub(/^[[:space:]]*"/, "")
+            gsub(/"[[:space:]]*,?[[:space:]]*$/, "")
+            print
+        }
+    ' "$prd_file"
+}
+
+# Get latest git commit message
+get_latest_commit_message() {
+    git log -1 --pretty=format:"%s" 2>/dev/null || echo "No commits found"
+}
+
+# Get total story counts across all PRDs with incomplete work
+get_total_progress() {
+    local total_complete=0
+    local total_stories=0
+
+    # Check prd.json
+    if [[ -f "prd.json" ]] && prd_has_incomplete_stories "prd.json"; then
+        local complete=$(count_complete_stories "prd.json")
+        local incomplete=$(count_incomplete_stories "prd.json")
+        ((total_complete += complete))
+        ((total_stories += complete + incomplete))
+    fi
+
+    # Check prds/
+    if [[ -d "prds" ]]; then
+        for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+            if prd_has_incomplete_stories "$prd_file"; then
+                local complete=$(count_complete_stories "$prd_file")
+                local incomplete=$(count_incomplete_stories "$prd_file")
+                ((total_complete += complete))
+                ((total_stories += complete + incomplete))
+            fi
+        done
+    fi
+
+    echo "$total_complete $total_stories"
+}
+
+# Display iteration summary after story completion
+display_iteration_summary() {
+    local iteration="$1"
+    local story_id="$2"
+
+    local active_prd=$(get_active_prd)
+    local story_title=""
+    local commit_msg=""
+    local progress_info=""
+
+    if [[ -n "$active_prd" ]]; then
+        story_title=$(get_story_title "$active_prd" "$story_id")
+    fi
+
+    commit_msg=$(get_latest_commit_message)
+    progress_info=$(get_total_progress)
+    local complete=$(echo "$progress_info" | cut -d' ' -f1)
+    local total=$(echo "$progress_info" | cut -d' ' -f2)
+
+    echo ""
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}                    Iteration $iteration Complete                     ${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "${GREEN}✓ USER STORY PASSED: $story_id${NC}"
+    if [[ -n "$story_title" ]]; then
+        echo -e "  ${BOLD}$story_title${NC}"
+    fi
+    echo ""
+
+    # Display acceptance criteria
+    if [[ -n "$active_prd" ]]; then
+        local criteria=$(get_story_acceptance_criteria "$active_prd" "$story_id")
+        if [[ -n "$criteria" ]]; then
+            echo -e "${YELLOW}Acceptance Criteria Accomplished:${NC}"
+            echo "$criteria" | while read -r criterion; do
+                if [[ -n "$criterion" ]]; then
+                    echo -e "  ${GREEN}✓${NC} $criterion"
+                fi
+            done
+            echo ""
+        fi
+    fi
+
+    # Display commit message
+    echo -e "${YELLOW}Git Commit:${NC}"
+    echo -e "  $commit_msg"
+    echo ""
+
+    # Display progress
+    echo -e "${YELLOW}Progress:${NC} $complete of $total stories complete"
+    echo ""
+    echo -e "${CYAN}───────────────────────────────────────────────────────────────${NC}"
+    echo -e "${BLUE}Starting next iteration...${NC}"
+    echo -e "${CYAN}───────────────────────────────────────────────────────────────${NC}"
+    echo ""
+}
+
 # Build context from FADE files
 build_context() {
     local context=""
@@ -865,9 +1018,12 @@ cmd_run() {
             fi
 
             if echo "$output" | grep -q "STORY_DONE"; then
-                echo ""
-                echo -e "${GREEN}✓ Story complete. Restarting with fresh context...${NC}"
-                echo ""
+                # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
+                local story_id=$(echo "$output" | grep -o 'STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
+
+                # Display iteration summary
+                display_iteration_summary "$iteration" "$story_id"
+
                 ((iteration++))
                 sleep 2  # Brief pause for filesystem to settle
                 continue

@@ -1,0 +1,95 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-008",
+  "name": "Loop Feedback Improvements - Progress, Learnings, and Status Display",
+  "description": "Enhance the ALL mode loop to provide richer feedback after each iteration. Currently YOLO mode trusts the AI to continue with speed, scale and quality - but the human loses visibility into what's happening. After each story completion, the loop should display: progress updates, any learned.md additions, and fade status output so the user can monitor quality without interrupting flow.",
+  "repository": "https://github.com/themitchelli/fade",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Display progress update after each iteration",
+      "description": "As a developer running YOLO mode, I want to see a progress summary after each story completes so I know what was accomplished without reading the full Claude output",
+      "acceptanceCriteria": [
+        "After STORY_DONE signal detected, loop displays iteration summary",
+        "Summary shows: 'USER STORY PASSED: US-XXX - [title]'",
+        "Summary shows: list of acceptance criteria that were accomplished",
+        "Summary shows: git commit message used",
+        "Summary shows: 'Progress: X of Y stories complete' from fade status",
+        "Output is visually distinct from Claude's output (e.g., boxed or colored)",
+        "Ends with 'Starting next iteration...' before continuing"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Display learned.md changes after each iteration",
+      "description": "As a developer, I want to see what was added to learned.md during each story so I can validate the AI is capturing useful knowledge",
+      "acceptanceCriteria": [
+        "Loop detects changes to learned.md after each iteration",
+        "If learned.md was modified, display the diff or new entries",
+        "New learnings shown with clear heading: 'New Learnings Captured:'",
+        "If no changes to learned.md, display nothing (no noise)",
+        "Uses git diff or file comparison to detect changes"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Display fade status after each iteration",
+      "description": "As a developer, I want to see the updated work queue after each story completes so I can track overall PRD progress",
+      "acceptanceCriteria": [
+        "Loop runs 'fade status' command after each STORY_DONE",
+        "fade status output displayed in terminal",
+        "Shows updated checkboxes reflecting just-completed story",
+        "Shows remaining stories in current PRD",
+        "Shows total progress (e.g., '3/7 stories complete')"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Visual separator between iterations",
+      "description": "As a developer watching the loop, I want clear visual breaks between iterations so the output is scannable",
+      "acceptanceCriteria": [
+        "Iteration summary has clear visual separator (e.g., ═══════════)",
+        "Separator appears before summary block",
+        "Iteration number displayed: 'Iteration N Complete'",
+        "Easy to visually scan through multiple iterations in terminal history"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Add --quiet flag to suppress iteration summaries",
+      "description": "As a developer who trusts the process completely, I want the option to suppress iteration summaries for maximum speed",
+      "acceptanceCriteria": [
+        "fade run --yolo --quiet skips iteration summary display",
+        "Still shows final completion message",
+        "Still captures all commits and learned.md updates",
+        "Default behavior (no --quiet) shows full summaries",
+        "Can combine: fade run --yolo --quiet"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Update documentation for enhanced loop feedback",
+      "description": "As a FADE user, I want the docs to explain what feedback I'll see in ALL/YOLO mode",
+      "acceptanceCriteria": [
+        "README documents iteration summary feature",
+        "Documents what's shown: progress, learnings, status",
+        "Documents --quiet flag",
+        "Example output shown in docs",
+        "fade-project-description updated with ENH-008"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ]
+}

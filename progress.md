@@ -38,3 +38,16 @@ For blocked stories, use:
 - Comment notes that detection uses simple grep string matching
 - Files changed: fade
 - Tests: Manual verification that comment accurately describes signal behavior
+
+## 2026-01-20 - US-001: Display progress update after each iteration (ENH-008) - COMPLETE
+
+- Added display_iteration_summary() function to show rich feedback after each STORY_DONE
+- Summary displays: USER STORY PASSED with story ID and title
+- Shows list of acceptance criteria accomplished for the story
+- Shows the git commit message used
+- Shows progress count (X of Y stories complete)
+- Visual distinction with cyan box borders and clear section headers
+- Ends with "Starting next iteration..." before continuing loop
+- Added helper functions: get_active_prd(), get_story_title(), get_story_acceptance_criteria(), get_latest_commit_message(), get_total_progress()
+- Files changed: fade
+- Tests: bash -n syntax check passed
