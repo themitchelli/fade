@@ -288,3 +288,18 @@ For blocked stories, use:
 - All acceptance criteria satisfied by existing implementation plus migrate command
 - Files changed: fade (migrate command creates CLAUDE.md)
 - Tests: Verified CLAUDE_TEMPLATE content meets all criteria
+
+## 2026-01-20 - US-001 through US-004: Graceful Rate Limit Handling (ENH-008) - COMPLETE
+
+- Added detect_interruption() function to identify known interruption patterns (rate_limit, network_error, service_error)
+- Added display_rate_limit_exit() to show friendly message when rate limited, including reset time extraction
+- Added display_network_error_exit() for connection/network issues with retry suggestions
+- Added display_service_error_exit() for Claude API service issues with status page link
+- Added display_generic_interruption_exit() for unrecognized stops without scary error language
+- Added display_session_context() and display_resume_instructions() helper functions for consistent messaging
+- Updated cmd_run() ALL mode loop to check for interruptions before showing "no signal" error
+- Updated EXIT SIGNALS comment block with new interruption types and exit codes
+- Exit codes: 0=success, 1=error/blocked, 2=rate-limited, 3=transient error (network/service)
+- All interruption handlers show current PRD context and suggest fade run/yolo to resume
+- Files changed: fade
+- Tests: bash -n syntax check passed, detect_interruption() function tested with various patterns

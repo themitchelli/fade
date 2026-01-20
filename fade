@@ -926,6 +926,147 @@ display_prd_stories() {
     done
 }
 
+# ============================================================================
+# INTERRUPTION HANDLING
+# ============================================================================
+# Functions for detecting and handling known interruption patterns (non-error exits)
+
+# Check for known interruption patterns in output
+# Returns: "rate_limit", "network_error", "service_error", or "" (no interruption)
+detect_interruption() {
+    local output="$1"
+
+    # Rate limit: Claude's usage limit message
+    if echo "$output" | grep -qi "You've hit your limit"; then
+        echo "rate_limit"
+        return 0
+    fi
+
+    # Network errors: connection issues
+    if echo "$output" | grep -qi "connection refused\|network.*unreachable\|could not resolve host\|connection timed out"; then
+        echo "network_error"
+        return 0
+    fi
+
+    # Service errors: Claude API issues
+    if echo "$output" | grep -qi "service.*unavailable\|internal server error\|503\|502\|overloaded"; then
+        echo "service_error"
+        return 0
+    fi
+
+    # No known interruption detected
+    echo ""
+}
+
+# Display session context (used by all interruption handlers)
+display_session_context() {
+    local active_prd=$(get_active_prd)
+    local prd_name=""
+    local incomplete_count=0
+
+    if [[ -n "$active_prd" ]]; then
+        prd_name=$(get_prd_name "$active_prd")
+        incomplete_count=$(count_incomplete_stories "$active_prd")
+
+        echo -e "${CYAN}Current work:${NC}"
+        echo -e "  PRD: $prd_name"
+        echo -e "  Remaining: $incomplete_count story(ies)"
+        echo ""
+    fi
+}
+
+# Display resume instructions (used by all interruption handlers)
+display_resume_instructions() {
+    echo -e "${CYAN}To resume:${NC}"
+    echo -e "  fade run       # Resume with mode selection"
+    echo -e "  fade yolo      # Resume in full auto mode"
+    echo ""
+    echo -e "Your progress has been saved. Pick up where you left off when ready."
+    echo ""
+}
+
+# Display rate limit exit message
+display_rate_limit_exit() {
+    local output="$1"
+
+    # Try to extract reset time from output (format: "resets Xam/pm (timezone)")
+    local reset_time=""
+    reset_time=$(echo "$output" | grep -oi "resets [0-9]*[ap]m[^)]*)" | head -1)
+
+    echo ""
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}⏸️  Session Paused - Rate Limit Reached${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "Claude has reached its usage limit for this session."
+    echo ""
+
+    if [[ -n "$reset_time" ]]; then
+        echo -e "${CYAN}Reset time:${NC} $reset_time"
+        echo ""
+    fi
+
+    display_session_context
+    display_resume_instructions
+}
+
+# Display network error exit message
+display_network_error_exit() {
+    echo ""
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}⏸️  Session Paused - Network Issue${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "A network error occurred during the session."
+    echo -e "This may be a temporary connectivity issue."
+    echo ""
+
+    display_session_context
+
+    echo -e "${CYAN}Suggestions:${NC}"
+    echo -e "  • Check your internet connection"
+    echo -e "  • Try again in a few moments"
+    echo ""
+
+    display_resume_instructions
+}
+
+# Display service error exit message
+display_service_error_exit() {
+    echo ""
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}⏸️  Session Paused - Service Issue${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "Claude's service appears to be temporarily unavailable."
+    echo -e "This is usually resolved quickly."
+    echo ""
+
+    display_session_context
+
+    echo -e "${CYAN}Suggestions:${NC}"
+    echo -e "  • Check status.anthropic.com for service status"
+    echo -e "  • Try again in a few minutes"
+    echo ""
+
+    display_resume_instructions
+}
+
+# Display generic interruption message (for unrecognized interruptions)
+display_generic_interruption_exit() {
+    echo ""
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${YELLOW}⏸️  Session Interrupted${NC}"
+    echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "The session ended without a recognized completion signal."
+    echo -e "This may be due to a timeout, interruption, or unexpected issue."
+    echo ""
+
+    display_session_context
+    display_resume_instructions
+}
+
 # Display iteration summary after story completion
 display_iteration_summary() {
     local iteration="$1"
@@ -1270,6 +1411,23 @@ ask_execution_mode() {
 # BLOCKED         BLOCKED: [reason]       Cannot proceed, human intervention needed
 #
 # Detection: Simple string matching via grep (see cmd_run ALL mode loop)
+#
+# INTERRUPTIONS
+# -------------
+# The loop also detects known interruption patterns that aren't errors.
+# Detection is done via detect_interruption() function.
+#
+# Type            Patterns                              Exit Code
+# --------------- ------------------------------------- ---------
+# rate_limit      "You've hit your limit"               2
+# network_error   "connection refused", "unreachable"   3
+# service_error   "service unavailable", "503", "502"   3
+#
+# Exit codes:
+#   0 = success (ALL_COMPLETE)
+#   1 = error/blocked (BLOCKED or unknown error)
+#   2 = rate limited (session limit reached)
+#   3 = transient error (network/service issues, retry later)
 # ============================================================================
 
 # ============================================================================
@@ -1512,15 +1670,30 @@ cmd_run() {
                 continue
             fi
 
-            # No recognized signal
+            # Check for known interruption patterns (before treating as unknown)
+            local interruption_type=$(detect_interruption "$output")
+
+            if [[ -n "$interruption_type" ]]; then
+                rm -f "$learned_before_file"
+                case "$interruption_type" in
+                    rate_limit)
+                        display_rate_limit_exit "$output"
+                        exit 2  # Exit code 2 = rate limited
+                        ;;
+                    network_error)
+                        display_network_error_exit
+                        exit 3  # Exit code 3 = network error
+                        ;;
+                    service_error)
+                        display_service_error_exit
+                        exit 3  # Exit code 3 = service error
+                        ;;
+                esac
+            fi
+
+            # No recognized signal or interruption - show generic message
             rm -f "$learned_before_file"
-            echo ""
-            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
-            echo -e "${YELLOW}⚠️  No exit signal detected. Stopping loop.${NC}"
-            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
-            echo ""
-            echo "Expected one of: STORY_DONE, ALL_COMPLETE, BLOCKED"
-            echo "Check the output above for errors."
+            display_generic_interruption_exit
             break
 
         done

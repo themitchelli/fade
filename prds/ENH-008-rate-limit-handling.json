@@ -1,0 +1,74 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-008",
+  "name": "Graceful Rate Limit Handling",
+  "description": "FADE's execution loop should detect Claude Code rate limits and exit gracefully with helpful messaging, rather than treating them as unexpected errors.",
+  "dependsOn": [],
+  "context": {
+    "problem": "When Claude Code hits session/rate limits during FADE execution (especially in ALL/YOLO mode), the loop sees no exit signal (STORY_DONE, ALL_COMPLETE, BLOCKED) and exits with a confusing error message suggesting something went wrong.",
+    "currentBehavior": "Loop outputs 'No exit signal detected. Stopping loop.' and 'Expected one of: STORY_DONE, ALL_COMPLETE, BLOCKED' - which looks like an error when it's actually just a rate limit.",
+    "desiredBehavior": "FADE detects rate limit messages, exits cleanly, preserves progress context, and provides clear next steps for resumption."
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Detect rate limit in Claude output",
+      "description": "As a FADE user, I want the execution loop to recognize Claude's rate limit message so that it doesn't treat it as an error condition.",
+      "acceptanceCriteria": [
+        "Loop detects 'You've hit your limit' pattern in Claude output",
+        "Detection works regardless of timezone or reset time format",
+        "Rate limit is treated as a known exit condition, not an error"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Clean exit with helpful messaging",
+      "description": "As a FADE user, I want clear feedback when rate-limited so that I know what happened and what to do next.",
+      "acceptanceCriteria": [
+        "Exit message clearly indicates rate limit (not error)",
+        "Reset time is displayed if parseable from Claude output",
+        "Suggests commands to resume (fade run or fade yolo)",
+        "No scary 'error' or 'unexpected' language"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Preserve session context on rate limit",
+      "description": "As a FADE user, I want my progress preserved when rate-limited so that I can seamlessly resume later.",
+      "acceptanceCriteria": [
+        "Current PRD and story context noted in exit message",
+        "Optional: append rate limit note to progress.md",
+        "User knows exactly where to pick up"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Handle other Claude interruptions",
+      "description": "As a FADE user, I want FADE to handle other non-error interruptions gracefully (network issues, Claude service issues, etc.).",
+      "acceptanceCriteria": [
+        "Pattern matching extensible for other known interruption types",
+        "Generic 'session interrupted' handling for unrecognized stops",
+        "All interruptions suggest appropriate next steps"
+      ],
+      "priority": 3,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "knownPatterns": [
+      "You've hit your limit · resets Xpm (timezone)",
+      "You've hit your limit · resets Xam (timezone)"
+    ],
+    "implementation": "Modify the output parsing in fade run/yolo loop to check for rate limit patterns before checking for exit signals",
+    "exitCodes": {
+      "suggestion": "Consider distinct exit codes: 0=success, 1=error, 2=rate-limited, 3=blocked"
+    }
+  }
+}
