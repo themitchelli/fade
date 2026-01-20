@@ -66,7 +66,7 @@
         "Dry-run mode: `fade migrate --dry-run` shows what would happen without doing it"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -79,7 +79,7 @@
         "`fade migrate` also creates this redirect file"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

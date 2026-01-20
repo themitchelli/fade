@@ -1778,6 +1778,7 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
+  migrate       Move legacy FADE files into contained fade/ structure
   update        Update FADE CLI and prompt.md to latest versions from GitHub
   version       Show FADE version
   help          Show this help message
@@ -1795,6 +1796,10 @@ ${YELLOW}New Command:${NC}
 ${YELLOW}Run Options:${NC}
   --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
   --quiet, -q   Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+
+${YELLOW}Migrate Options:${NC}
+  --dry-run     Show what would be moved without making changes
+  --yes, -y     Skip confirmation prompt
 
 ${YELLOW}Update Options:${NC}
   --check       Check for updates without applying (exit code: 0=up-to-date, 1=updates available)
@@ -1837,11 +1842,233 @@ ${YELLOW}Examples:${NC}
   fade run --yolo --quiet                # Same as above
   fade status                            # Check work queue
   fade status --json                     # Machine-readable status
+  fade migrate                           # Move legacy files to fade/ structure
+  fade migrate --dry-run                 # Preview migration without changes
   fade update                            # Update CLI and prompt.md
   fade update --check                    # Check for updates without applying
   fade update --cli-only                 # Update CLI only, keep local prompt.md
 
 EOF
+}
+
+# ============================================================================
+# MIGRATE COMMAND
+# ============================================================================
+
+cmd_migrate() {
+    local dry_run=false
+    local skip_confirm=false
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
+            --yes|-y)
+                skip_confirm=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    echo -e "${CYAN}FADE Migration${NC}"
+    echo ""
+
+    if [[ "$dry_run" == true ]]; then
+        echo -e "${YELLOW}DRY RUN - No files will be modified${NC}"
+        echo ""
+    fi
+
+    # Check if already using contained structure
+    if [[ -d "fade" ]]; then
+        echo -e "${YELLOW}Note: fade/ directory already exists${NC}"
+        echo ""
+    fi
+
+    # Detect legacy FADE files at project root
+    local found_files=()
+    local found_dirs=()
+
+    # Check for FADE.md (should stay at root)
+    if [[ -f "FADE.md" ]]; then
+        echo -e "${GREEN}✓${NC} FADE.md found at root (will stay in place)"
+    else
+        echo -e "${YELLOW}⚠${NC} FADE.md not found - is this a FADE project?"
+        echo ""
+        echo "Run 'fade init' to create a new FADE structure."
+        exit 1
+    fi
+
+    # Check for files to migrate
+    if [[ -f "progress.md" ]]; then
+        found_files+=("progress.md")
+        echo -e "${BLUE}→${NC} progress.md found (will move to fade/)"
+    fi
+
+    if [[ -f "learned.md" ]]; then
+        found_files+=("learned.md")
+        echo -e "${BLUE}→${NC} learned.md found (will move to fade/)"
+    fi
+
+    if [[ -f "prompt.md" ]]; then
+        found_files+=("prompt.md")
+        echo -e "${BLUE}→${NC} prompt.md found (will move to fade/)"
+    fi
+
+    if [[ -f "prd.json" ]]; then
+        found_files+=("prd.json")
+        echo -e "${BLUE}→${NC} prd.json found (will move to fade/)"
+    fi
+
+    # Check for directories to migrate
+    if [[ -d "prds" ]]; then
+        found_dirs+=("prds")
+        echo -e "${BLUE}→${NC} prds/ found (will move to fade/prds/)"
+    fi
+
+    if [[ -d "prd-archive" ]]; then
+        found_dirs+=("prd-archive")
+        echo -e "${BLUE}→${NC} prd-archive/ found (will move to fade/prd-archive/)"
+    fi
+
+    # Check for CLAUDE.md
+    local need_claude_md=false
+    if [[ ! -f "CLAUDE.md" ]]; then
+        need_claude_md=true
+        echo -e "${BLUE}+${NC} CLAUDE.md will be created"
+    else
+        echo -e "${GREEN}✓${NC} CLAUDE.md already exists"
+    fi
+
+    echo ""
+
+    # Check if there's anything to migrate
+    if [[ ${#found_files[@]} -eq 0 && ${#found_dirs[@]} -eq 0 && "$need_claude_md" == false ]]; then
+        echo -e "${GREEN}✓ Nothing to migrate - project may already be using contained structure${NC}"
+        return 0
+    fi
+
+    # Summary
+    local total_items=$((${#found_files[@]} + ${#found_dirs[@]}))
+    if [[ "$need_claude_md" == true ]]; then
+        ((total_items++))
+    fi
+
+    echo -e "${BOLD}Migration Summary:${NC}"
+    echo -e "  Files to move:    ${#found_files[@]}"
+    echo -e "  Folders to move:  ${#found_dirs[@]}"
+    if [[ "$need_claude_md" == true ]]; then
+        echo -e "  Files to create:  1 (CLAUDE.md)"
+    fi
+    echo ""
+
+    # If dry run, stop here
+    if [[ "$dry_run" == true ]]; then
+        echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+        echo -e "${CYAN}DRY RUN COMPLETE - Run without --dry-run to apply changes${NC}"
+        echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+        return 0
+    fi
+
+    # Confirm before proceeding
+    if [[ "$skip_confirm" != true ]]; then
+        echo -e "${YELLOW}This will move files to a new contained structure.${NC}"
+        read -p "Proceed with migration? [y/N]: " confirm </dev/tty
+
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+            echo -e "${CYAN}Migration cancelled.${NC}"
+            return 0
+        fi
+    fi
+
+    echo ""
+    echo -e "${CYAN}Migrating...${NC}"
+    echo ""
+
+    local moved_count=0
+    local created_count=0
+
+    # Create fade/ directory if it doesn't exist
+    if [[ ! -d "fade" ]]; then
+        mkdir -p "fade"
+        echo -e "  ${GREEN}create${NC}: fade/"
+        ((created_count++))
+    fi
+
+    # Move files to fade/
+    for file in "${found_files[@]}"; do
+        if [[ -f "$file" ]]; then
+            # Check if destination already exists
+            if [[ -f "fade/$file" ]]; then
+                echo -e "  ${YELLOW}skip${NC}: $file (fade/$file already exists)"
+            else
+                mv "$file" "fade/$file"
+                echo -e "  ${GREEN}move${NC}: $file → fade/$file"
+                ((moved_count++))
+            fi
+        fi
+    done
+
+    # Move directories to fade/
+    for dir in "${found_dirs[@]}"; do
+        if [[ -d "$dir" ]]; then
+            # Check if destination already exists
+            if [[ -d "fade/$dir" ]]; then
+                echo -e "  ${YELLOW}skip${NC}: $dir/ (fade/$dir/ already exists)"
+                echo -e "        You may need to manually merge the contents"
+            else
+                mv "$dir" "fade/$dir"
+                echo -e "  ${GREEN}move${NC}: $dir/ → fade/$dir/"
+                ((moved_count++))
+            fi
+        fi
+    done
+
+    # Create CLAUDE.md redirect
+    if [[ "$need_claude_md" == true ]]; then
+        echo "$CLAUDE_TEMPLATE" > "CLAUDE.md"
+        echo -e "  ${GREEN}create${NC}: CLAUDE.md"
+        ((created_count++))
+    fi
+
+    echo ""
+
+    # Report results
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${GREEN}✓ Migration complete!${NC}"
+    echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo -e "  Moved:   $moved_count item(s)"
+    echo -e "  Created: $created_count item(s)"
+    echo ""
+    echo -e "${BOLD}New structure:${NC}"
+    echo "  ./FADE.md           # Project context (unchanged)"
+    echo "  ./CLAUDE.md         # Redirect for Claude Code"
+    echo "  ./fade/"
+    if [[ -f "fade/prompt.md" ]]; then
+        echo "    ├── prompt.md     # Execution instructions"
+    fi
+    if [[ -f "fade/progress.md" ]]; then
+        echo "    ├── progress.md   # Session history"
+    fi
+    if [[ -f "fade/learned.md" ]]; then
+        echo "    ├── learned.md    # Cumulative discoveries"
+    fi
+    if [[ -f "fade/prd.json" ]]; then
+        echo "    ├── prd.json      # Priority PRD"
+    fi
+    if [[ -d "fade/prds" ]]; then
+        echo "    ├── prds/         # PRD queue"
+    fi
+    if [[ -d "fade/prd-archive" ]]; then
+        echo "    └── prd-archive/  # Completed PRDs"
+    fi
+    echo ""
 }
 
 # ============================================================================
@@ -2216,6 +2443,10 @@ case "${1:-}" in
     update)
         shift
         cmd_update "$@"
+        ;;
+    migrate)
+        shift
+        cmd_migrate "$@"
         ;;
     version|--version|-v)
         cmd_version

@@ -259,3 +259,32 @@ For blocked stories, use:
 - Added examples in help: fade new feature/bug/spike
 - Files changed: fade
 - Tests: bash -n syntax check passed, error handling verified for all edge cases
+
+## 2026-01-20 10:24 - US-004: Migrate existing projects to contained structure (FEAT-007) - COMPLETE
+
+- Added cmd_migrate() function to move legacy FADE files into contained fade/ structure
+- Detects FADE files at project root: progress.md, learned.md, prompt.md, prd.json
+- Detects directories: prds/, prd-archive/
+- Creates fade/ directory and moves files/folders into it
+- FADE.md stays at root (correct location)
+- Creates CLAUDE.md redirect if it doesn't exist (using CLAUDE_TEMPLATE)
+- Added --dry-run flag to preview migration without making changes
+- Added --yes/-y flag to skip confirmation prompt (useful for automation/testing)
+- Shows migration summary with counts of files/folders moved and created
+- Displays new structure after migration completes
+- Handles conflicts: skips files/folders that already exist in fade/
+- Added migrate command to main case statement and help text
+- Added "Migrate Options" section to help with --dry-run and --yes flags
+- Added examples: fade migrate, fade migrate --dry-run
+- Files changed: fade
+- Tests: bash -n syntax check passed, dry-run and actual migration tested
+
+## 2026-01-20 10:24 - US-005: CLAUDE.md redirect for Claude Code discovery (FEAT-007) - COMPLETE
+
+- Verified CLAUDE_TEMPLATE already exists and is created by cmd_init() (implemented in US-001)
+- CLAUDE.md contains instructions pointing to ./FADE.md and ./fade/prompt.md
+- CLAUDE.md is minimal (25 lines) - just a redirect with file location map
+- fade migrate now creates CLAUDE.md redirect when migrating legacy projects
+- All acceptance criteria satisfied by existing implementation plus migrate command
+- Files changed: fade (migrate command creates CLAUDE.md)
+- Tests: Verified CLAUDE_TEMPLATE content meets all criteria
