@@ -48,7 +48,7 @@
         "Shows total progress (e.g., '3/7 stories complete')"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

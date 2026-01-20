@@ -615,6 +615,53 @@ get_total_progress() {
     echo "$total_complete $total_stories"
 }
 
+# Display story-level status for the active PRD with checkboxes
+display_prd_stories() {
+    local prd_file="$1"
+
+    if [[ ! -f "$prd_file" ]]; then
+        return
+    fi
+
+    local prd_name=$(get_prd_name "$prd_file")
+
+    echo -e "${BOLD}$prd_name${NC}"
+    echo ""
+
+    # Extract stories with their status using awk
+    # Output format: ID|TITLE|PASSES
+    awk '
+        /"userStories"/ { in_stories=1 }
+        in_stories && /"id"[[:space:]]*:/ {
+            gsub(/.*"id"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            story_id = $0
+        }
+        in_stories && /"title"[[:space:]]*:/ {
+            gsub(/.*"title"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            story_title = $0
+        }
+        in_stories && /"passes"[[:space:]]*:/ {
+            if (/true/) {
+                passes = "true"
+            } else {
+                passes = "false"
+            }
+            print story_id "|" story_title "|" passes
+            story_id = ""
+            story_title = ""
+            passes = ""
+        }
+    ' "$prd_file" | while IFS='|' read -r id title passes; do
+        if [[ "$passes" == "true" ]]; then
+            echo -e "  ${GREEN}[✓]${NC} $id: $title"
+        else
+            echo -e "  ${RED}[ ]${NC} $id: $title"
+        fi
+    done
+}
+
 # Display iteration summary after story completion
 display_iteration_summary() {
     local iteration="$1"
@@ -671,6 +718,15 @@ display_iteration_summary() {
     # Display progress
     echo -e "${YELLOW}Progress:${NC} $complete of $total stories complete"
     echo ""
+
+    # Display fade status (story-level checkboxes for active PRD)
+    if [[ -n "$active_prd" ]]; then
+        echo -e "${YELLOW}Current PRD Status:${NC}"
+        echo ""
+        display_prd_stories "$active_prd"
+        echo ""
+    fi
+
     echo -e "${CYAN}───────────────────────────────────────────────────────────────${NC}"
     echo -e "${BLUE}Starting next iteration...${NC}"
     echo -e "${CYAN}───────────────────────────────────────────────────────────────${NC}"

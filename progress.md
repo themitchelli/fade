@@ -62,3 +62,14 @@ For blocked stories, use:
 - Properly cleans up temp files in all code paths (STORY_DONE, ALL_COMPLETE, BLOCKED, no signal)
 - Files changed: fade
 - Tests: bash -n syntax check passed
+
+## 2026-01-20 - US-003: Display fade status after each iteration (ENH-008) - COMPLETE
+
+- Added display_prd_stories() function to show story-level status with checkboxes
+- Shows PRD name followed by all stories with [✓] (green) for passed and [ ] (red) for incomplete
+- Uses awk to extract story ID, title, and passes status from PRD JSON
+- Integrated into display_iteration_summary() under "Current PRD Status:" heading
+- Shows updated checkboxes reflecting just-completed story
+- Combined with existing "Progress: X of Y stories complete" for total progress
+- Files changed: fade
+- Tests: bash -n syntax check passed, manual function test verified output
