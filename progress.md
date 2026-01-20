@@ -129,3 +129,15 @@ For blocked stories, use:
 - Fixed bug in count_incomplete_stories() and count_complete_stories() functions where grep -c returning 0 would also trigger || echo "0" causing double output
 - Files changed: fade
 - Tests: bash -n syntax check passed, manual function test verified correct archive behavior
+
+## 2026-01-20 08:06 - US-003: Archive prd.json with proper naming (ENH-006) - COMPLETE
+
+- Added convert_type_to_prefix() function to map type field values to standard TYPE prefixes (feature→FEAT, bug→BUG, enhancement→ENH, chore→CHORE, spike→SPIKE)
+- Added generate_slug() function to convert PRD name to slug format (lowercase, spaces to hyphens, max 50 chars, strip special chars)
+- Added get_prd_id() function to extract id field from PRD JSON
+- Added archive_priority_prd() function that renames and archives prd.json using {ID}-{slug}.json format when ID already contains TYPE-NUMBER pattern, or {TYPE}-{ID}-{slug}.json when ID is just a number
+- Integrated archive_priority_prd() into ALL_COMPLETE signal handling before archive_completed_prds()
+- Display shows "archived: prd.json → {new_filename}" with green coloring
+- Total archived count includes both prd.json and prds/ folder PRDs
+- Files changed: fade
+- Tests: bash -n syntax check passed, manual function tests verified correct naming for both ID formats

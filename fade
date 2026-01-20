@@ -638,6 +638,105 @@ archive_completed_prds() {
     echo "$archived_count"
 }
 
+# Convert PRD type field value to standard TYPE prefix
+# feature→FEAT, bug→BUG, enhancement→ENH, chore→CHORE, spike→SPIKE
+convert_type_to_prefix() {
+    local type_value="$1"
+    local type_lower=$(echo "$type_value" | tr '[:upper:]' '[:lower:]')
+
+    case "$type_lower" in
+        feature|feat)
+            echo "FEAT"
+            ;;
+        bug)
+            echo "BUG"
+            ;;
+        enhancement|enh)
+            echo "ENH"
+            ;;
+        chore)
+            echo "CHORE"
+            ;;
+        spike)
+            echo "SPIKE"
+            ;;
+        *)
+            # If already uppercase prefix format, use as-is
+            echo "$type_value" | tr '[:lower:]' '[:upper:]'
+            ;;
+    esac
+}
+
+# Generate slug from name: lowercase, spaces to hyphens, max 50 chars
+generate_slug() {
+    local name="$1"
+    local slug
+
+    # Lowercase, replace spaces with hyphens, remove non-alphanumeric except hyphens
+    slug=$(echo "$name" | tr '[:upper:]' '[:lower:]' | sed 's/[[:space:]]/-/g' | sed 's/[^a-z0-9-]//g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
+
+    # Truncate to max 50 chars
+    if [[ ${#slug} -gt 50 ]]; then
+        slug="${slug:0:50}"
+        # Avoid trailing hyphen after truncation
+        slug=$(echo "$slug" | sed 's/-$//')
+    fi
+
+    echo "$slug"
+}
+
+# Get PRD ID from JSON file
+get_prd_id() {
+    local prd_file="$1"
+    grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/'
+}
+
+# Archive prd.json with standard naming convention
+# If prd.json exists and is fully complete, rename and move to prd-archive/
+# Returns 1 if archived, 0 otherwise
+archive_priority_prd() {
+    if [[ ! -f "prd.json" ]]; then
+        return 0
+    fi
+
+    if ! prd_is_fully_complete "prd.json"; then
+        return 0
+    fi
+
+    # Ensure prd-archive/ exists
+    if [[ ! -d "prd-archive" ]]; then
+        mkdir -p "prd-archive"
+        touch "prd-archive/.gitkeep"
+    fi
+
+    # Extract metadata for naming
+    local prd_type=$(get_prd_type "prd.json")
+    local prd_id=$(get_prd_id "prd.json")
+    local prd_name=$(get_prd_name "prd.json")
+
+    # Generate slug from name
+    local slug=$(generate_slug "$prd_name")
+
+    # Build filename
+    # If ID already contains type prefix (e.g., BUG-009), use {ID}-{slug}.json
+    # Otherwise use {TYPE}-{ID}-{slug}.json
+    local new_filename
+    if [[ "$prd_id" =~ ^[A-Z]+-[0-9]+$ ]]; then
+        # ID already has TYPE-NUMBER format
+        new_filename="${prd_id}-${slug}.json"
+    else
+        # ID is just a number, prepend type prefix
+        local type_prefix=$(convert_type_to_prefix "$prd_type")
+        new_filename="${type_prefix}-${prd_id}-${slug}.json"
+    fi
+
+    # Move to archive with new name
+    mv "prd.json" "prd-archive/$new_filename"
+    echo -e "  ${GREEN}archived${NC}: prd.json → $new_filename"
+
+    echo "1"
+}
+
 # Get total story counts across all PRDs with incomplete work
 get_total_progress() {
     local total_complete=0
@@ -1183,13 +1282,24 @@ cmd_run() {
 
                 # Archive completed PRDs
                 echo -e "${YELLOW}Archiving completed PRDs...${NC}"
+
+                # Archive prd.json if it exists and is complete
+                local priority_output=$(archive_priority_prd)
+                local priority_archived=$(echo "$priority_output" | tail -1)
+                # Display archive message (all but last line which is the count)
+                echo "$priority_output" | head -n -1
+
+                # Archive completed PRDs from prds/ folder
                 local archived_output=$(archive_completed_prds)
                 local archived_count=$(echo "$archived_output" | tail -1)
                 # Display archive messages (all but last line which is the count)
                 echo "$archived_output" | head -n -1
 
-                if [[ "$archived_count" -gt 0 ]]; then
-                    echo -e "${GREEN}Archived $archived_count PRD(s) to prd-archive/${NC}"
+                # Calculate total archived
+                local total_archived=$((${priority_archived:-0} + ${archived_count:-0}))
+
+                if [[ "$total_archived" -gt 0 ]]; then
+                    echo -e "${GREEN}Archived $total_archived PRD(s) to prd-archive/${NC}"
                 else
                     echo -e "  ${CYAN}No completed PRDs to archive${NC}"
                 fi

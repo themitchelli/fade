@@ -45,7 +45,7 @@
         "Delete original prd.json from root after successful move"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
