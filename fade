@@ -1004,6 +1004,16 @@ PRDS_EOF
         echo -e "  ${YELLOW}skip${NC}: prds/ (already exists)"
     fi
 
+    # Create prd-archive/ folder
+    if [[ ! -d "prd-archive" ]]; then
+        mkdir -p "prd-archive"
+        touch "prd-archive/.gitkeep"
+        echo -e "  ${GREEN}create${NC}: prd-archive/"
+        ((created++))
+    else
+        echo -e "  ${YELLOW}skip${NC}: prd-archive/ (already exists)"
+    fi
+
     echo ""
     if [[ $created -eq 0 ]]; then
         echo "No files created. FADE structure already exists."

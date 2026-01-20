@@ -1,0 +1,64 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-006",
+  "name": "PRD Archive on Completion",
+  "description": "Automatically archive completed PRDs when the ALL_COMPLETE exit signal is triggered. Creates a prd-archive subfolder and moves completed PRDs from prds/ folder. Also handles prd.json in root by renaming it to standard convention before archiving.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create prd-archive folder structure",
+      "description": "As a FADE user, I want a prd-archive folder to exist so completed PRDs have a home",
+      "acceptanceCriteria": [
+        "fade init creates prds/ folder (existing) AND prd-archive/ folder",
+        "prd-archive/ is created automatically if it doesn't exist when archiving",
+        ".gitkeep in prd-archive/ to ensure empty folder is tracked"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Archive completed PRDs from prds/ folder",
+      "description": "As a FADE user, I want completed PRDs to be moved to prd-archive/ when work finishes so my prds/ folder stays clean",
+      "acceptanceCriteria": [
+        "When ALL_COMPLETE signal is triggered, scan prds/ folder for PRDs where ALL stories have passes: true",
+        "Move fully completed PRDs to prd-archive/ folder",
+        "Preserve original filename when moving",
+        "Log which files were archived"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Archive prd.json with proper naming",
+      "description": "As a FADE user, I want prd.json in root to be renamed and archived using standard naming convention so I can track what was completed",
+      "acceptanceCriteria": [
+        "When ALL_COMPLETE and prd.json exists with all stories complete, archive it",
+        "Rename prd.json to {TYPE}-{ID}-{slug}.json format (e.g., BUG-009-fix-broken-widget.json)",
+        "Derive TYPE from 'type' field in JSON (feature→FEAT, bug→BUG, etc.)",
+        "Derive ID from 'id' field in JSON",
+        "Derive slug from 'name' field, lowercased, spaces to hyphens, max 50 chars",
+        "Move renamed file to prd-archive/",
+        "Delete original prd.json from root after successful move"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Update prompt.md exit protocol",
+      "description": "As a FADE maintainer, I want the prompt.md template to include archive instructions so Claude triggers the archive step",
+      "acceptanceCriteria": [
+        "prompt.md template includes archive step in Story Completion Protocol",
+        "Archive step runs BEFORE outputting ALL_COMPLETE signal",
+        "Archive logic: check all PRDs in prds/ and prd.json, move completed ones",
+        "Clear documentation of naming convention for prd.json archival"
+      ],
+      "priority": 4,
+      "passes": false
+    }
+  ]
+}

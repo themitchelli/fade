@@ -108,3 +108,13 @@ For blocked stories, use:
 - README serves as the project description (no separate fade-project-description file exists)
 - Files changed: README.md
 - Tests: Verified README renders correctly with new section
+
+## 2026-01-20 07:57 - US-001: Create prd-archive folder structure (ENH-006) - COMPLETE
+
+- Updated cmd_init() function in fade script to create prd-archive/ folder
+- Added .gitkeep file to prd-archive/ to ensure empty folder is tracked in git
+- Includes skip logic when prd-archive/ already exists (consistent with prds/ folder behavior)
+- Tested fade init creates folder successfully
+- Tested fade init skips existing folder correctly
+- Files changed: fade
+- Tests: bash -n syntax check passed, manual init test verified folder creation
