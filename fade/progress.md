@@ -632,3 +632,16 @@ For blocked stories, use:
 - File is 744 words, well under the 1,100 word limit
 - Files changed: fade/standards/git.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-21 - US-006: Coding standard document (ENH-009) - COMPLETE
+
+- Created fade/standards/coding.md with language-agnostic coding principles
+- Covers all required topics: naming conventions (camelCase/snake_case, PascalCase for classes, boolean prefixes), function guidelines (20-30 line target, single responsibility, max 3 params), file organization (200-300 lines, structure order)
+- Includes error handling guidelines (explicit handling, meaningful messages, don't swallow errors)
+- Includes comments section (when to comment, self-documenting code examples)
+- Includes language-specific rules section for JS/TS and Python
+- Includes Do/Don't code examples throughout (naming, functions, error handling, comments)
+- Quick reference table and "When to Read" section at end
+- File is 803 words, well under the 1,100 word limit
+- Files changed: fade/standards/coding.md (new)
+- Tests: Word count verified under limit
