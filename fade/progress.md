@@ -661,3 +661,19 @@ For blocked stories, use:
 - File is 758 words, well under the 1,100 word (~1,500 token) limit
 - Files changed: fade/standards/testing.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-21 - US-008: Documentation standard document (ENH-009) - COMPLETE
+
+- Created fade/standards/documentation.md with documentation layers and guidelines
+- Covers all required topics: what to document, README structure, API docs, ADR format, code comments, FADE-specific docs
+- Documentation Layers table: README, API docs, ADRs, Code comments, FADE files with audience and location
+- README Structure section with required sections and example template
+- API Documentation section with endpoint, parameters, response, example format
+- ADR template with Status, Context, Decision, Rationale, Consequences sections
+- FADE-Specific Documentation section: progress.md, learned.md, FADE.md guidelines
+- "What NOT to Document" section with anti-patterns table explicitly preventing over-documentation
+- Includes guidance: no docstrings for private functions, no restating code, no giant walls of text
+- Quick reference table and "When to Read" section at end
+- File is 771 words, well under the 1,100 word (~1,500 token) limit
+- Files changed: fade/standards/documentation.md (new)
+- Tests: Word count verified under limit
