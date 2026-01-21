@@ -645,3 +645,19 @@ For blocked stories, use:
 - File is 803 words, well under the 1,100 word limit
 - Files changed: fade/standards/coding.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-21 - US-007: Testing standard document (ENH-009) - COMPLETE
+
+- Created fade/standards/testing.md with test philosophy and patterns
+- Covers test pyramid: 70% unit, 20% integration, 10% E2E with rationale
+- Documents what to test vs what to skip (business logic yes, framework code no)
+- Includes AAA pattern section with clear example
+- Covers test naming conventions with good/bad examples
+- Documents mocking guidelines: mock boundaries not internals
+- Includes test independence rules (no shared state, run in any order)
+- Coverage requirements section: 70-80% unit target, not chasing 100%
+- Includes good vs bad test code examples throughout
+- Quick reference table and "When to Read" section at end
+- File is 758 words, well under the 1,100 word (~1,500 token) limit
+- Files changed: fade/standards/testing.md (new)
+- Tests: Word count verified under limit
