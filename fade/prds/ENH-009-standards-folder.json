@@ -121,7 +121,7 @@
         "Manually verify fade update works by running it on a test project"
       ],
       "priority": 9,
-      "passes": false
+      "passes": true
     }
   ]
 }

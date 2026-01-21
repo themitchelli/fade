@@ -2744,6 +2744,10 @@ FADE_UPDATE_URL="https://raw.githubusercontent.com/themitchelli/fade/main/fade"
 FADE_VERSION_URL="https://raw.githubusercontent.com/themitchelli/fade/main/VERSION"
 FADE_PROMPT_URL="https://raw.githubusercontent.com/themitchelli/fade/main/prompt.md"
 FADE_MANIFEST_URL="https://raw.githubusercontent.com/themitchelli/fade/main/version-manifest.json"
+FADE_STANDARDS_BASE_URL="https://raw.githubusercontent.com/themitchelli/fade/main/fade/standards"
+
+# Standard file names (used by fade update to add missing standards)
+FADE_STANDARD_FILES=("api-security.md" "git.md" "coding.md" "testing.md" "documentation.md")
 
 # Fetch content from URL using curl or wget
 # Usage: fetch_url URL [timeout_seconds]
@@ -3176,10 +3180,61 @@ cmd_update() {
     echo ""
 
     # ========================================================================
+    # STANDARDS UPDATE
+    # ========================================================================
+
+    local standards_added=()
+
+    # Determine standards folder location (prefer fade/ if exists, fall back to root)
+    local standards_path=""
+    if [[ -d "fade" ]]; then
+        standards_path="fade/standards"
+    elif [[ -d "prds" ]] || [[ -f "prompt.md" ]]; then
+        # Legacy structure detected
+        standards_path="standards"
+    fi
+
+    # Only attempt standards update if we detected a FADE project
+    if [[ -n "$standards_path" ]]; then
+        echo -e "Checking standards folder..."
+
+        # Create standards folder if it doesn't exist
+        if [[ ! -d "$standards_path" ]]; then
+            mkdir -p "$standards_path"
+            echo -e "  ${GREEN}create${NC}: $standards_path/"
+        fi
+
+        # Add each standard file that doesn't exist locally
+        for standard_file in "${FADE_STANDARD_FILES[@]}"; do
+            local local_path="$standards_path/$standard_file"
+
+            if [[ -f "$local_path" ]]; then
+                # File already exists - do NOT overwrite (user may have customised)
+                echo -e "  ${CYAN}exists${NC}: $standard_file"
+            else
+                # File doesn't exist - fetch and create it
+                local standard_url="$FADE_STANDARDS_BASE_URL/$standard_file"
+                local standard_content
+                standard_content=$(fetch_url "$standard_url" 10) || true
+
+                if [[ -n "$standard_content" ]]; then
+                    echo "$standard_content" > "$local_path"
+                    echo -e "  ${GREEN}Added${NC}: $standards_path/$standard_file"
+                    standards_added+=("$standard_file")
+                else
+                    echo -e "  ${YELLOW}Warning: Could not fetch $standard_file${NC}"
+                fi
+            fi
+        done
+
+        echo ""
+    fi
+
+    # ========================================================================
     # SUMMARY
     # ========================================================================
 
-    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]]; then
+    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]]; then
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
         echo -e "${GREEN}✓ FADE update complete!${NC}"
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -3194,13 +3249,23 @@ cmd_update() {
                 echo -e "  prompt.md: ${BOLD}(no version) → v$latest_version${NC}"
             fi
         fi
+        if [[ ${#standards_added[@]} -gt 0 ]]; then
+            echo ""
+            echo -e "  Standards added:"
+            for std in "${standards_added[@]}"; do
+                echo -e "    ${GREEN}+${NC} $std"
+            done
+        fi
         echo ""
         # Summary line showing count
-        local artifact_word="artifact"
-        if [[ $artifacts_updated -gt 1 ]]; then
-            artifact_word="artifacts"
+        local total_changes=$((artifacts_updated + ${#standards_added[@]}))
+        if [[ $total_changes -gt 0 ]]; then
+            local change_word="change"
+            if [[ $total_changes -gt 1 ]]; then
+                change_word="changes"
+            fi
+            echo -e "  ${GREEN}$total_changes $change_word applied${NC}"
         fi
-        echo -e "  ${GREEN}Updated $artifacts_updated $artifact_word to v$latest_version${NC}"
         echo ""
     else
         echo -e "${GREEN}✓ All artifacts at v$latest_version${NC}"

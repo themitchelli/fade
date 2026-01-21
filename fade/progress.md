@@ -677,3 +677,17 @@ For blocked stories, use:
 - File is 771 words, well under the 1,100 word (~1,500 token) limit
 - Files changed: fade/standards/documentation.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-21 - US-009: fade update includes standards folder and files (ENH-009) - COMPLETE
+
+- Added FADE_STANDARDS_BASE_URL constant pointing to GitHub raw URL for standards folder
+- Added FADE_STANDARD_FILES array listing all 5 standard files to be synced
+- Added STANDARDS UPDATE section to cmd_update() after prompt.md update section
+- Logic: detects FADE project (fade/ or legacy prds/prompt.md), creates standards/ if missing
+- Iterates through each standard file: skips if exists (preserves user customizations), fetches and adds if missing
+- Reports each file: 'exists' for existing files, 'Added: standards/X.md' for new files
+- Updated SUMMARY section to include standards_added count in output
+- Shows list of added standards in update complete summary
+- Handles both contained (fade/standards/) and legacy (standards/) structures
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, structure detection logic verified manually
