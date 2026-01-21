@@ -590,3 +590,14 @@ For blocked stories, use:
 - File is 756 words, well under the 1,100 word (~1,500 token) limit
 - Files changed: fade/standards/api-security.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-21 - US-003: FADE.md template includes Standards section (ENH-009) - COMPLETE
+
+- Added '## Standards' section to FADE_TEMPLATE in bin/fade-cli
+- Section placed after 'Coding Standards' and before 'Architecture References'
+- Contains markdown table with links to standards/*.md files using relative paths
+- Links all 5 core standards: api-security.md, git.md, coding.md, testing.md, documentation.md
+- Each standard has brief one-liner description of what it covers
+- Includes HTML comment explaining the section purpose and customisation guidance
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

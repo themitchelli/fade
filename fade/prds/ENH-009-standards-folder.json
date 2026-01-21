@@ -43,7 +43,7 @@
         "Section includes brief one-liner description per standard"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

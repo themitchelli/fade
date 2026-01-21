@@ -72,6 +72,23 @@ from or extend the standard guides.
 
 ---
 
+## Standards
+
+<!--
+Link to detailed standards documents. These are loaded by Claude when working
+on relevant tasks. Add your own project-specific standards as needed.
+-->
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](standards/api-security.md) | Authentication, authorization, input validation, secure error handling |
+| [Git](standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
+| [Coding](standards/coding.md) | Naming, formatting, error handling, code organization |
+| [Testing](standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
+| [Documentation](standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
+
+---
+
 ## Architecture References
 
 <!--
