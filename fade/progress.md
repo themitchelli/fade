@@ -579,3 +579,14 @@ For blocked stories, use:
 - Running fade init on existing projects adds standards/ folder without affecting other files
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual fade init test verified folder creation with README
+
+## 2026-01-21 - US-002: API Security standard document (ENH-009) - COMPLETE
+
+- Created fade/standards/api-security.md with 7 Claude-actionable security principles
+- Principles covered: auth by default, object-level authorization, schema-first input validation, least data returned, rate limiting, parameterized queries, secure error handling
+- Each principle has: Apply section with specific actions, code examples (good/bad), and Rationale explaining why it matters
+- Written as instructions Claude can apply directly, not enterprise governance prose
+- Includes quick reference table and "When to Read" section at end
+- File is 756 words, well under the 1,100 word (~1,500 token) limit
+- Files changed: fade/standards/api-security.md (new)
+- Tests: Word count verified under limit
