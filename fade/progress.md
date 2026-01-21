@@ -601,3 +601,17 @@ For blocked stories, use:
 - Includes HTML comment explaining the section purpose and customisation guidance
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-21 - US-004: prompt.md references standards for relevant work (ENH-009) - COMPLETE
+
+- Updated Session Start section to include step 6: Read relevant standards from standards/ folder
+- Added sub-bullet to step 1: Check Standards section in FADE.md for links to detailed standards
+- Updated Execution Rules to reference standards/ folder alongside FADE.md
+- Added new "Standards Reference" section after Execution Rules with:
+  - "When to Read Standards" table mapping work types to standard files
+  - Explicit instruction: "When working on API endpoints, read standards/api-security.md first"
+  - "Adding New Standard References" subsection documenting the pattern for new standards
+- Pattern includes: create file, add table row, link from FADE.md
+- Notes token limit guidance (under 1,500 tokens / ~1,100 words)
+- Files changed: fade/prompt.md
+- Tests: Manual verification that all acceptance criteria language is present

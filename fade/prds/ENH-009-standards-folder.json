@@ -55,7 +55,7 @@
         "General pattern documented for adding new standard references"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

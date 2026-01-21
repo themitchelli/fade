@@ -12,10 +12,12 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
    - Check **System Context** to understand where this work fits
    - Check **Transition Plan** for sequencing
    - Check **Active Work Items** to avoid conflicts
+   - Check **Standards** section for links to detailed standards
 2. Read `progress.md` to see what's been completed
 3. Read `learned.md` for discoveries from previous sessions
 4. Find the active PRD (see **PRD Discovery** below)
 5. Pick the highest priority story where `passes: false`
+6. Read relevant standards from `standards/` folder (see **Standards Reference** below)
 
 ## PRD Discovery
 
@@ -42,10 +44,35 @@ PRD files in `prds/` follow: `{TYPE}-{NUMBER}-{slug}.json`
 ## Execution Rules
 
 - **One story at a time** - Complete fully before signalling done
-- **Follow standards** in FADE.md
+- **Follow standards** in FADE.md and `standards/` folder
 - **Respect boundaries** - don't touch off-limits modules
 - **Small commits** - working increments, not big bangs
 - **Test before done** - all acceptance criteria must pass
+
+## Standards Reference
+
+Before starting work, check if any standards in `standards/` apply to your task.
+
+### When to Read Standards
+
+| Work Type | Standard to Read |
+|-----------|------------------|
+| API endpoints, routes, controllers | `standards/api-security.md` |
+| Git commits, branches, merges | `standards/git.md` |
+| Code style, naming, structure | `standards/coding.md` |
+| Writing tests | `standards/testing.md` |
+| Writing documentation | `standards/documentation.md` |
+
+**Specifically:** When working on API endpoints, read `standards/api-security.md` first.
+
+### Adding New Standard References
+
+To add a new standard to the project:
+1. Create `standards/{name}.md` with actionable instructions
+2. Add a row to the table above in this file
+3. Link from the **Standards** section in `FADE.md`
+
+Standards should be under 1,500 tokens (~1,100 words) to preserve context window.
 
 ## PRD Integrity Rules
 
