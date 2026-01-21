@@ -1,0 +1,127 @@
+{
+  "type": "enhancement",
+  "project": "FADE Framework",
+  "id": "ENH-009",
+  "name": "Standards Folder with Core Standards Library",
+  "description": "Add a standards/ folder to the FADE structure for modular project standards. Includes five core standards: API Security, Git, Coding, Testing, and Documentation. Each standard is under 1,500 tokens to preserve context window. FADE.md links to standards rather than embedding detail, and prompt.md conditionally loads relevant standards based on work type.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create standards folder structure",
+      "description": "As a developer using FADE, I want a standards/ folder created during fade init so that project standards have a dedicated, organised location",
+      "acceptanceCriteria": [
+        "fade init creates standards/ folder alongside prds/",
+        "fade init creates a placeholder README.md in standards/ explaining the folder purpose",
+        "Existing projects without standards/ folder continue to work (backwards compatible)"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "API Security standard document",
+      "description": "As a developer building APIs, I want an api-security.md standard so that Claude applies consistent security principles when generating API code",
+      "acceptanceCriteria": [
+        "standards/api-security.md created with Claude-actionable design principles",
+        "Covers: auth by default, object-level authz, schema-first, least data returned, rate limits, input validation",
+        "Written as instructions Claude can apply, not enterprise governance prose",
+        "Each principle has a brief rationale (why it matters)",
+        "File is under 1,500 tokens (~1,100 words) to preserve context window"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "FADE.md template includes Standards section",
+      "description": "As a developer, I want FADE.md to link to standards/ so that Claude knows where to find detailed standards without bloating the main context file",
+      "acceptanceCriteria": [
+        "FADE.md template includes '## Standards' section",
+        "Section contains markdown links to standards/*.md files",
+        "Links use relative paths (standards/api-security.md)",
+        "Section includes brief one-liner description per standard"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "prompt.md references standards for relevant work",
+      "description": "As a developer, I want prompt.md to instruct Claude to read relevant standards so that API work triggers reading api-security.md",
+      "acceptanceCriteria": [
+        "prompt.md includes instruction to check standards/ folder for relevant context",
+        "Specifically: 'When working on API endpoints, read standards/api-security.md first'",
+        "General pattern documented for adding new standard references"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Git standard document",
+      "description": "As a developer, I want a git.md standard so that Claude uses consistent commit messages and branch strategies",
+      "acceptanceCriteria": [
+        "standards/git.md created with commit message format and types",
+        "Covers: type prefixes (feat/fix/docs/chore/refactor/test/spike), branch naming, trunk-based vs feature branch rules",
+        "Includes FADE-specific conventions (PRD completion commits, spike completion)",
+        "File is under 1,500 tokens (~1,100 words) to preserve context window"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Coding standard document",
+      "description": "As a developer, I want a coding.md standard so that Claude follows consistent formatting, naming, and patterns",
+      "acceptanceCriteria": [
+        "standards/coding.md created with language-agnostic principles",
+        "Covers: naming conventions, function/file length limits, error handling, comments, language-specific rules",
+        "Includes Do/Don't code examples",
+        "File is under 1,500 tokens (~1,100 words) to preserve context window"
+      ],
+      "priority": 6,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Testing standard document",
+      "description": "As a developer, I want a testing.md standard so that Claude writes tests consistently and doesn't skip coverage",
+      "acceptanceCriteria": [
+        "standards/testing.md created with test philosophy and patterns",
+        "Covers: test pyramid, what to test/not test, AAA pattern, naming, mocking guidelines, coverage requirements",
+        "Includes examples of good vs bad tests",
+        "File is under 1,500 tokens (~1,100 words) to preserve context window"
+      ],
+      "priority": 7,
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Documentation standard document",
+      "description": "As a developer, I want a documentation.md standard so that Claude documents appropriately without over or under documenting",
+      "acceptanceCriteria": [
+        "standards/documentation.md created with documentation layers and guidelines",
+        "Covers: what to document, README structure, API docs, ADR format, code comments, FADE-specific docs",
+        "Explicitly states what NOT to document (prevents Claude essays)",
+        "File is under 1,500 tokens (~1,100 words) to preserve context window"
+      ],
+      "priority": 8,
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "fade update includes standards folder and files",
+      "description": "As a developer with an existing FADE project, I want fade update to add the standards folder and files so that I get new standards without manual copying",
+      "acceptanceCriteria": [
+        "fade update creates standards/ folder if missing",
+        "fade update copies all standard files (api-security.md, git.md, coding.md, testing.md, documentation.md) if they don't exist locally",
+        "fade update does NOT overwrite existing standard files (user may have customised)",
+        "fade update reports what was added: 'Added: standards/api-security.md'",
+        "Manually verify fade update works by running it on a test project"
+      ],
+      "priority": 9,
+      "passes": false
+    }
+  ]
+}

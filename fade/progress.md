@@ -569,3 +569,13 @@ For blocked stories, use:
   - Timeout handling via curl --connect-timeout/--max-time and wget --timeout
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manifest parsing tested with local file
+
+## 2026-01-21 - US-001: Create standards folder structure (ENH-009) - COMPLETE
+
+- Updated cmd_init() to create fade/standards/ folder alongside fade/prds/
+- Created placeholder README.md in fade/standards/ explaining the folder purpose
+- README includes: purpose section, usage instructions linking from FADE.md, guidance for creating custom standards
+- Existing projects without standards/ folder continue to work (backwards compatible)
+- Running fade init on existing projects adds standards/ folder without affecting other files
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual fade init test verified folder creation with README

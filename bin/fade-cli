@@ -1849,6 +1849,47 @@ PRDS_EOF
         echo -e "  ${YELLOW}skip${NC}: fade/prd-archive/ (already exists)"
     fi
 
+    # Create fade/standards/ folder
+    if [[ ! -d "fade/standards" ]]; then
+        mkdir -p "fade/standards"
+        cat > "fade/standards/README.md" << 'STANDARDS_EOF'
+# Standards Folder
+
+Project-specific standards that Claude reads when performing related work.
+
+## Purpose
+
+Standards files contain actionable guidelines that Claude applies during development.
+Unlike general documentation, these are written as instructions Claude can follow.
+
+## Usage
+
+Link standards from FADE.md in the '## Standards' section:
+
+```markdown
+## Standards
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](standards/api-security.md) | Security principles for API development |
+| [Git](standards/git.md) | Commit messages and branching conventions |
+```
+
+prompt.md instructs Claude to read relevant standards before starting work.
+
+## Creating Custom Standards
+
+1. Create a markdown file in this folder (e.g., `my-standard.md`)
+2. Write actionable instructions Claude can apply
+3. Keep under 1,500 tokens (~1,100 words) to preserve context window
+4. Link from FADE.md '## Standards' section
+STANDARDS_EOF
+        echo -e "  ${GREEN}create${NC}: fade/standards/"
+        ((created++))
+    else
+        echo -e "  ${YELLOW}skip${NC}: fade/standards/ (already exists)"
+    fi
+
     echo ""
     if [[ $created -eq 0 ]]; then
         echo "No files created. FADE structure already exists."
@@ -2004,6 +2045,10 @@ cmd_run() {
                 # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
                 local story_id=$(echo "$output" | grep -o 'STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
 
+                # Brief pause for filesystem to settle before reading PRD for display
+                # This ensures we read the updated story status, not stale cached data
+                sleep 1
+
                 # Display iteration summary (unless --quiet flag is set)
                 if [[ "$quiet_mode" != true ]]; then
                     display_iteration_summary "$iteration" "$story_id" "$learned_before_file"
@@ -2011,7 +2056,7 @@ cmd_run() {
 
                 rm -f "$learned_before_file"
                 ((iteration++))
-                sleep 2  # Brief pause for filesystem to settle
+                sleep 1  # Brief pause before next iteration
                 continue
             fi
 
