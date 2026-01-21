@@ -68,7 +68,7 @@
         "File is under 1,500 tokens (~1,100 words) to preserve context window"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

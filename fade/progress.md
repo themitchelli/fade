@@ -615,3 +615,20 @@ For blocked stories, use:
 - Notes token limit guidance (under 1,500 tokens / ~1,100 words)
 - Files changed: fade/prompt.md
 - Tests: Manual verification that all acceptance criteria language is present
+
+## 2026-01-21 - US-005: Git standard document (ENH-009) - COMPLETE
+
+- Created fade/standards/git.md with conventional commit message format and type prefixes
+- Covers all required type prefixes: feat, fix, docs, chore, refactor, test, spike
+- Documents branch naming conventions (kebab-case, type prefixes like feature/, bugfix/, spike/)
+- Covers trunk-based development as default with feature branch guidelines
+- Includes FADE-specific conventions:
+  - Story completion commit format: `feat: complete US-XXX - Story Title`
+  - PRD checkpoint commits with story reference
+  - Spike branch rules (never merge to main, use spike: prefix)
+- Includes commit hygiene section with atomic commits and what to commit/avoid
+- Protected branch rules documented (never force push main)
+- Quick reference table for common git commands
+- File is 744 words, well under the 1,100 word limit
+- Files changed: fade/standards/git.md (new)
+- Tests: Word count verified under limit
