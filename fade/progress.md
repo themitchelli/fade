@@ -725,3 +725,17 @@ For blocked stories, use:
 - Updated PROMPT_TEMPLATE in fade-cli with note about test generation on ALL_COMPLETE
 - Files changed: bin/fade-cli, fade/prompt.md
 - Tests: bash -n syntax check passed
+
+## 2026-01-22 - US-003: Run tests on STORY_DONE (ENH-009) - COMPLETE
+
+- Added run_regression_tests() function to execute fade/tests/run.sh after each STORY_DONE
+- Function checks if run.sh exists and is executable before running
+- Implements 5-minute timeout using timeout (Linux) or gtimeout (macOS via Homebrew)
+- Falls back to no timeout on macOS without gtimeout installed
+- Displays full test output to developer during execution
+- On test pass: iteration continues normally with green success banner
+- On test fail: iteration blocked with red error banner pointing to fade/tests/failed.log
+- On timeout: iteration blocked with yellow warning and curation suggestions
+- Integrated into cmd_run() STORY_DONE handler after display_iteration_summary()
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

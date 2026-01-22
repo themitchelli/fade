@@ -50,7 +50,7 @@
         "Test run respects 5-minute budget - if tests exceed this, developer should curate"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
