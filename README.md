@@ -256,6 +256,42 @@ Use `--quiet` or `-q` to suppress iteration summaries:
 fade yolo --quiet
 ```
 
+### Regression Testing
+
+FADE includes lightweight regression testing that runs after each story completion.
+
+| Folder | Purpose |
+|--------|---------|
+| `fade/tests/` | Test folder root |
+| `fade/tests/run.sh` | Test runner (auto-generated) |
+| `fade/tests/PRD-*/` | Tests for each PRD |
+| `fade/tests/failed.log` | Failure details (created on failures) |
+
+**How it works:**
+1. When `ALL_COMPLETE` is signalled, tests are generated from the PRD's acceptance criteria
+2. After each `STORY_DONE`, the test runner executes all tests in `fade/tests/PRD-*/`
+3. If tests pass, iteration continues
+4. If tests fail, iteration blocks with details in `failed.log`
+
+#### Managing Test Scope (Delete to Focus)
+
+Tests accumulate as PRDs complete. To manage which tests run:
+
+- **Delete PRD folders to exclude them:** `rm -rf fade/tests/PRD-001/`
+- **Empty folder = pass:** With no `PRD-*/` folders, `run.sh` exits 0
+- **No archive mechanism:** Just delete what you don't want
+
+This gives you simple control over test scope. If you're working on PRD-005 and don't care about PRD-001 tests, delete that folder.
+
+```bash
+# Focus on current work
+rm -rf fade/tests/PRD-001/
+rm -rf fade/tests/PRD-002/
+
+# Run remaining tests
+fade/tests/run.sh
+```
+
 ### Signal Protocol
 
 | Signal | Meaning |
@@ -309,7 +345,8 @@ fade/
 │   ├── progress.md
 │   ├── learned.md
 │   ├── prds/
-│   └── prd-archive/
+│   ├── prd-archive/
+│   └── tests/       # Regression tests (run.sh + PRD-*/ folders)
 ├── FADE.md              # Project context for FADE itself
 ├── CLAUDE.md            # Claude Code redirect
 ├── README.md            # This file

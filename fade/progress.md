@@ -752,3 +752,22 @@ For blocked stories, use:
 - Format enables grep commands like: grep "^\[FAILURE\]" failed.log
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual testing with example failures verified correct extraction
+
+## 2026-01-22 - US-005: Developer can clear tests for context switch (ENH-009) - COMPLETE
+
+- Verified run.sh already handles folder deletion (uses find to discover PRD-*/ folders)
+- Verified empty tests folder already returns pass (lines 2252-2256 in fade-cli check if PRD_DIRS is empty)
+- No archive mechanism needed - the design is intentionally simple: delete folders to exclude tests
+- Added "Regression Testing" section to README.md documenting:
+  - Test folder structure (fade/tests/, run.sh, PRD-*/, failed.log)
+  - How regression testing works (generation on ALL_COMPLETE, execution on STORY_DONE)
+  - "Managing Test Scope (Delete to Focus)" subsection with examples
+  - Commands to delete specific PRD test folders
+- Updated Repository Structure in README.md to include fade/tests/ folder
+- All acceptance criteria verified:
+  - Deleting fade/tests/PRD-*/ folders removes those tests from run (find-based discovery)
+  - Empty fade/tests/ folder results in pass (exit 0)
+  - No archive mechanism (simple delete)
+  - Documentation explains the 'delete to focus' pattern
+- Files changed: README.md
+- Tests: Code review verified run.sh logic handles all cases

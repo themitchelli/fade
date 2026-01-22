@@ -78,7 +78,7 @@
         "Documentation explains the 'delete to focus' pattern"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
