@@ -739,3 +739,16 @@ For blocked stories, use:
 - Integrated into cmd_run() STORY_DONE handler after display_iteration_summary()
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-22 - US-004: Failed log captures actionable details (ENH-009) - COMPLETE
+
+- Enhanced run.sh template in fade-cli with grep-friendly failure logging format
+- Added [TAG] prefixes for all log entries: [FAILURE], [EXIT_CODE], [TIMESTAMP], [EXPECTED], [ACTUAL], [COMMAND], [OUTPUT]
+- Header now includes [RUN_TIMESTAMP] and [RUN_DIR] tags
+- Log automatically extracts "Expected:" and "Actual:" values from test output
+- Log extracts endpoint/command info from patterns like "Command:", "Endpoint:", "URL:", "curl:", "Running:"
+- Log is overwritten on each test run (not appended)
+- Each failure is a complete block with clear --- delimiter between failures
+- Format enables grep commands like: grep "^\[FAILURE\]" failed.log
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual testing with example failures verified correct extraction

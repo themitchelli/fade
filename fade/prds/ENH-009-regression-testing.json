@@ -65,7 +65,7 @@
         "Log format is grep-friendly (one failure per block, clear delimiters)"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

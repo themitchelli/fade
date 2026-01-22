@@ -2237,9 +2237,14 @@ PASSED=0
 TOTAL=0
 
 # Clear previous failed.log and write header
-echo "# FADE Test Run: $(date '+%Y-%m-%d %H:%M:%S')" > "$FAILED_LOG"
-echo "# ================================================" >> "$FAILED_LOG"
-echo "" >> "$FAILED_LOG"
+# Format: grep-friendly with [TAG] prefixes
+# Tags: [FAILURE], [EXIT_CODE], [TIMESTAMP], [EXPECTED], [ACTUAL], [COMMAND], [OUTPUT]
+{
+    echo "# FADE Test Run"
+    echo "[RUN_TIMESTAMP] $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[RUN_DIR] $TESTS_DIR"
+    echo ""
+} > "$FAILED_LOG"
 
 # Find all PRD-* test directories
 PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -type d -name "PRD-*" 2>/dev/null | sort)
@@ -2277,11 +2282,31 @@ for prd_dir in $PRD_DIRS; do
             echo "  ✗ $test_name"
             ((FAILED++))
 
-            # Log failure details
+            # Log failure details with grep-friendly format
             {
-                echo "## FAILED: $prd_name/$test_name"
-                echo "Exit code: $exit_code"
-                echo "Output:"
+                echo "[FAILURE] $prd_name/$test_name"
+                echo "[EXIT_CODE] $exit_code"
+                echo "[TIMESTAMP] $(date '+%Y-%m-%d %H:%M:%S')"
+
+                # Extract expected value if present in output
+                expected=$(echo "$output" | grep -i "^Expected:" | head -1)
+                if [[ -n "$expected" ]]; then
+                    echo "[EXPECTED] ${expected#Expected: }"
+                fi
+
+                # Extract actual value if present in output
+                actual=$(echo "$output" | grep -i "^Actual:" | head -1)
+                if [[ -n "$actual" ]]; then
+                    echo "[ACTUAL] ${actual#Actual: }"
+                fi
+
+                # Extract command/endpoint if present (look for common patterns)
+                command=$(echo "$output" | grep -iE "^(Command|Endpoint|URL|Request|curl|Running):" | head -1)
+                if [[ -n "$command" ]]; then
+                    echo "[COMMAND] ${command#*: }"
+                fi
+
+                echo "[OUTPUT]"
                 echo "$output" | sed 's/^/  /'
                 echo ""
                 echo "---"
