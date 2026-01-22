@@ -1,0 +1,99 @@
+{
+  "type": "enhancement",
+  "project": "FADE Framework",
+  "id": "ENH-009",
+  "name": "Regression Testing Integration",
+  "description": "Add lightweight regression testing to FADE workflow. Tests are generated from completed PRD acceptance criteria (with full repo context), run on STORY_DONE for fast feedback, and failures block iteration. Developer controls test scope by simply managing files in fade/tests/. CI/CD handles comprehensive testing; this is for fast local feedback during development.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold tests folder on fade init",
+      "description": "As a developer, I want fade init to create the tests folder structure so I'm ready to accumulate regression tests",
+      "acceptanceCriteria": [
+        "fade init creates fade/tests/ directory",
+        "fade init creates fade/tests/run.sh with executable permissions",
+        "run.sh is a scaffold that loops through fade/tests/PRD-*/ folders",
+        "run.sh exits 0 if all tests pass",
+        "run.sh writes failures to fade/tests/failed.log and exits non-zero on any failure",
+        "Empty tests folder (no PRD-* subfolders) results in pass (exit 0)"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Generate tests on PRD completion",
+      "description": "As a developer, I want regression tests automatically generated when a PRD completes so my acceptance criteria become executable tests",
+      "acceptanceCriteria": [
+        "On ALL_COMPLETE signal, agent is prompted to generate tests",
+        "Agent has full repo context (code, FADE.md, existing tests) when generating",
+        "Tests are written to fade/tests/{PRD-ID}/ folder",
+        "Each testable AC gets its own test file named test_{US-ID}_{AC-num}_{slug}.sh",
+        "Tests are shell/curl by default (no external dependencies)",
+        "Agent skips ACs that are not testable (e.g., architectural, subjective) with a comment in the test folder",
+        "Generated tests include clear assertions and expected values"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Run tests on STORY_DONE",
+      "description": "As a developer, I want regression tests to run after each story completion so I get fast feedback on whether I broke anything",
+      "acceptanceCriteria": [
+        "After STORY_DONE signal detected, fade executes fade/tests/run.sh",
+        "Test execution only happens if fade/tests/run.sh exists and is executable",
+        "Test output is displayed to developer",
+        "Tests pass: iteration continues normally",
+        "Tests fail: iteration blocks with message pointing to fade/tests/failed.log",
+        "Test run respects 5-minute budget - if tests exceed this, developer should curate"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Failed log captures actionable details",
+      "description": "As a developer, I want clear failure information so I can quickly identify what broke",
+      "acceptanceCriteria": [
+        "fade/tests/failed.log is overwritten on each test run (not appended)",
+        "Log includes timestamp of test run",
+        "Log includes which test file failed",
+        "Log includes expected vs actual values where available",
+        "Log includes endpoint/command that failed",
+        "Log format is grep-friendly (one failure per block, clear delimiters)"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Developer can clear tests for context switch",
+      "description": "As a developer, I want simple control over which tests run so I can focus on my current work area",
+      "acceptanceCriteria": [
+        "Deleting fade/tests/PRD-*/ folders removes those tests from the run",
+        "Empty fade/tests/ folder (just run.sh) results in pass (no tests to run)",
+        "No archive mechanism needed - delete what you don't want",
+        "Documentation explains the 'delete to focus' pattern"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Update prompt.md with test generation instructions",
+      "description": "As a developer using FADE, I want the prompt template to include test generation guidance so Claude knows how to create good tests",
+      "acceptanceCriteria": [
+        "prompt.md template includes test generation section",
+        "Instructions specify shell/curl as default format",
+        "Instructions specify test file naming convention",
+        "Instructions specify to use repo context for concrete assertions",
+        "Instructions specify to skip untestable ACs with explanation",
+        "Instructions reference the testing.md standard for test quality"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ]
+}

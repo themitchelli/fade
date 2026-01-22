@@ -691,3 +691,17 @@ For blocked stories, use:
 - Handles both contained (fade/standards/) and legacy (standards/) structures
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, structure detection logic verified manually
+
+## 2026-01-22 - US-001: Scaffold tests folder on fade init (ENH-009) - COMPLETE
+
+- Updated cmd_init() to create fade/tests/ directory
+- Created run.sh scaffold with executable permissions (chmod +x)
+- run.sh loops through fade/tests/PRD-*/ folders using find command
+- run.sh executes all test_*.sh files in each PRD folder
+- Exits 0 if all tests pass or if no PRD-* folders exist (empty tests folder)
+- Writes failures to fade/tests/failed.log with timestamp, test file, exit code, and output
+- Exits non-zero (1) when any test fails
+- Failed.log is overwritten on each run (not appended)
+- Failed.log is deleted when all tests pass (clean state)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual fade init test verified folder and run.sh creation, run.sh tested with passing, failing, and empty test scenarios
