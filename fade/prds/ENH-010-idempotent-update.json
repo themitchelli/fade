@@ -18,7 +18,7 @@
         "Does not modify or delete existing fade/tests/ if present"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -33,7 +33,7 @@
         "Never overwrites existing run.sh even if different from template"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -47,7 +47,7 @@
         "Does not modify or delete existing fade/prd-archive/ if present"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -62,7 +62,7 @@
         "Never overwrites existing CLAUDE.md even if different from template"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -76,7 +76,7 @@
         "If nothing created, shows 'Project structure up to date'"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -89,7 +89,7 @@
         "In --check mode, structure gaps reported as 'would create: X' without actually creating"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

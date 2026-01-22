@@ -3482,6 +3482,46 @@ cmd_update() {
             fi
         fi
 
+        # Check project structure (only if fade/ directory exists - indicates FADE project)
+        if [[ -d "fade" ]]; then
+            echo ""
+            echo -e "${BOLD}Project Structure:${NC}"
+
+            # Check fade/tests/
+            if [[ ! -d "fade/tests" ]]; then
+                has_updates=true
+                updates_available+=("would create: fade/tests/")
+            else
+                echo -e "  ${GREEN}✓${NC} fade/tests/"
+            fi
+
+            # Check fade/tests/run.sh
+            if [[ ! -f "fade/tests/run.sh" ]]; then
+                has_updates=true
+                updates_available+=("would create: fade/tests/run.sh")
+            else
+                echo -e "  ${GREEN}✓${NC} fade/tests/run.sh"
+            fi
+
+            # Check fade/prd-archive/
+            if [[ ! -d "fade/prd-archive" ]]; then
+                has_updates=true
+                updates_available+=("would create: fade/prd-archive/")
+            else
+                echo -e "  ${GREEN}✓${NC} fade/prd-archive/"
+            fi
+
+            # Check CLAUDE.md
+            if [[ ! -f "CLAUDE.md" ]]; then
+                has_updates=true
+                updates_available+=("would create: CLAUDE.md")
+            else
+                echo -e "  ${GREEN}✓${NC} CLAUDE.md"
+            fi
+
+            echo ""
+        fi
+
         # Report results
         if [[ "$has_updates" == true ]]; then
             echo -e "${YELLOW}Updates available:${NC}"
@@ -3724,10 +3764,182 @@ cmd_update() {
     fi
 
     # ========================================================================
+    # PROJECT STRUCTURE CHECK
+    # ========================================================================
+
+    local structure_created=()
+    local structure_skipped=0
+
+    # Only run structure check if fade/ directory exists (indicates FADE project)
+    if [[ -d "fade" ]]; then
+        echo -e "${BOLD}Project Structure Check${NC}"
+        echo ""
+
+        # Check/create fade/tests/
+        if [[ ! -d "fade/tests" ]]; then
+            mkdir -p "fade/tests"
+            echo -e "  ${GREEN}create${NC}: fade/tests/"
+            structure_created+=("fade/tests/")
+        else
+            echo -e "  ${CYAN}skip${NC}: fade/tests/ (already exists)"
+            ((structure_skipped++))
+        fi
+
+        # Check/create fade/tests/run.sh
+        if [[ ! -f "fade/tests/run.sh" ]]; then
+            cat > "fade/tests/run.sh" << 'RUNSH_EOF'
+#!/bin/bash
+# FADE Regression Test Runner
+# Loops through fade/tests/PRD-*/ folders and runs all test scripts
+# Exit 0 = all tests pass, Exit 1 = one or more tests failed
+
+set -o pipefail
+
+TESTS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FAILED_LOG="$TESTS_DIR/failed.log"
+FAILED=0
+PASSED=0
+TOTAL=0
+
+# Clear previous failed.log and write header
+# Format: grep-friendly with [TAG] prefixes
+# Tags: [FAILURE], [EXIT_CODE], [TIMESTAMP], [EXPECTED], [ACTUAL], [COMMAND], [OUTPUT]
+{
+    echo "# FADE Test Run"
+    echo "[RUN_TIMESTAMP] $(date '+%Y-%m-%d %H:%M:%S')"
+    echo "[RUN_DIR] $TESTS_DIR"
+    echo ""
+} > "$FAILED_LOG"
+
+# Find all PRD-* test directories
+PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -type d -name "PRD-*" 2>/dev/null | sort)
+
+if [[ -z "$PRD_DIRS" ]]; then
+    echo "No test folders found (fade/tests/PRD-*/). Nothing to test."
+    rm -f "$FAILED_LOG"
+    exit 0
+fi
+
+for prd_dir in $PRD_DIRS; do
+    prd_name=$(basename "$prd_dir")
+    echo "Testing $prd_name..."
+
+    # Find all test scripts in this PRD folder
+    test_files=$(find "$prd_dir" -maxdepth 1 -type f -name "test_*.sh" 2>/dev/null | sort)
+
+    if [[ -z "$test_files" ]]; then
+        echo "  No test files in $prd_name"
+        continue
+    fi
+
+    for test_file in $test_files; do
+        test_name=$(basename "$test_file")
+        ((TOTAL++))
+
+        # Run the test and capture output
+        output=$("$test_file" 2>&1)
+        exit_code=$?
+
+        if [[ $exit_code -eq 0 ]]; then
+            echo "  ✓ $test_name"
+            ((PASSED++))
+        else
+            echo "  ✗ $test_name"
+            ((FAILED++))
+
+            # Log failure details with grep-friendly format
+            {
+                echo "[FAILURE] $prd_name/$test_name"
+                echo "[EXIT_CODE] $exit_code"
+                echo "[TIMESTAMP] $(date '+%Y-%m-%d %H:%M:%S')"
+
+                # Extract expected value if present in output
+                expected=$(echo "$output" | grep -i "^Expected:" | head -1)
+                if [[ -n "$expected" ]]; then
+                    echo "[EXPECTED] ${expected#Expected: }"
+                fi
+
+                # Extract actual value if present in output
+                actual=$(echo "$output" | grep -i "^Actual:" | head -1)
+                if [[ -n "$actual" ]]; then
+                    echo "[ACTUAL] ${actual#Actual: }"
+                fi
+
+                # Extract command/endpoint if present (look for common patterns)
+                command=$(echo "$output" | grep -iE "^(Command|Endpoint|URL|Request|curl|Running):" | head -1)
+                if [[ -n "$command" ]]; then
+                    echo "[COMMAND] ${command#*: }"
+                fi
+
+                echo "[OUTPUT]"
+                echo "$output" | sed 's/^/  /'
+                echo ""
+                echo "---"
+                echo ""
+            } >> "$FAILED_LOG"
+        fi
+    done
+done
+
+echo ""
+echo "Results: $PASSED passed, $FAILED failed, $TOTAL total"
+
+if [[ $FAILED -gt 0 ]]; then
+    echo ""
+    echo "Failures logged to: fade/tests/failed.log"
+    exit 1
+else
+    # Clean up failed.log if no failures
+    rm -f "$FAILED_LOG"
+    exit 0
+fi
+RUNSH_EOF
+            chmod +x "fade/tests/run.sh"
+            echo -e "  ${GREEN}create${NC}: fade/tests/run.sh"
+            structure_created+=("fade/tests/run.sh")
+        else
+            echo -e "  ${CYAN}skip${NC}: fade/tests/run.sh (already exists)"
+            ((structure_skipped++))
+        fi
+
+        # Check/create fade/prd-archive/
+        if [[ ! -d "fade/prd-archive" ]]; then
+            mkdir -p "fade/prd-archive"
+            echo -e "  ${GREEN}create${NC}: fade/prd-archive/"
+            structure_created+=("fade/prd-archive/")
+        else
+            echo -e "  ${CYAN}skip${NC}: fade/prd-archive/ (already exists)"
+            ((structure_skipped++))
+        fi
+
+        # Check/create CLAUDE.md
+        if [[ ! -f "CLAUDE.md" ]]; then
+            local claude_content="${CLAUDE_TEMPLATE//__FADE_VERSION__/$ARTIFACT_VERSION}"
+            echo "$claude_content" > "CLAUDE.md"
+            echo -e "  ${GREEN}create${NC}: CLAUDE.md"
+            structure_created+=("CLAUDE.md")
+        else
+            echo -e "  ${CYAN}skip${NC}: CLAUDE.md (already exists)"
+            ((structure_skipped++))
+        fi
+
+        echo ""
+
+        # Structure summary
+        if [[ ${#structure_created[@]} -gt 0 ]]; then
+            echo -e "  ${GREEN}${#structure_created[@]} items created${NC}, $structure_skipped already present"
+        else
+            echo -e "  ${GREEN}Project structure up to date${NC}"
+        fi
+
+        echo ""
+    fi
+
+    # ========================================================================
     # SUMMARY
     # ========================================================================
 
-    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]]; then
+    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]] || [[ ${#structure_created[@]} -gt 0 ]]; then
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
         echo -e "${GREEN}✓ FADE update complete!${NC}"
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -3749,9 +3961,16 @@ cmd_update() {
                 echo -e "    ${GREEN}+${NC} $std"
             done
         fi
+        if [[ ${#structure_created[@]} -gt 0 ]]; then
+            echo ""
+            echo -e "  Structure created:"
+            for item in "${structure_created[@]}"; do
+                echo -e "    ${GREEN}+${NC} $item"
+            done
+        fi
         echo ""
         # Summary line showing count
-        local total_changes=$((artifacts_updated + ${#standards_added[@]}))
+        local total_changes=$((artifacts_updated + ${#standards_added[@]} + ${#structure_created[@]}))
         if [[ $total_changes -gt 0 ]]; then
             local change_word="change"
             if [[ $total_changes -gt 1 ]]; then
