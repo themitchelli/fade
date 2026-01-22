@@ -93,7 +93,7 @@
         "Instructions reference the testing.md standard for test quality"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ]
 }

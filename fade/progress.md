@@ -771,3 +771,18 @@ For blocked stories, use:
   - Documentation explains the 'delete to focus' pattern
 - Files changed: README.md
 - Tests: Code review verified run.sh logic handles all cases
+
+## 2026-01-22 01:27 - US-006: Update prompt.md with test generation instructions (ENH-009) - COMPLETE
+
+- Verified prompt.md already contains comprehensive Test Generation section (lines 250-368)
+- Section was added during US-002 implementation when test generation feature was built
+- All acceptance criteria verified present in fade/prompt.md:
+  - Test generation section present: "## Test Generation" at line 250
+  - Shell/curl as default format: line 287 "shell scripts with no external dependencies", line 313 "shell/bash and curl only"
+  - Test file naming convention: lines 275-283 with table documenting `test_{US_ID}_{AC_num}_{slug}.sh`
+  - Repo context for assertions: lines 319-334 "Using Repo Context for Assertions" with examples
+  - Skip untestable ACs: lines 336-357 "What to Skip" section with table and SKIP file format
+  - Reference to testing.md: line 368 "For test quality guidelines, see `standards/testing.md`."
+- Story was already implemented but not marked complete - this is a documentation checkpoint
+- Files changed: fade/prds/ENH-009-regression-testing.json (marked passes: true)
+- Tests: Manual verification that all acceptance criteria language is present in prompt.md
