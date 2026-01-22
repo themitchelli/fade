@@ -1,0 +1,106 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-010",
+  "name": "Idempotent Update - Ensure Complete Folder Structure",
+  "description": "Extend fade update to ensure any FADE project has complete folder structure. The principle: fade update should be idempotent - it brings any FADE project up to current spec, non-destructively. Never overwrites existing files, never deletes anything, only fills gaps and reports what was created.",
+  "dependsOn": ["ENH-009"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create fade/tests/ folder if missing",
+      "description": "As a developer running fade update on an older project, I want the tests folder created so I'm ready for regression testing",
+      "acceptanceCriteria": [
+        "fade update checks if fade/tests/ directory exists",
+        "If missing, creates fade/tests/ directory",
+        "Reports 'create: fade/tests/' when created",
+        "Reports 'skip: fade/tests/ (already exists)' when present",
+        "Does not modify or delete existing fade/tests/ if present"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Create fade/tests/run.sh scaffold if missing",
+      "description": "As a developer running fade update, I want the test runner scaffold created so regression tests can execute",
+      "acceptanceCriteria": [
+        "fade update checks if fade/tests/run.sh exists",
+        "If missing, creates run.sh with same scaffold as fade init (loops PRD-* folders, writes failures to failed.log)",
+        "run.sh is created with executable permissions (chmod +x)",
+        "Reports 'create: fade/tests/run.sh' when created",
+        "Reports 'skip: fade/tests/run.sh (already exists)' when present",
+        "Never overwrites existing run.sh even if different from template"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Create fade/prd-archive/ folder if missing",
+      "description": "As a developer running fade update on an older project, I want the prd-archive folder created so completed PRDs can be archived",
+      "acceptanceCriteria": [
+        "fade update checks if fade/prd-archive/ directory exists",
+        "If missing, creates fade/prd-archive/ directory",
+        "Reports 'create: fade/prd-archive/' when created",
+        "Reports 'skip: fade/prd-archive/ (already exists)' when present",
+        "Does not modify or delete existing fade/prd-archive/ if present"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Create CLAUDE.md redirect if missing",
+      "description": "As a developer using Claude Code, I want CLAUDE.md created so Claude Code finds FADE context automatically",
+      "acceptanceCriteria": [
+        "fade update checks if CLAUDE.md exists in project root",
+        "If missing, creates CLAUDE.md with redirect content pointing to FADE.md and fade/prompt.md",
+        "Redirect content matches: '# Claude Code Entry Point\\n\\nRead `FADE.md` for project context and `fade/prompt.md` for execution protocol.'",
+        "Reports 'create: CLAUDE.md' when created",
+        "Reports 'skip: CLAUDE.md (already exists)' when present",
+        "Never overwrites existing CLAUDE.md even if different from template"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Summary report of structure check",
+      "description": "As a developer, I want a clear summary of what fade update did to my project structure",
+      "acceptanceCriteria": [
+        "fade update shows 'Project Structure Check' section in output",
+        "Section appears after CLI and prompt.md updates, before completion",
+        "Lists each item checked with create/skip status",
+        "Shows count summary: 'N items created, M items already present'",
+        "If nothing created, shows 'Project structure up to date'"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Structure check runs on all update modes",
+      "description": "As a developer, I want structure check to run whether I'm updating CLI, prompt.md, or checking for updates",
+      "acceptanceCriteria": [
+        "Structure check runs on normal 'fade update'",
+        "Structure check runs on 'fade update --cli-only'",
+        "Structure check output shown in 'fade update --check' (reports what would be created)",
+        "In --check mode, structure gaps reported as 'would create: X' without actually creating"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "implementation": "Add structure check function to cmd_update() after existing CLI and prompt.md update logic",
+    "runShTemplate": "Use exact same heredoc template as cmd_init for run.sh scaffold to ensure consistency",
+    "claudeMdTemplate": "# Claude Code Entry Point\n\nRead `FADE.md` for project context and `fade/prompt.md` for execution protocol.",
+    "considerations": [
+      "Must be non-destructive - never overwrite, never delete",
+      "Structure check should work even if fade/ folder doesn't exist yet (create it)",
+      "Support both contained structure (fade/) and legacy structure (root level)",
+      "Keep DRY - extract shared templates/logic with cmd_init if practical"
+    ]
+  }
+}
