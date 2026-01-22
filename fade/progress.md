@@ -705,3 +705,23 @@ For blocked stories, use:
 - Failed.log is deleted when all tests pass (clean state)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual fade init test verified folder and run.sh creation, run.sh tested with passing, failing, and empty test scenarios
+
+## 2026-01-22 - US-002: Generate tests on PRD completion (ENH-009) - COMPLETE
+
+- Added TEST_GENERATION_TEMPLATE to bin/fade-cli with comprehensive test generation instructions
+- Added helper functions: get_prd_id(), build_test_generation_context(), get_tests_dir(), run_test_generation(), generate_tests_for_completed_prds()
+- Updated ALL_COMPLETE handler to call generate_tests_for_completed_prds() before archiving
+- Test generation runs via Claude Code with --print flag and full repo context
+- Tests written to fade/tests/{PRD-ID}/ folder
+- Test file naming: test_{US_ID}_{AC_num}_{slug}.sh
+- Skipped ACs create SKIP_{US_ID}_{AC_num}_{slug}.md files with explanation
+- Added comprehensive Test Generation section to fade/prompt.md with:
+  - Test file structure and naming convention table
+  - Test format requirements (shell/curl only, exit codes, assertions)
+  - Repo context usage examples for concrete assertions
+  - What to skip table with examples
+  - SKIP file format template
+  - Reference to standards/testing.md
+- Updated PROMPT_TEMPLATE in fade-cli with note about test generation on ALL_COMPLETE
+- Files changed: bin/fade-cli, fade/prompt.md
+- Tests: bash -n syntax check passed

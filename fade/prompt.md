@@ -195,9 +195,9 @@ Check if there are more incomplete stories in the queue:
 - If MORE work remains: Output exactly `STORY_DONE: US-XXX`
 - If ALL work complete: Output exactly `ALL_COMPLETE`
 
-**Note:** When you output `ALL_COMPLETE`, the fade script automatically archives completed PRDs:
-- PRDs in `prds/` where all stories have `passes: true` are moved to `prd-archive/`
-- If `prd.json` exists and is complete, it's renamed and archived using the naming convention below
+**Note:** When you output `ALL_COMPLETE`, the fade script:
+1. Prompts you to generate regression tests (see **Test Generation** section below)
+2. Archives completed PRDs to `prd-archive/`
 
 ### PRD Archive Naming Convention
 
@@ -246,6 +246,126 @@ Working on US-003... running tests
 ```
 
 This helps operators monitoring the loop understand that work is progressing, not stuck.
+
+## Test Generation
+
+When ALL_COMPLETE is signalled, the fade script prompts you to generate regression tests. This section describes how to create effective tests.
+
+### When Test Generation Runs
+
+Test generation runs automatically after ALL_COMPLETE, before PRDs are archived. You'll receive full repo context including:
+- The completed PRD with all acceptance criteria
+- Existing code in the repository
+- FADE.md project context
+- Any existing tests in `fade/tests/`
+
+### Test File Structure
+
+Tests are organized by PRD:
+```
+fade/tests/
+├── run.sh              # Test runner (auto-generated)
+├── {PRD-ID}/           # One folder per PRD
+│   ├── test_us001_01_creates_folder.sh
+│   ├── test_us001_02_returns_json.sh
+│   ├── SKIP_us002_03_subjective_quality.md
+│   └── ...
+```
+
+### Test File Naming Convention
+
+Each test file follows: `test_{US_ID}_{AC_num}_{slug}.sh`
+
+| Component | Description | Example |
+|-----------|-------------|---------|
+| US_ID | Story ID, lowercase | `us001`, `us003` |
+| AC_num | AC number, zero-padded | `01`, `02`, `10` |
+| slug | Short name from AC | `creates_folder`, `returns_json` |
+
+### Test Format Requirements
+
+Tests must be **shell scripts with no external dependencies**:
+
+```bash
+#!/bin/bash
+# Test: [what this test verifies]
+# AC: [the acceptance criterion being tested]
+
+# Setup (if needed)
+setup_test_data
+
+# Act - perform the action
+result=$(some_command_or_curl_call)
+
+# Assert - check the outcome
+if [[ "$result" != "expected_value" ]]; then
+    echo "FAIL: [description]"
+    echo "Expected: expected_value"
+    echo "Actual: $result"
+    exit 1
+fi
+
+echo "PASS: [description]"
+exit 0
+```
+
+**Key requirements:**
+- Use shell/bash and curl only (no npm, pytest, etc.)
+- Exit 0 on success, non-zero on failure
+- Output clear expected vs actual on failure
+- Include the AC being tested in comments
+- Make assertions concrete using repo context
+
+### Using Repo Context for Assertions
+
+Use the actual codebase to make assertions specific:
+
+```bash
+# Bad - vague assertion
+if [[ -z "$output" ]]; then exit 1; fi
+
+# Good - specific assertion based on repo knowledge
+# Knows from FADE.md that API returns JSON with "status" field
+if ! echo "$output" | grep -q '"status": "success"'; then
+    echo "FAIL: Expected JSON response with status: success"
+    echo "Actual: $output"
+    exit 1
+fi
+```
+
+### What to Skip
+
+Some acceptance criteria cannot be tested via shell scripts:
+
+| Skip When | Example |
+|-----------|---------|
+| Subjective quality | "Code is clean and readable" |
+| Architectural decisions | "Uses event-driven architecture" |
+| Documentation only | "README updated with examples" |
+| Internal implementation | "Uses caching internally" |
+
+For skipped ACs, create `SKIP_{US_ID}_{AC_num}_{slug}.md`:
+
+```markdown
+# Skipped: US-002 AC-03 - Code quality
+
+**Acceptance Criterion:** "Code follows best practices"
+
+**Reason:** Subjective quality assessment cannot be verified by automated test.
+
+**Alternative:** Manual code review during PR process.
+```
+
+### Signal Completion
+
+After generating all tests, output:
+```
+TESTS_GENERATED: {PRD_ID}
+```
+
+### Reference
+
+For test quality guidelines, see `standards/testing.md`.
 
 ---
 

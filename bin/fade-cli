@@ -423,6 +423,8 @@ Check if there are more incomplete stories in the queue:
 - If MORE work remains: Output exactly `STORY_DONE: US-XXX`
 - If ALL work complete: Output exactly `ALL_COMPLETE`
 
+**Note:** On ALL_COMPLETE, the fade script prompts for regression test generation before archiving PRDs.
+
 ### Step 6: STOP
 
 After outputting the signal, STOP IMMEDIATELY.
@@ -487,6 +489,90 @@ The fade script checks both locations, preferring the contained structure (`fade
 ---
 
 Now: Read context files, pick the next story, and begin.
+EOF
+
+# Test generation prompt template - used when ALL_COMPLETE triggers test creation
+read -r -d '' TEST_GENERATION_TEMPLATE << 'EOF' || true
+# FADE Test Generation Task
+
+You are generating regression tests for a completed PRD. Your job is to create shell-based tests that verify the acceptance criteria remain working.
+
+## Context
+
+The PRD below has been completed. Generate regression tests that can be run to verify these acceptance criteria still pass after future code changes.
+
+## PRD Information
+
+{PRD_CONTENT}
+
+## Test Requirements
+
+### File Structure
+- Create tests in: `fade/tests/{PRD_ID}/`
+- Name each test file: `test_{US_ID}_{AC_num}_{slug}.sh`
+  - US_ID: lowercase story ID (e.g., `us001`)
+  - AC_num: acceptance criteria number starting at 01 (e.g., `01`, `02`)
+  - slug: short descriptive name from the AC (e.g., `creates_folder`, `returns_json`)
+
+### Test Format
+Tests must be shell scripts that:
+- Exit 0 on success
+- Exit non-zero on failure
+- Use assertions that output clear expected vs actual on failure
+- Have no external dependencies (shell/curl only)
+- Include a comment describing what the test verifies
+
+### Example Test
+```bash
+#!/bin/bash
+# Test: verify fade init creates fade/tests/ directory
+# AC: fade init creates fade/tests/ directory
+
+# Setup
+rm -rf /tmp/fade-test-dir
+mkdir -p /tmp/fade-test-dir
+cd /tmp/fade-test-dir
+
+# Act
+fade init > /dev/null 2>&1
+
+# Assert
+if [[ ! -d "fade/tests" ]]; then
+    echo "FAIL: Expected fade/tests/ directory to exist"
+    echo "Expected: directory exists"
+    echo "Actual: directory not found"
+    exit 1
+fi
+
+echo "PASS: fade/tests/ directory created"
+exit 0
+```
+
+### What to Skip
+Some acceptance criteria are NOT testable via shell scripts:
+- Subjective criteria ("code is clean", "easy to use")
+- Architectural decisions
+- Documentation requirements
+- Internal implementation details
+
+For each skipped AC, create a file `SKIP_{US_ID}_{AC_num}_{slug}.md` explaining why it's not testable.
+
+## Your Task
+
+1. Read the PRD content above
+2. For each user story, examine each acceptance criterion
+3. For testable ACs: create a test file with proper assertions
+4. For non-testable ACs: create a SKIP file with explanation
+5. Ensure tests are independent and can run in any order
+
+## Output
+
+After generating tests, output:
+```
+TESTS_GENERATED: {PRD_ID}
+```
+
+This signals the fade script that test generation is complete.
 EOF
 
 # ============================================================================
@@ -852,6 +938,187 @@ get_active_prd() {
             fi
         done
     fi
+}
+
+# Get PRD ID from JSON file
+get_prd_id() {
+    local prd_file="$1"
+    local prd_id=""
+
+    prd_id=$(grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+
+    if [[ -z "$prd_id" ]]; then
+        # Fall back to filename
+        prd_id=$(basename "$prd_file" .json | grep -oE '^[A-Z]+-[0-9]+' | head -1)
+    fi
+
+    echo "$prd_id"
+}
+
+# Build test generation context for a completed PRD
+build_test_generation_context() {
+    local prd_file="$1"
+    local prd_id=$(get_prd_id "$prd_file")
+
+    if [[ ! -f "$prd_file" ]]; then
+        echo "Error: PRD file not found: $prd_file" >&2
+        return 1
+    fi
+
+    # Read PRD content
+    local prd_content
+    prd_content=$(cat "$prd_file")
+
+    # Build the context by substituting values into template
+    local context="$TEST_GENERATION_TEMPLATE"
+    context="${context//\{PRD_CONTENT\}/$prd_content}"
+    context="${context//\{PRD_ID\}/$prd_id}"
+
+    echo "$context"
+}
+
+# Get the tests directory path (contained or legacy)
+get_tests_dir() {
+    if [[ -d "fade/tests" ]]; then
+        echo "fade/tests"
+    elif [[ -d "fade" ]]; then
+        # Contained structure exists but tests folder doesn't
+        mkdir -p "fade/tests"
+        echo "fade/tests"
+    else
+        # Legacy structure
+        mkdir -p "tests"
+        echo "tests"
+    fi
+}
+
+# Run test generation session via Claude Code
+# Returns 0 on success, 1 on failure/skip
+run_test_generation() {
+    local prd_file="$1"
+    local prd_id=$(get_prd_id "$prd_file")
+    local tests_dir=$(get_tests_dir)
+    local prd_tests_dir="$tests_dir/$prd_id"
+
+    echo ""
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}📝 Generating Regression Tests for $prd_id${NC}"
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    # Check if tests already exist for this PRD
+    if [[ -d "$prd_tests_dir" ]] && [[ -n "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
+        echo -e "${YELLOW}Tests already exist in $prd_tests_dir${NC}"
+        echo -e "  Skipping test generation (delete folder to regenerate)"
+        return 0
+    fi
+
+    # Create the PRD tests directory
+    mkdir -p "$prd_tests_dir"
+
+    # Build context for test generation
+    local context
+    context=$(build_test_generation_context "$prd_file")
+
+    if [[ $? -ne 0 ]]; then
+        echo -e "${RED}Failed to build test generation context${NC}"
+        return 1
+    fi
+
+    echo "Running Claude Code for test generation..."
+    echo -e "  Tests will be created in: ${GREEN}$prd_tests_dir${NC}"
+    echo ""
+
+    # Run Claude Code with the test generation prompt
+    # Use --print flag and pipe the context to it
+    local output
+    output=$(echo "$context" | claude --print 2>&1)
+    local exit_code=$?
+
+    # Check for TESTS_GENERATED signal
+    if echo "$output" | grep -q "TESTS_GENERATED"; then
+        local generated_prd=$(echo "$output" | grep -o 'TESTS_GENERATED:[[:space:]]*[A-Za-z0-9-]*' | head -1 | sed 's/TESTS_GENERATED:[[:space:]]*//')
+        echo ""
+        echo -e "${GREEN}✓ Tests generated for $generated_prd${NC}"
+
+        # Count generated test files
+        local test_count=$(find "$prd_tests_dir" -name "test_*.sh" 2>/dev/null | wc -l | tr -d ' ')
+        local skip_count=$(find "$prd_tests_dir" -name "SKIP_*.md" 2>/dev/null | wc -l | tr -d ' ')
+
+        echo -e "  Test files: ${GREEN}$test_count${NC}"
+        if [[ "$skip_count" -gt 0 ]]; then
+            echo -e "  Skipped ACs: ${YELLOW}$skip_count${NC}"
+        fi
+
+        # Make all test files executable
+        find "$prd_tests_dir" -name "test_*.sh" -exec chmod +x {} \;
+
+        return 0
+    else
+        echo ""
+        echo -e "${YELLOW}⚠ Test generation completed but no TESTS_GENERATED signal detected${NC}"
+        echo -e "  Check $prd_tests_dir for any generated files"
+
+        # Still count what was generated
+        local test_count=$(find "$prd_tests_dir" -name "test_*.sh" 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$test_count" -gt 0 ]]; then
+            echo -e "  Found ${GREEN}$test_count${NC} test file(s)"
+            find "$prd_tests_dir" -name "test_*.sh" -exec chmod +x {} \;
+        fi
+
+        return 0
+    fi
+}
+
+# Generate tests for all completed PRDs that don't have tests yet
+# Called on ALL_COMPLETE before archiving
+# Returns count of PRDs processed
+generate_tests_for_completed_prds() {
+    local tests_dir=$(get_tests_dir)
+    local processed_count=0
+    local prds_folder=""
+    local prd_json_path=""
+
+    # Determine PRD locations based on structure
+    if [[ -d "fade/prds" ]]; then
+        prds_folder="fade/prds"
+        prd_json_path="fade/prd.json"
+    elif [[ -d "prds" ]]; then
+        prds_folder="prds"
+        prd_json_path="prd.json"
+    fi
+
+    # Process prd.json if it exists and is complete
+    if [[ -f "$prd_json_path" ]] && prd_is_fully_complete "$prd_json_path"; then
+        local prd_id=$(get_prd_id "$prd_json_path")
+        local prd_tests_dir="$tests_dir/$prd_id"
+
+        # Only generate if tests don't already exist
+        if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
+            run_test_generation "$prd_json_path"
+            ((processed_count++))
+        fi
+    fi
+
+    # Process PRDs in prds/ folder
+    if [[ -d "$prds_folder" ]]; then
+        for prd_file in $(ls "$prds_folder"/*.json 2>/dev/null | sort); do
+            [[ -f "$prd_file" ]] || continue
+
+            if prd_is_fully_complete "$prd_file"; then
+                local prd_id=$(get_prd_id "$prd_file")
+                local prd_tests_dir="$tests_dir/$prd_id"
+
+                # Only generate if tests don't already exist
+                if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
+                    run_test_generation "$prd_file"
+                    ((processed_count++))
+                fi
+            fi
+        done
+    fi
+
+    echo "$processed_count"
 }
 
 # Get story title from PRD by story ID
@@ -2112,6 +2379,14 @@ cmd_run() {
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${GREEN}🎉 ALL WORK COMPLETE!${NC}"
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+
+                # Generate regression tests for completed PRDs (before archiving)
+                local tests_generated=$(generate_tests_for_completed_prds)
+                if [[ "$tests_generated" -gt 0 ]]; then
+                    echo ""
+                    echo -e "${GREEN}Generated tests for $tests_generated PRD(s)${NC}"
+                fi
                 echo ""
 
                 # Archive completed PRDs
