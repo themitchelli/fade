@@ -3366,21 +3366,18 @@ cmd_update() {
         latest_version=$(fetch_url "$FADE_VERSION_URL" 10) || true
     fi
 
+    local remote_available=true
     if [[ -z "$latest_version" ]]; then
-        echo -e "${RED}Error: Could not fetch version information.${NC}"
-        echo "Please check your internet connection and try again."
+        remote_available=false
+        echo -e "${YELLOW}Could not fetch remote version (private repo or offline).${NC}"
+        echo -e "Skipping CLI and template updates, running structure check only."
         echo ""
-        echo "Attempted URLs:"
-        echo "  - $FADE_MANIFEST_URL"
-        echo "  - $FADE_VERSION_URL"
-        exit 1
+    else
+        # Clean up version string (remove leading 'v' if present, trim whitespace)
+        latest_version=$(echo "$latest_version" | tr -d '[:space:]' | sed 's/^v//')
+        echo -e "Latest version:  ${BOLD}v$latest_version${NC}"
+        echo ""
     fi
-
-    # Clean up version string (remove leading 'v' if present, trim whitespace)
-    latest_version=$(echo "$latest_version" | tr -d '[:space:]' | sed 's/^v//')
-
-    echo -e "Latest version:  ${BOLD}v$latest_version${NC}"
-    echo ""
 
     # ========================================================================
     # CHECK-ONLY MODE
@@ -3390,23 +3387,31 @@ cmd_update() {
         local has_updates=false
         local updates_available=()
 
-        # Check CLI version (use manifest artifact version if available, else release version)
-        local latest_cli_version="$latest_version"
-        if [[ "$manifest_available" == true ]]; then
-            local manifest_cli_version
-            manifest_cli_version=$(get_manifest_version "fade-cli") || true
-            if [[ -n "$manifest_cli_version" ]]; then
-                latest_cli_version="$manifest_cli_version"
+        # Skip version checks if remote unavailable
+        if [[ "$remote_available" != true ]]; then
+            echo -e "${YELLOW}Remote unavailable - skipping version checks${NC}"
+            echo ""
+        fi
+
+        # Version checks only if remote available
+        if [[ "$remote_available" == true ]]; then
+            # Check CLI version (use manifest artifact version if available, else release version)
+            local latest_cli_version="$latest_version"
+            if [[ "$manifest_available" == true ]]; then
+                local manifest_cli_version
+                manifest_cli_version=$(get_manifest_version "fade-cli") || true
+                if [[ -n "$manifest_cli_version" ]]; then
+                    latest_cli_version="$manifest_cli_version"
+                fi
             fi
-        fi
 
-        if [[ "$current_version" != "$latest_cli_version" ]]; then
-            has_updates=true
-            updates_available+=("CLI: v$current_version → v$latest_cli_version")
-        fi
+            if [[ "$current_version" != "$latest_cli_version" ]]; then
+                has_updates=true
+                updates_available+=("CLI: v$current_version → v$latest_cli_version")
+            fi
 
-        # Check artifact versions (FADE.md and prompt.md)
-        # Prefer fade/ if exists, fall back to root
+            # Check artifact versions (FADE.md and prompt.md)
+            # Prefer fade/ if exists, fall back to root
         local check_prompt_path=""
         local check_fade_md_path=""
 
@@ -3481,6 +3486,7 @@ cmd_update() {
                 fi
             fi
         fi
+        fi  # end remote_available check
 
         # Check project structure (only if fade/ directory exists - indicates FADE project)
         if [[ -d "fade" ]]; then
@@ -3541,6 +3547,9 @@ cmd_update() {
     local prompt_updated=false
     local prompt_version_before=""
     local artifacts_updated=0
+
+    # Remote-dependent updates (CLI, prompt.md, standards)
+    if [[ "$remote_available" == true ]]; then
 
     # ========================================================================
     # CLI UPDATE
@@ -3762,6 +3771,8 @@ cmd_update() {
 
         echo ""
     fi
+
+    fi  # end remote_available
 
     # ========================================================================
     # PROJECT STRUCTURE CHECK
