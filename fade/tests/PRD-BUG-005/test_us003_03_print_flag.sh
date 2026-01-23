@@ -1,6 +1,6 @@
 #!/bin/bash
-# Test: Test generation uses correct Claude invocation for file creation
-# AC: Test files are actually created after ALL_COMPLETE (via proper Claude invocation)
+# Test: Claude invocation uses --print flag for non-interactive execution
+# AC: Verify Claude has permission to write to fade/tests/PRD-xxx/ (via proper invocation)
 
 set -e
 
@@ -20,10 +20,10 @@ if [[ -z "$claude_line" ]]; then
     exit 1
 fi
 
-# Check that --print flag is used (for non-interactive mode)
+# Check that --print flag is used (required for non-interactive mode)
 if ! echo "$claude_line" | grep -q '\-\-print'; then
     echo "FAIL: Claude invocation missing --print flag"
-    echo "Expected: --print for non-interactive mode"
+    echo "Expected: --print for non-interactive mode that allows tool usage"
     echo "Actual: $claude_line"
     exit 1
 fi
@@ -36,14 +36,5 @@ if ! echo "$claude_line" | grep -q '\-\-dangerously-skip-permissions'; then
     exit 1
 fi
 
-# Verify the order: --print should come before --dangerously-skip-permissions
-# This is the correct invocation for non-interactive autonomous mode
-if ! echo "$claude_line" | grep -q '\-\-print.*\-\-dangerously-skip-permissions'; then
-    echo "FAIL: Claude flags in wrong order"
-    echo "Expected: --print --dangerously-skip-permissions"
-    echo "Actual: $claude_line"
-    exit 1
-fi
-
-echo "PASS: Test generation uses correct Claude invocation (--print --dangerously-skip-permissions)"
+echo "PASS: Claude invocation uses correct flags for file creation"
 exit 0

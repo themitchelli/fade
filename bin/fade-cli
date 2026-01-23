@@ -1258,52 +1258,59 @@ run_test_generation() {
 
 # Generate tests for all completed PRDs that don't have tests yet
 # Called on ALL_COMPLETE before archiving
-# Returns count of PRDs processed
+# Returns count of PRDs processed via stdout (ONLY numeric value)
+# All display output redirected to stderr to prevent pollution of return value
 generate_tests_for_completed_prds() {
-    local tests_dir=$(get_tests_dir)
     local processed_count=0
-    local prds_folder=""
-    local prd_json_path=""
 
-    # Determine PRD locations based on structure
-    if [[ -d "fade/prds" ]]; then
-        prds_folder="fade/prds"
-        prd_json_path="fade/prd.json"
-    elif [[ -d "prds" ]]; then
-        prds_folder="prds"
-        prd_json_path="prd.json"
-    fi
+    # Wrap main logic in a subshell that redirects all stdout to stderr
+    # This ensures only the final echo goes to stdout
+    {
+        local tests_dir=$(get_tests_dir)
+        local prds_folder=""
+        local prd_json_path=""
 
-    # Process prd.json if it exists and is complete
-    if [[ -f "$prd_json_path" ]] && prd_is_fully_complete "$prd_json_path"; then
-        local prd_id=$(get_prd_id "$prd_json_path")
-        local prd_tests_dir="$tests_dir/$prd_id"
-
-        # Only generate if tests don't already exist
-        if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
-            run_test_generation "$prd_json_path"
-            ((processed_count++))
+        # Determine PRD locations based on structure
+        if [[ -d "fade/prds" ]]; then
+            prds_folder="fade/prds"
+            prd_json_path="fade/prd.json"
+        elif [[ -d "prds" ]]; then
+            prds_folder="prds"
+            prd_json_path="prd.json"
         fi
-    fi
 
-    # Process PRDs in prds/ folder
-    if [[ -d "$prds_folder" ]]; then
-        for prd_file in $(ls "$prds_folder"/*.json 2>/dev/null | sort); do
-            [[ -f "$prd_file" ]] || continue
+        # Process prd.json if it exists and is complete
+        if [[ -f "$prd_json_path" ]] && prd_is_fully_complete "$prd_json_path"; then
+            local prd_id=$(get_prd_id "$prd_json_path")
+            local prd_tests_dir="$tests_dir/$prd_id"
 
-            if prd_is_fully_complete "$prd_file"; then
-                local prd_id=$(get_prd_id "$prd_file")
-                local prd_tests_dir="$tests_dir/$prd_id"
-
-                # Only generate if tests don't already exist
-                if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
-                    run_test_generation "$prd_file"
-                    ((processed_count++))
-                fi
+            # Only generate if tests don't already exist
+            if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
+                run_test_generation "$prd_json_path"
+                ((processed_count++))
             fi
-        done
-    fi
+        fi
 
+        # Process PRDs in prds/ folder
+        if [[ -d "$prds_folder" ]]; then
+            for prd_file in $(ls "$prds_folder"/*.json 2>/dev/null | sort); do
+                [[ -f "$prd_file" ]] || continue
+
+                if prd_is_fully_complete "$prd_file"; then
+                    local prd_id=$(get_prd_id "$prd_file")
+                    local prd_tests_dir="$tests_dir/$prd_id"
+
+                    # Only generate if tests don't already exist
+                    if [[ ! -d "$prd_tests_dir" ]] || [[ -z "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
+                        run_test_generation "$prd_file"
+                        ((processed_count++))
+                    fi
+                fi
+            done
+        fi
+    } >&2  # Redirect all stdout from this block to stderr
+
+    # Only this echo goes to stdout - the return value
     echo "$processed_count"
 }
 

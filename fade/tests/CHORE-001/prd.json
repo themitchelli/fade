@@ -1,0 +1,110 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "CHORE-001",
+  "name": "Release 0.3.1 Documentation Update",
+  "description": "Review all recent changes, update all documentation including README, and increment version numbers from 0.3.0 to 0.3.1. Ensures documentation accurately reflects current functionality before release.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Review recent changes",
+      "description": "As a maintainer, I want to review all changes since the last release to ensure documentation covers new functionality",
+      "acceptanceCriteria": [
+        "Review git log since last version tag or recent commits",
+        "Identify all new features, enhancements, and fixes",
+        "Document list of changes for changelog/release notes",
+        "Verify all PRDs in archive have corresponding documentation",
+        "Note any undocumented functionality that needs coverage"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Update README.md",
+      "description": "As a new user, I want the README to accurately describe all current FADE capabilities",
+      "acceptanceCriteria": [
+        "README reflects all current commands (init, new, status, run, yolo, export, update, migrate, version)",
+        "Installation instructions are current",
+        "Quick start guide works with current CLI",
+        "Feature list matches implemented functionality",
+        "Examples are accurate and functional",
+        "Badges and links are valid"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Update FADE.md project context",
+      "description": "As a contributor, I want FADE.md to reflect the current state of the project",
+      "acceptanceCriteria": [
+        "Tech stack section is accurate",
+        "Architecture references are current",
+        "Project structure matches actual layout",
+        "Any new standards or conventions are documented",
+        "Strategic context sections are populated if applicable"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Update prompt.md execution protocol",
+      "description": "As an AI agent, I want prompt.md to accurately describe current execution expectations",
+      "acceptanceCriteria": [
+        "Signal definitions match current implementation",
+        "Story completion workflow is accurate",
+        "Test generation instructions are current",
+        "All examples reflect actual behavior",
+        "Version stamp updated to 0.3.1"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Increment version numbers",
+      "description": "As a maintainer, I want all version numbers updated to 0.3.1 consistently",
+      "acceptanceCriteria": [
+        "FADE_VERSION in bin/fade-cli updated to 0.3.1",
+        "PROMPT_VERSION in bin/fade-cli updated to 0.3.1",
+        "Version in prompt.md header updated to 0.3.1",
+        "Any version references in README updated",
+        "Version display in fade --version shows 0.3.1"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Verify documentation consistency",
+      "description": "As a user, I want all documentation to be internally consistent and cross-referenced correctly",
+      "acceptanceCriteria": [
+        "All internal links work (README to other docs)",
+        "Command help text matches README descriptions",
+        "No references to deprecated or removed features",
+        "Standards documents are consistent with coding practices",
+        "fade help output matches documented commands"
+      ],
+      "priority": 6,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "versionLocations": [
+      "bin/fade-cli: FADE_VERSION variable",
+      "bin/fade-cli: PROMPT_VERSION variable",
+      "fade/prompt.md: version header comment",
+      "README.md: any version badges or references"
+    ],
+    "documentationFiles": [
+      "README.md",
+      "FADE.md",
+      "fade/prompt.md",
+      "fade/standards/*.md"
+    ],
+    "approach": "Read each file, compare against current implementation, update discrepancies. Run fade commands to verify help text and behavior match documentation."
+  }
+}

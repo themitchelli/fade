@@ -1,75 +1,62 @@
 {
   "type": "bug",
   "project": "FADE",
-  "id": "BUG-005",
-  "name": "ALL Mode Iteration Bugs - PRD Mismatch and Output Capture",
-  "description": "Multiple bugs in ALL mode iteration flow: (1) Iteration summary shows wrong PRD because get_active_prd returns first alphabetically, not the PRD Claude actually worked on. (2) generate_tests_for_completed_prds outputs display text to stdout which gets captured instead of just the count, causing syntax error. (3) Test generation still not creating files despite BUG-004 fix.",
-  "dependsOn": [],
+  "id": "BUG-006",
+  "name": "Test Generation Output Still Leaking into Count Variable",
+  "description": "Despite BUG-005 US-002 fix to redirect output to stderr, the syntax error still occurs on line 2545: [[: syntax error: operand expected. The generate_tests_for_completed_prds function is still capturing display output along with the count, causing the numeric comparison to fail. The fix was incomplete.",
+  "dependsOn": ["BUG-005"],
   "userStories": [
     {
       "id": "US-001",
-      "title": "Fix PRD mismatch in iteration summary",
-      "description": "As a developer using ALL mode, I want the iteration summary to show the correct PRD that was actually worked on, not the first alphabetically",
+      "title": "Trace and fix output leak in generate_tests_for_completed_prds",
+      "description": "As a developer, I want the test generation count comparison to work without syntax errors",
       "acceptanceCriteria": [
-        "display_iteration_summary looks up which PRD contains the story_id from STORY_DONE",
-        "New helper function find_prd_by_story_id searches all PRDs for matching story ID",
-        "Iteration summary shows correct PRD name, acceptance criteria, and checkbox status",
-        "Falls back to get_active_prd if story_id not found in any PRD"
+        "Identify all echo statements in run_test_generation that output to stdout instead of stderr",
+        "Identify any other functions called by generate_tests_for_completed_prds that output to stdout",
+        "Redirect ALL display output to stderr (>&2) in the test generation flow",
+        "Verify $tests_generated contains only a numeric value after function call",
+        "Comparison [[ \"$tests_generated\" -gt 0 ]] works without syntax error"
       ],
       "priority": 1,
       "passes": true
     },
     {
       "id": "US-002",
-      "title": "Fix output capture in generate_tests_for_completed_prds",
-      "description": "As a developer, I want test generation to complete without syntax errors so the archiving flow works correctly",
+      "title": "Add defensive numeric validation",
+      "description": "As a developer, I want the count comparison to handle unexpected values gracefully",
       "acceptanceCriteria": [
-        "run_test_generation outputs display text to stderr (>&2) not stdout",
-        "generate_tests_for_completed_prds only outputs the count to stdout",
-        "Comparison [[ \"$tests_generated\" -gt 0 ]] works without syntax error",
-        "Display banners still visible to user during test generation"
+        "Before comparison, validate that $tests_generated is numeric",
+        "If not numeric, default to 0 and log warning to stderr",
+        "Syntax error no longer occurs even if output leaks",
+        "Test generation flow completes successfully"
       ],
       "priority": 2,
-      "passes": true
+      "passes": false
     },
     {
       "id": "US-003",
-      "title": "Diagnose and fix test file generation",
-      "description": "As a developer completing PRDs, I want regression tests to actually be created so the feature works as documented",
+      "title": "Verify fix with end-to-end test",
+      "description": "As a developer, I want confidence the fix works in real usage",
       "acceptanceCriteria": [
-        "Investigate why --dangerously-skip-permissions still results in 'Test files: 0'",
-        "Verify Claude receives the test generation prompt correctly",
-        "Verify Claude has permission to write to fade/tests/PRD-xxx/",
-        "Test files are actually created after ALL_COMPLETE",
-        "TESTS_GENERATED signal is reliably detected"
+        "Run fade yolo on a PRD that triggers ALL_COMPLETE",
+        "Test generation completes without syntax error in output",
+        "Archived PRD count message displays correctly",
+        "No error tokens visible in terminal output"
       ],
       "priority": 3,
-      "passes": true
-    },
-    {
-      "id": "US-004",
-      "title": "Add integration test for ALL mode flow",
-      "description": "As a maintainer, I want a test that validates the ALL mode iteration flow so these regressions are caught",
-      "acceptanceCriteria": [
-        "Test verifies iteration summary shows correct PRD for completed story",
-        "Test verifies test generation completes without syntax errors",
-        "Test can be run manually via fade/tests/run.sh"
-      ],
-      "priority": 4,
-      "passes": true
+      "passes": false
     }
   ],
   "technicalNotes": {
-    "bug1_location": "bin/fade-cli display_iteration_summary() line ~1793 calls get_active_prd()",
-    "bug1_fix": "Create find_prd_by_story_id() that searches fade/prd.json, prd.json, fade/prds/*.json, prds/*.json for story ID match",
-    "bug2_location": "bin/fade-cli run_test_generation() lines 1120-1193 - all echo statements need >&2",
-    "bug2_fix": "Change echo statements in run_test_generation to use >&2, keep only final count on stdout",
-    "bug3_investigation": [
-      "Check if claude --dangerously-skip-permissions actually allows file writes",
-      "Check if the prompt is being passed correctly via stdin",
-      "Check if Claude is outputting TESTS_GENERATED signal",
-      "May need to use 'claude --print' for prompt but different approach for file creation"
+    "symptom": "line 2545: [[: ════════... syntax error: operand expected",
+    "rootCause": "BUG-005 US-002 fix was incomplete - not all output paths redirected to stderr",
+    "location": "bin/fade-cli generate_tests_for_completed_prds() and run_test_generation()",
+    "investigation": [
+      "Check if run_test_generation has echo statements still going to stdout",
+      "Check if claude --print output is being captured",
+      "Check if any called helper functions output to stdout",
+      "May need to wrap entire function output: generate_tests_for_completed_prds 2>&1 | tee /dev/stderr"
     ],
-    "reproduction": "Run 'fade yolo' with multiple PRDs in queue, observe iteration summary shows wrong PRD and syntax error on ALL_COMPLETE"
+    "defensiveFix": "Add: [[ \"$tests_generated\" =~ ^[0-9]+$ ]] || tests_generated=0"
   }
 }

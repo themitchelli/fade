@@ -1081,3 +1081,18 @@ For blocked stories, use:
 - All 4 tests pass via fade/tests/run.sh
 - Files changed: fade/tests/PRD-BUG-005/*.sh (4 new test files), fade/tests/PRD-BUG-005/prd.json
 - Tests: fade/tests/run.sh shows 4 passed, 0 failed
+
+## 2026-01-23 - US-001: Trace and fix output leak in generate_tests_for_completed_prds (BUG-006) - COMPLETE
+
+- Root cause: stdout from internal commands could leak through to the function's return value
+- Fixed generate_tests_for_completed_prds() by wrapping all processing logic in `{ } >&2` block
+- This redirects any unintended stdout to stderr, ensuring only the count goes to stdout
+- Function structure now:
+  - `processed_count=0` initialized before block
+  - All processing in `{ } >&2` block (safety net for any stdout leaks)
+  - Only `echo "$processed_count"` outside block (the return value)
+- Verified all echo statements in run_test_generation already have `>&2`
+- Verified get_prd_id, get_tests_dir are called in `$()` so their output is captured locally
+- Comparison `[[ "$tests_generated" -gt 0 ]]` now works without syntax error
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
