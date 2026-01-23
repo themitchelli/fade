@@ -47,7 +47,7 @@
         "Output suitable for Tech Stack section of FADE.md"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

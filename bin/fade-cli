@@ -4930,6 +4930,441 @@ detect_architecture_patterns() {
     done
 }
 
+# ============================================================================
+# DEPENDENCY ANALYSIS
+# ============================================================================
+
+# Categorize a dependency based on its name
+# Returns: framework|database|testing|utilities|other
+categorize_dependency() {
+    local dep="$1"
+    local dep_lower
+    dep_lower=$(echo "$dep" | tr '[:upper:]' '[:lower:]')
+
+    # Frameworks
+    case "$dep_lower" in
+        react|vue|angular|svelte|next|nuxt|gatsby|@angular/*|@nestjs/*|\
+        express|fastify|koa|hapi|restify|\
+        django|flask|fastapi|tornado|pyramid|bottle|starlette|\
+        rails|sinatra|\
+        actix-web|axum|rocket|warp|\
+        gin|echo|fiber|chi|gorilla/*|\
+        spring*|quarkus)
+            echo "framework"
+            return
+            ;;
+    esac
+
+    # Database
+    case "$dep_lower" in
+        pg|postgres|postgresql|mysql|mysql2|sqlite|sqlite3|\
+        mongodb|mongoose|redis|ioredis|\
+        prisma|@prisma/*|drizzle*|sequelize|typeorm|knex|\
+        sqlalchemy|alembic|peewee|tortoise-orm|\
+        diesel|sqlx|sea-orm|\
+        gorm|ent|\
+        activerecord|mongoid)
+            echo "database"
+            return
+            ;;
+    esac
+
+    # Testing
+    case "$dep_lower" in
+        jest|vitest|mocha|jasmine|chai|sinon|supertest|@testing-library/*|\
+        pytest|unittest|nose|coverage|pytest-*|\
+        rspec|minitest|\
+        tokio-test|rstest|\
+        testify|ginkgo|gomega)
+            echo "testing"
+            return
+            ;;
+    esac
+
+    # Utilities (common ones)
+    case "$dep_lower" in
+        lodash|underscore|ramda|date-fns|moment|dayjs|\
+        axios|got|node-fetch|superagent|\
+        dotenv|cross-env|commander|yargs|chalk|ora|inquirer|\
+        uuid|nanoid|bcrypt|jsonwebtoken|passport*|\
+        winston|pino|bunyan|morgan|\
+        zod|yup|joi|ajv|class-validator|\
+        requests|httpx|click|typer|pydantic|python-dotenv|\
+        serde|clap|tokio|reqwest|\
+        cobra|viper|zap|logrus)
+            echo "utilities"
+            return
+            ;;
+    esac
+
+    echo "other"
+}
+
+# Analyze dependencies from package.json
+analyze_npm_dependencies() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    local content
+    content=$(cat "$file" 2>/dev/null)
+
+    # Extract dependencies and devDependencies
+    # Simple regex extraction - not perfect but works for most cases
+    local in_deps=false
+    local in_dev_deps=false
+    local dep_name
+    local dep_type
+
+    while IFS= read -r line; do
+        # Detect section boundaries
+        if echo "$line" | grep -q '"dependencies"'; then
+            in_deps=true
+            in_dev_deps=false
+            continue
+        elif echo "$line" | grep -q '"devDependencies"'; then
+            in_deps=false
+            in_dev_deps=true
+            continue
+        elif echo "$line" | grep -q '"peerDependencies"\|"scripts"\|"name"\|"version"\|"main"'; then
+            in_deps=false
+            in_dev_deps=false
+            continue
+        fi
+
+        # Extract dependency name (first quoted string before the colon)
+        if $in_deps || $in_dev_deps; then
+            # Match pattern like "package-name": and extract package-name
+            dep_name=$(echo "$line" | sed -n 's/.*"\([^"]*\)"[[:space:]]*:.*/\1/p' | head -1)
+            if [[ -n "$dep_name" ]] && [[ ! "$dep_name" =~ ^[0-9\^~] ]]; then
+                local category
+                category=$(categorize_dependency "$dep_name")
+                if $in_dev_deps; then
+                    dep_type="dev"
+                else
+                    dep_type="prod"
+                fi
+                echo "$dep_name|$category|$dep_type|npm"
+            fi
+        fi
+    done <<< "$content"
+}
+
+# Analyze Python dependencies
+analyze_python_dependencies() {
+    local dir="$1"
+
+    # Check requirements.txt
+    if [[ -f "$dir/requirements.txt" ]]; then
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            # Skip comments and empty lines
+            [[ "$line" =~ ^[[:space:]]*# ]] && continue
+            [[ -z "$line" ]] && continue
+
+            # Extract package name (before ==, >=, etc.)
+            local dep_name
+            dep_name=$(echo "$line" | sed 's/[=><!].*//' | sed 's/\[.*//' | tr -d '[:space:]')
+
+            if [[ -n "$dep_name" ]]; then
+                local category
+                category=$(categorize_dependency "$dep_name")
+                echo "$dep_name|$category|prod|pip"
+            fi
+        done < "$dir/requirements.txt"
+    fi
+
+    # Check requirements-dev.txt or dev-requirements.txt
+    for dev_file in "$dir/requirements-dev.txt" "$dir/dev-requirements.txt" "$dir/requirements_dev.txt"; do
+        if [[ -f "$dev_file" ]]; then
+            while IFS= read -r line || [[ -n "$line" ]]; do
+                [[ "$line" =~ ^[[:space:]]*# ]] && continue
+                [[ -z "$line" ]] && continue
+
+                local dep_name
+                dep_name=$(echo "$line" | sed 's/[=><!].*//' | sed 's/\[.*//' | tr -d '[:space:]')
+
+                if [[ -n "$dep_name" ]]; then
+                    local category
+                    category=$(categorize_dependency "$dep_name")
+                    echo "$dep_name|$category|dev|pip"
+                fi
+            done < "$dev_file"
+        fi
+    done
+
+    # Check pyproject.toml for dependencies
+    if [[ -f "$dir/pyproject.toml" ]]; then
+        local in_deps=false
+        local in_dev_deps=false
+
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            # Detect sections
+            if echo "$line" | grep -q '^\[project\]$\|^\[tool.poetry\]$'; then
+                continue
+            elif echo "$line" | grep -q 'dependencies\s*=\s*\['; then
+                in_deps=true
+                in_dev_deps=false
+                continue
+            elif echo "$line" | grep -q 'dev-dependencies\|optional-dependencies'; then
+                in_deps=false
+                in_dev_deps=true
+                continue
+            elif echo "$line" | grep -q '^\['; then
+                in_deps=false
+                in_dev_deps=false
+                continue
+            fi
+
+            if $in_deps || $in_dev_deps; then
+                # Extract dependency from quotes
+                local dep_name
+                dep_name=$(echo "$line" | sed -n 's/.*"\([^">=<]*\).*/\1/p' | head -1)
+                if [[ -n "$dep_name" ]] && [[ ! "$dep_name" =~ ^\[ ]]; then
+                    local category
+                    category=$(categorize_dependency "$dep_name")
+                    if $in_dev_deps; then
+                        echo "$dep_name|$category|dev|pip"
+                    else
+                        echo "$dep_name|$category|prod|pip"
+                    fi
+                fi
+            fi
+        done < "$dir/pyproject.toml"
+    fi
+}
+
+# Analyze Rust dependencies from Cargo.toml
+analyze_rust_dependencies() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    local in_deps=false
+    local in_dev_deps=false
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Detect sections
+        if echo "$line" | grep -q '^\[dependencies\]'; then
+            in_deps=true
+            in_dev_deps=false
+            continue
+        elif echo "$line" | grep -q '^\[dev-dependencies\]'; then
+            in_deps=false
+            in_dev_deps=true
+            continue
+        elif echo "$line" | grep -q '^\['; then
+            in_deps=false
+            in_dev_deps=false
+            continue
+        fi
+
+        if $in_deps || $in_dev_deps; then
+            # Extract dependency name (before = or .)
+            local dep_name
+            dep_name=$(echo "$line" | grep '=' | sed 's/[[:space:]]*=.*//' | tr -d '[:space:]')
+            if [[ -n "$dep_name" ]]; then
+                local category
+                category=$(categorize_dependency "$dep_name")
+                if $in_dev_deps; then
+                    echo "$dep_name|$category|dev|cargo"
+                else
+                    echo "$dep_name|$category|prod|cargo"
+                fi
+            fi
+        fi
+    done < "$file"
+}
+
+# Analyze Go dependencies from go.mod
+analyze_go_dependencies() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    local in_require=false
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Detect require block
+        if echo "$line" | grep -q '^require[[:space:]]*('; then
+            in_require=true
+            continue
+        elif echo "$line" | grep -q '^require[[:space:]]'; then
+            # Single-line require
+            local dep_name
+            dep_name=$(echo "$line" | sed 's/require[[:space:]]*//' | awk '{print $1}')
+            if [[ -n "$dep_name" ]]; then
+                # Get just the package name part
+                local short_name
+                short_name=$(basename "$dep_name")
+                local category
+                category=$(categorize_dependency "$short_name")
+                echo "$short_name|$category|prod|go"
+            fi
+            continue
+        elif echo "$line" | grep -q '^)'; then
+            in_require=false
+            continue
+        fi
+
+        if $in_require; then
+            local dep_name
+            dep_name=$(echo "$line" | awk '{print $1}' | tr -d '[:space:]')
+            if [[ -n "$dep_name" ]] && [[ ! "$dep_name" =~ ^// ]]; then
+                local short_name
+                short_name=$(basename "$dep_name")
+                local category
+                category=$(categorize_dependency "$short_name")
+                echo "$short_name|$category|prod|go"
+            fi
+        fi
+    done < "$file"
+}
+
+# Analyze Ruby dependencies from Gemfile
+analyze_ruby_dependencies() {
+    local file="$1"
+
+    if [[ ! -f "$file" ]]; then
+        return
+    fi
+
+    local in_dev_group=false
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip comments
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Detect groups
+        if echo "$line" | grep -q "group.*:development\|group.*:test"; then
+            in_dev_group=true
+            continue
+        elif echo "$line" | grep -q '^end'; then
+            in_dev_group=false
+            continue
+        fi
+
+        # Extract gem name
+        local dep_name
+        dep_name=$(echo "$line" | sed -n "s/.*gem[[:space:]]*['\"]\\([^'\"]*\\)['\"].*/\\1/p")
+        if [[ -n "$dep_name" ]]; then
+            local category
+            category=$(categorize_dependency "$dep_name")
+            if $in_dev_group; then
+                echo "$dep_name|$category|dev|gem"
+            else
+                echo "$dep_name|$category|prod|gem"
+            fi
+        fi
+    done < "$file"
+}
+
+# Main dependency analysis function
+analyze_dependencies() {
+    local dir="${1:-.}"
+    local all_deps=""
+
+    # Collect from all sources
+    if [[ -f "$dir/package.json" ]]; then
+        all_deps+=$(analyze_npm_dependencies "$dir/package.json")
+        all_deps+=$'\n'
+    fi
+
+    all_deps+=$(analyze_python_dependencies "$dir")
+    all_deps+=$'\n'
+
+    if [[ -f "$dir/Cargo.toml" ]]; then
+        all_deps+=$(analyze_rust_dependencies "$dir/Cargo.toml")
+        all_deps+=$'\n'
+    fi
+
+    if [[ -f "$dir/go.mod" ]]; then
+        all_deps+=$(analyze_go_dependencies "$dir/go.mod")
+        all_deps+=$'\n'
+    fi
+
+    if [[ -f "$dir/Gemfile" ]]; then
+        all_deps+=$(analyze_ruby_dependencies "$dir/Gemfile")
+        all_deps+=$'\n'
+    fi
+
+    # Remove empty lines and duplicates, output sorted by category
+    echo "$all_deps" | grep -v '^$' | sort -t'|' -k2,2 -k1,1 | uniq
+}
+
+# Format dependencies for display
+format_dependencies_summary() {
+    local deps="$1"
+
+    if [[ -z "$deps" ]]; then
+        return
+    fi
+
+    # Group by category
+    local frameworks=""
+    local databases=""
+    local testing=""
+    local utilities=""
+    local other=""
+
+    while IFS='|' read -r name category type source; do
+        [[ -z "$name" ]] && continue
+
+        local entry="$name"
+        [[ "$type" == "dev" ]] && entry="$name (dev)"
+
+        case "$category" in
+            framework)
+                frameworks+="$entry, "
+                ;;
+            database)
+                databases+="$entry, "
+                ;;
+            testing)
+                testing+="$entry, "
+                ;;
+            utilities)
+                utilities+="$entry, "
+                ;;
+            *)
+                other+="$entry, "
+                ;;
+        esac
+    done <<< "$deps"
+
+    # Output formatted sections
+    if [[ -n "$frameworks" ]]; then
+        echo "**Frameworks:** ${frameworks%, }"
+    fi
+    if [[ -n "$databases" ]]; then
+        echo "**Database:** ${databases%, }"
+    fi
+    if [[ -n "$testing" ]]; then
+        echo "**Testing:** ${testing%, }"
+    fi
+    if [[ -n "$utilities" ]]; then
+        echo "**Utilities:** ${utilities%, }"
+    fi
+    if [[ -n "$other" ]]; then
+        # Only show "other" if there are notable packages (limit to first 10)
+        local other_count
+        other_count=$(echo "$other" | tr ',' '\n' | wc -l)
+        if [[ $other_count -le 15 ]]; then
+            echo "**Other:** ${other%, }"
+        else
+            # Truncate with count
+            local truncated
+            truncated=$(echo "$other" | tr ',' '\n' | head -10 | tr '\n' ',' | sed 's/,$//')
+            echo "**Other:** $truncated, ... (+$((other_count - 10)) more)"
+        fi
+    fi
+}
+
 cmd_map() {
     echo -e "${CYAN}FADE Codebase Map${NC}"
     echo ""
@@ -4975,6 +5410,55 @@ cmd_map() {
         echo "$frameworks" | while read -r fw; do
             echo "- $fw"
         done
+    fi
+    echo ""
+
+    # =========================================================================
+    # DEPENDENCY ANALYSIS
+    # =========================================================================
+    echo -e "${YELLOW}## Dependencies${NC}"
+    echo ""
+
+    local deps
+    deps=$(analyze_dependencies ".")
+
+    if [[ -z "$deps" ]]; then
+        echo "No dependency manifest files found (package.json, requirements.txt, etc.)."
+    else
+        local dep_summary
+        dep_summary=$(format_dependencies_summary "$deps")
+        if [[ -n "$dep_summary" ]]; then
+            echo "Categorized dependencies:"
+            echo ""
+            echo "$dep_summary"
+        else
+            echo "Dependencies found but none matched known categories."
+        fi
+
+        # Show raw count by source
+        echo ""
+        echo "Package counts by source:"
+        local npm_count py_count rust_count go_count ruby_count
+        npm_count=$(echo "$deps" | grep '|npm$' 2>/dev/null | wc -l | tr -d ' ')
+        py_count=$(echo "$deps" | grep '|pip$' 2>/dev/null | wc -l | tr -d ' ')
+        rust_count=$(echo "$deps" | grep '|cargo$' 2>/dev/null | wc -l | tr -d ' ')
+        go_count=$(echo "$deps" | grep '|go$' 2>/dev/null | wc -l | tr -d ' ')
+        ruby_count=$(echo "$deps" | grep '|gem$' 2>/dev/null | wc -l | tr -d ' ')
+
+        [[ "$npm_count" -gt 0 ]] && echo "- npm: $npm_count packages"
+        [[ "$py_count" -gt 0 ]] && echo "- pip: $py_count packages"
+        [[ "$rust_count" -gt 0 ]] && echo "- cargo: $rust_count crates"
+        [[ "$go_count" -gt 0 ]] && echo "- go: $go_count modules"
+        [[ "$ruby_count" -gt 0 ]] && echo "- gem: $ruby_count gems"
+
+        # Note dev vs prod split
+        local dev_count prod_count
+        dev_count=$(echo "$deps" | grep '|dev|' 2>/dev/null | wc -l | tr -d ' ')
+        prod_count=$(echo "$deps" | grep '|prod|' 2>/dev/null | wc -l | tr -d ' ')
+        if [[ "$dev_count" -gt 0 ]]; then
+            echo ""
+            echo "($prod_count production, $dev_count development)"
+        fi
     fi
     echo ""
 
@@ -5076,8 +5560,30 @@ cmd_map() {
         else
             echo "- Framework:"
         fi
-        echo "- Database:"
+
+        # Extract database from dependencies if detected
+        local db_deps=""
+        if [[ -n "$deps" ]]; then
+            db_deps=$(echo "$deps" | grep '|database|' | cut -d'|' -f1 | head -3 | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+        fi
+        if [[ -n "$db_deps" ]]; then
+            echo "- Database: $db_deps"
+        else
+            echo "- Database:"
+        fi
         echo ""
+    fi
+
+    # Dependencies summary for FADE.md
+    if [[ -n "$deps" ]]; then
+        local dep_summary
+        dep_summary=$(format_dependencies_summary "$deps")
+        if [[ -n "$dep_summary" ]]; then
+            echo "### Key Dependencies"
+            echo ""
+            echo "$dep_summary"
+            echo ""
+        fi
     fi
 
     # Architecture hint from directories

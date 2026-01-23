@@ -814,3 +814,21 @@ For blocked stories, use:
 - Added architecture patterns to FADE.md ready output section
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests verified all confidence levels and pattern detection
+
+## 2026-01-23 - US-003: Dependency analysis (FEAT-008) - COMPLETE
+
+- Added categorize_dependency() function to classify dependencies into framework/database/testing/utilities/other
+- Added analyze_npm_dependencies() to parse package.json dependencies and devDependencies
+- Added analyze_python_dependencies() to parse requirements.txt, requirements-dev.txt, and pyproject.toml
+- Added analyze_rust_dependencies() to parse Cargo.toml [dependencies] and [dev-dependencies]
+- Added analyze_go_dependencies() to parse go.mod require blocks
+- Added analyze_ruby_dependencies() to parse Gemfile with group detection for dev dependencies
+- Added analyze_dependencies() main function that combines all sources
+- Added format_dependencies_summary() to format output grouped by category
+- Integrated into cmd_map() with new "## Dependencies" section showing:
+  - Categorized dependencies (Frameworks, Database, Testing, Utilities, Other)
+  - Package counts by source (npm, pip, cargo, go, gem)
+  - Dev vs production counts
+- Updated FADE.md ready output to include "Key Dependencies" section and auto-populate Database in Tech Stack
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests on npm/Python/Rust/Go/Ruby projects verified all detection features
