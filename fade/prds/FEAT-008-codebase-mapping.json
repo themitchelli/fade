@@ -63,7 +63,7 @@
         "Does not overwrite existing FADE.md (use --force to override)"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

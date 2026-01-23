@@ -832,3 +832,22 @@ For blocked stories, use:
 - Updated FADE.md ready output to include "Key Dependencies" section and auto-populate Database in Tech Stack
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests on npm/Python/Rust/Go/Ruby projects verified all detection features
+
+## 2026-01-23 - US-004: Generate FADE.md draft (FEAT-008) - COMPLETE
+
+- Added --init and --force flags to fade map command with argument parsing
+- fade map --init generates FADE.md if it doesn't exist (returns error if exists, use --force to override)
+- Generated FADE.md includes:
+  - Tech Stack section populated from dependency analysis (language, framework, database)
+  - Project Overview with detected framework/language filled in
+  - Architecture References with detected patterns and directory structure
+  - All standard sections (Coding Standards, Standards, Fragile Areas, Off-Limits, etc.)
+- All auto-generated sections marked with <!-- AUTO-GENERATED --> comments
+- Version stamp included at top: <!-- FADE FADE.md v0.3.0 -->
+- Warning message output advising user to review and customize content
+- Lists specific sections that need review (Project Overview, Tech Stack, etc.)
+- Updated help text with new "Map Options" section
+- Updated examples: fade map --init, fade map --init --force
+- Updated main case statement to pass arguments to cmd_map
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests verified FADE.md generation, overwrite protection, and --force flag
