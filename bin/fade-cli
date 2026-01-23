@@ -2978,18 +2978,49 @@ Start working on the task now. Keep it simple and focused.
 # ============================================================================
 
 cmd_discover() {
-    local feature_name="${1:-}"
+    local feature_name=""
+    local generate_prd=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --prd)
+                generate_prd=true
+                shift
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown option '$1'${NC}"
+                echo ""
+                echo "Usage: fade discover [--prd] \"<feature name>\""
+                exit 1
+                ;;
+            *)
+                if [[ -z "$feature_name" ]]; then
+                    feature_name="$1"
+                else
+                    echo -e "${RED}Error: Unexpected argument '$1'${NC}"
+                    echo ""
+                    echo "Usage: fade discover [--prd] \"<feature name>\""
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
 
     # Validate feature name
     if [[ -z "$feature_name" ]]; then
         echo -e "${RED}Error: Feature name required.${NC}"
         echo ""
-        echo "Usage: fade discover \"<feature name>\""
+        echo "Usage: fade discover [--prd] \"<feature name>\""
+        echo ""
+        echo "Options:"
+        echo "  --prd    Generate PRD JSON draft after discovery session"
         echo ""
         echo "Examples:"
         echo "  fade discover \"user authentication\""
-        echo "  fade discover \"API rate limiting\""
-        echo "  fade discover \"dark mode toggle\""
+        echo "  fade discover --prd \"API rate limiting\""
+        echo "  fade discover \"dark mode toggle\" --prd"
         exit 1
     fi
 
@@ -3011,6 +3042,44 @@ cmd_discover() {
     fi
 
     local output_file="$discoveries_dir/${slug}.md"
+
+    # If generating PRD, determine PRD output path and next number
+    local prd_path=""
+    local prd_id=""
+    if [[ "$generate_prd" == true ]]; then
+        # Determine PRD folder location
+        local prds_dir=""
+        if [[ -d "fade/prds" ]]; then
+            prds_dir="fade/prds"
+        elif [[ -d "fade" ]]; then
+            mkdir -p "fade/prds"
+            prds_dir="fade/prds"
+        elif [[ -d "prds" ]]; then
+            prds_dir="prds"
+        else
+            # No prds folder yet - will create when needed
+            mkdir -p "fade/prds"
+            prds_dir="fade/prds"
+        fi
+
+        # Find next available FEAT number
+        local next_num=1
+        for existing_file in "$prds_dir"/FEAT-*.json; do
+            [[ -f "$existing_file" ]] || continue
+            local filename=$(basename "$existing_file" .json)
+            local num=$(echo "$filename" | sed -n "s/^FEAT-\([0-9]*\)-.*/\1/p")
+            if [[ -n "$num" ]]; then
+                num=$((10#$num))
+                if [[ $num -ge $next_num ]]; then
+                    next_num=$((num + 1))
+                fi
+            fi
+        done
+
+        local num_formatted=$(printf "%03d" "$next_num")
+        prd_id="FEAT-${num_formatted}"
+        prd_path="$prds_dir/FEAT-${num_formatted}-${slug}.json"
+    fi
 
     # Build discovery context
     local context=""
@@ -3223,7 +3292,77 @@ Additional context, constraints, or considerations:
 
 - [Any other relevant notes from the discussion]
 \`\`\`
+"
 
+    # Add PRD generation instructions if --prd flag was used
+    if [[ "$generate_prd" == true ]]; then
+        local project_name=$(basename "$(pwd)")
+        context+="
+## PRD Generation (--prd mode)
+
+After saving the discovery document, you will ALSO generate a PRD JSON file.
+
+**PRD Output Path:** $prd_path
+
+The PRD MUST use this exact JSON format:
+
+\`\`\`json
+{
+  \"type\": \"feature\",
+  \"project\": \"$project_name\",
+  \"id\": \"$prd_id\",
+  \"name\": \"$feature_name\",
+  \"description\": \"[2-3 sentences from the Summary section of the discovery doc]\",
+  \"discoveryDoc\": \"$output_file\",
+  \"draft\": true,
+  \"dependsOn\": [],
+  \"userStories\": [
+    {
+      \"id\": \"US-001\",
+      \"title\": \"[Story title from Suggested Stories]\",
+      \"description\": \"As a [user type], I want [capability] so that [benefit]\",
+      \"acceptanceCriteria\": [
+        \"[Derived from decisions and discussion - be specific and testable]\",
+        \"[Each criterion should be verifiable]\",
+        \"[Include edge cases discussed]\"
+      ],
+      \"priority\": 1,
+      \"passes\": false
+    }
+  ]
+}
+\`\`\`
+
+**PRD Generation Rules:**
+
+1. **User Stories**: Convert the 'Suggested Stories' from discovery into proper user stories
+   - Each story should be small enough to complete in one session
+   - Use the standard format: As a [user], I want [feature] so that [benefit]
+   - Number stories sequentially: US-001, US-002, etc.
+
+2. **Acceptance Criteria**: Derive from the Decisions section
+   - Each decision becomes one or more acceptance criteria
+   - Be specific and testable (not vague like 'works correctly')
+   - Include edge cases that were discussed
+   - Include error handling if discussed
+
+3. **Draft Flag**: The PRD includes '\"draft\": true' to indicate it needs human review
+   - Human should review stories and acceptance criteria before activating
+   - Remove 'draft' field or set to false when ready for execution
+
+4. **Discovery Doc Reference**: The PRD includes 'discoveryDoc' field pointing to the discovery document
+   - This allows fade run to include discovery context during execution
+
+**Wrap-Up Sequence:**
+
+1. First, save the discovery document to: $output_file
+2. Then, save the PRD JSON to: $prd_path
+3. Confirm both files were created
+
+"
+    fi
+
+    context+="
 ## Begin
 
 Start by greeting the developer and asking an open question about the feature: **$feature_name**
@@ -3236,9 +3375,15 @@ What are they trying to accomplish? What's the context?
     echo ""
     echo -e "Feature: ${GREEN}$feature_name${NC}"
     echo -e "Output:  ${YELLOW}$output_file${NC}"
+    if [[ "$generate_prd" == true ]]; then
+        echo -e "PRD:     ${YELLOW}$prd_path${NC} (draft)"
+    fi
     echo ""
     echo "This is an interactive session to explore implementation details."
     echo "When done, say 'wrap up' and Claude will save the discovery document."
+    if [[ "$generate_prd" == true ]]; then
+        echo "With --prd flag, Claude will also generate a draft PRD JSON file."
+    fi
     echo "Press Ctrl+C at any time to exit without saving."
     echo ""
     echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
@@ -3594,7 +3739,7 @@ ${YELLOW}New Command:${NC}
   - For spikes, also creates and switches to a feature branch
 
 ${YELLOW}Discover Command:${NC}
-  fade discover "<feature name>"
+  fade discover [--prd] "<feature name>"
 
   Interactive session to explore implementation details BEFORE writing a PRD.
   Helps think through requirements by asking about:
@@ -3610,6 +3755,14 @@ ${YELLOW}Discover Command:${NC}
   Format: Summary, Decisions, Open Questions, Suggested Stories
 
   Press Ctrl+C at any time to exit without saving.
+
+${YELLOW}Discover Options:${NC}
+  --prd           Generate a draft PRD JSON file after the discovery session
+                  - PRD includes user stories derived from discussion
+                  - Acceptance criteria derived from decisions made
+                  - PRD marked as draft (draft: true) for human review
+                  - Output: fade/prds/FEAT-NNN-{slug}.json
+                  - PRD references discovery doc via discoveryDoc field
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"
@@ -3685,6 +3838,7 @@ ${YELLOW}Examples:${NC}
   fade new bug "Login timeout"           # Create a new bug PRD
   fade new spike "Evaluate caching"      # Create spike PRD and branch
   fade discover "user authentication"    # Explore feature before writing PRD
+  fade discover --prd "API rate limiting" # Explore and generate draft PRD
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade run                               # See queue, pick mode, start working

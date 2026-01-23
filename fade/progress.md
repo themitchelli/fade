@@ -1373,3 +1373,26 @@ For blocked stories, use:
   - Question sets defined embedded in prompt
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-004: Generate PRD draft from discovery (FEAT-011) - COMPLETE
+
+- Added --prd flag to fade discover command for PRD generation after discovery session
+- Implemented argument parsing in cmd_discover() to handle --prd flag with feature name in any order
+- Added PRD path determination logic: finds next available FEAT-NNN number and builds path
+- Enhanced discovery context with PRD generation instructions when --prd is used
+- PRD JSON template includes: type, project, id, name, description, discoveryDoc, draft flag, dependsOn, userStories
+- Instructions tell Claude to derive user stories from Suggested Stories section
+- Instructions tell Claude to derive acceptance criteria from Decisions section
+- PRD includes "draft": true flag requiring human review before activation
+- PRD includes "discoveryDoc" field pointing to the discovery document for context
+- Updated help text with new Discover Options section documenting --prd flag
+- Added example in Examples section: fade discover --prd "API rate limiting"
+- Updated usage messages to show [--prd] option
+- All acceptance criteria verified:
+  - fade discover --prd generates PRD JSON after discovery session
+  - PRD includes user stories derived from discussed features
+  - Acceptance criteria derived from decisions made in discovery
+  - PRD marked as draft for human review before activation
+  - Output path: fade/prds/FEAT-NNN-{slug}.json
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, help text verified, error handling tested
