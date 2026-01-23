@@ -1026,3 +1026,14 @@ For blocked stories, use:
 - Added quick command examples to help
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, tested in FADE project and empty directory
+
+## 2026-01-23 - US-001: Fix PRD mismatch in iteration summary (BUG-005) - COMPLETE
+
+- Added find_prd_by_story_id() function to search all PRD files for a story with matching ID
+- Function searches fade/prd.json, prd.json, fade/prds/*.json, prds/*.json in priority order
+- Updated display_iteration_summary() to use find_prd_by_story_id() instead of get_active_prd()
+- Changed variable name from active_prd to story_prd to clarify semantics
+- Falls back to get_active_prd() if story_id not found in any PRD
+- Iteration summary now shows correct PRD name, acceptance criteria, and checkbox status
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

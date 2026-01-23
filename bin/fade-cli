@@ -971,6 +971,53 @@ get_active_prd() {
     fi
 }
 
+# Find the PRD containing a specific story ID
+# Searches all PRD locations for a story with matching ID
+find_prd_by_story_id() {
+    local story_id="$1"
+
+    if [[ -z "$story_id" ]]; then
+        return
+    fi
+
+    # Search pattern for the story ID in JSON
+    local pattern="\"id\"[[:space:]]*:[[:space:]]*\"$story_id\""
+
+    # Check fade/prd.json first
+    if [[ -f "fade/prd.json" ]] && grep -q "$pattern" "fade/prd.json" 2>/dev/null; then
+        echo "fade/prd.json"
+        return
+    fi
+
+    # Check root prd.json
+    if [[ -f "prd.json" ]] && grep -q "$pattern" "prd.json" 2>/dev/null; then
+        echo "prd.json"
+        return
+    fi
+
+    # Check fade/prds/
+    if [[ -d "fade/prds" ]]; then
+        for prd_file in fade/prds/*.json; do
+            [[ -f "$prd_file" ]] || continue
+            if grep -q "$pattern" "$prd_file" 2>/dev/null; then
+                echo "$prd_file"
+                return
+            fi
+        done
+    fi
+
+    # Check root prds/
+    if [[ -d "prds" ]]; then
+        for prd_file in prds/*.json; do
+            [[ -f "$prd_file" ]] || continue
+            if grep -q "$pattern" "$prd_file" 2>/dev/null; then
+                echo "$prd_file"
+                return
+            fi
+        done
+    fi
+}
+
 # Get PRD ID from JSON file
 get_prd_id() {
     local prd_file="$1"
@@ -1790,13 +1837,18 @@ display_iteration_summary() {
     local story_id="$2"
     local learned_before_file="$3"
 
-    local active_prd=$(get_active_prd)
+    # Find the PRD containing this story ID (not just the next active PRD)
+    local story_prd=$(find_prd_by_story_id "$story_id")
+    # Fall back to get_active_prd if story not found in any PRD
+    if [[ -z "$story_prd" ]]; then
+        story_prd=$(get_active_prd)
+    fi
     local story_title=""
     local commit_msg=""
     local progress_info=""
 
-    if [[ -n "$active_prd" ]]; then
-        story_title=$(get_story_title "$active_prd" "$story_id")
+    if [[ -n "$story_prd" ]]; then
+        story_title=$(get_story_title "$story_prd" "$story_id")
     fi
 
     commit_msg=$(get_latest_commit_message)
@@ -1816,8 +1868,8 @@ display_iteration_summary() {
     echo ""
 
     # Display acceptance criteria
-    if [[ -n "$active_prd" ]]; then
-        local criteria=$(get_story_acceptance_criteria "$active_prd" "$story_id")
+    if [[ -n "$story_prd" ]]; then
+        local criteria=$(get_story_acceptance_criteria "$story_prd" "$story_id")
         if [[ -n "$criteria" ]]; then
             echo -e "${YELLOW}Acceptance Criteria Accomplished:${NC}"
             echo "$criteria" | while read -r criterion; do
@@ -1841,11 +1893,11 @@ display_iteration_summary() {
     echo -e "${YELLOW}Progress:${NC} $complete of $total stories complete"
     echo ""
 
-    # Display fade status (story-level checkboxes for active PRD)
-    if [[ -n "$active_prd" ]]; then
+    # Display fade status (story-level checkboxes for the worked PRD)
+    if [[ -n "$story_prd" ]]; then
         echo -e "${YELLOW}Current PRD Status:${NC}"
         echo ""
-        display_prd_stories "$active_prd"
+        display_prd_stories "$story_prd"
         echo ""
     fi
 

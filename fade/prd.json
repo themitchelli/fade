@@ -17,7 +17,7 @@
         "Falls back to get_active_prd if story_id not found in any PRD"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
