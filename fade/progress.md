@@ -1175,3 +1175,18 @@ For blocked stories, use:
   - No regression test generation for quick tasks (no test logic in cmd_quick)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-006: Quick mode with YOLO (FEAT-009) - COMPLETE
+
+- Verified --yolo flag already implemented in cmd_quick (lines 2736-2738)
+- Flag parsing sets yolo_mode=true when --yolo is passed
+- Claude command selection (lines 2932-2935) matches cmd_run pattern exactly:
+  - Default: `claude_cmd="claude"` (normal permission model)
+  - With --yolo: `claude_cmd="claude --dangerously-skip-permissions"`
+- Display shows YOLO indicator when yolo_mode is true (line 2925)
+- All acceptance criteria satisfied by existing implementation (added during US-001):
+  - fade quick --yolo passes --dangerously-skip-permissions to Claude (verified lines 2934-2935)
+  - fade quick (without --yolo) uses normal permission model (verified line 2933)
+  - Behavior matches fade run --yolo pattern (identical code structure)
+- Files changed: fade/prds/FEAT-009-quick-mode.json (marked passes: true)
+- Tests: Code review verified identical pattern to cmd_run

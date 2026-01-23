@@ -82,7 +82,7 @@
         "Behavior matches fade run --yolo pattern"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
