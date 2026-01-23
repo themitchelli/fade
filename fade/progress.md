@@ -1190,3 +1190,16 @@ For blocked stories, use:
   - Behavior matches fade run --yolo pattern (identical code structure)
 - Files changed: fade/prds/FEAT-009-quick-mode.json (marked passes: true)
 - Tests: Code review verified identical pattern to cmd_run
+
+## 2026-01-23 - US-001: Create architecture.md standards file (ENH-001) - COMPLETE
+
+- Created fade/standards/architecture.md with 6 AWS Well-Architected Framework pillars
+- Sections: Operational Excellence, Security, Reliability, Performance, Cost, Sustainability
+- Each section contains guiding questions (not checklists) and practical applications
+- Generic framing with AWS Well-Architected cited as source
+- Includes cross-reference to api-security.md for API-specific security
+- 641 words, well under 1,500 token limit
+- Includes "When to Read This Standard" section
+- Quick Reference table summarizing core question for each pillar
+- Files changed: fade/standards/architecture.md (new)
+- Tests: Word count verified under limit

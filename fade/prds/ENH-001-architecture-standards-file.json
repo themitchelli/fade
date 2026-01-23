@@ -1,0 +1,61 @@
+{
+  "type": "enhancement",
+  "project": "fade",
+  "id": "ENH-001",
+  "name": "Architecture standards file",
+  "description": "Add an architecture.md standards file that prompts Claude to consider operational, security, reliability, performance, cost, and sustainability factors when making architectural decisions. Derived from AWS Well-Architected Framework principles but presented generically to apply to any project type (CLI tools, web apps, mobile, libraries - not just cloud deployments).",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create architecture.md standards file",
+      "description": "As a developer, I want architectural considerations documented as a standards file so Claude can reference them when making design decisions",
+      "acceptanceCriteria": [
+        "fade/standards/architecture.md exists",
+        "Contains 6 sections: Operational Excellence, Security, Reliability, Performance, Cost, Sustainability",
+        "Each section contains questions to consider, not checklists to fill",
+        "Generic framing (not AWS-branded) but cites AWS Well-Architected as source",
+        "Under 1,500 tokens to fit standards budget",
+        "Includes 'When to Read This Standard' section"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Add to prompt.md standards table",
+      "description": "As a developer, I want the architecture standard referenced in prompt.md so Claude knows when to read it",
+      "acceptanceCriteria": [
+        "prompt.md 'When to Read Standards' table includes architecture.md",
+        "Mapped to work types: system design, new services, infrastructure decisions",
+        "Follows existing table format"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Link from FADE.md",
+      "description": "As a developer, I want the architecture standard listed in FADE.md so it's discoverable",
+      "acceptanceCriteria": [
+        "FADE.md Standards table includes Architecture row",
+        "Description summarizes the 6 pillars",
+        "Link points to fade/standards/architecture.md"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "source": "AWS Well-Architected Framework (https://aws.amazon.com/architecture/well-architected/)",
+    "pillars": [
+      "Operational Excellence - deployability, observability, incident response",
+      "Security - identity, access control, data protection",
+      "Reliability - fault tolerance, recovery, scaling",
+      "Performance - right-sizing, bottlenecks, optimization",
+      "Cost - efficiency, waste reduction, scaling economics",
+      "Sustainability - utilization, environmental impact"
+    ],
+    "notIncluded": "PRD schema changes were considered but rejected as over-engineering. Use technicalNotes for PRD-specific architectural constraints."
+  }
+}
