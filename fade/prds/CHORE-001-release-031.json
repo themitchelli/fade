@@ -18,7 +18,7 @@
         "Note any undocumented functionality that needs coverage"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -33,7 +33,7 @@
         "Badges and links are valid"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -47,7 +47,7 @@
         "Strategic context sections are populated if applicable"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -61,7 +61,7 @@
         "Version stamp updated to 0.3.1"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -75,7 +75,7 @@
         "Version display in fade --version shows 0.3.1"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -89,7 +89,7 @@
         "fade help output matches documented commands"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

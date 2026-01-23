@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # FADE - Framework for Agentic Development and Engineering
-# v0.3.0 - Added 'fade yolo' command and --yolo flag for autonomous mode
+# v0.3.1 - Documentation update, fade map and export commands
 
 set -e
 
-FADE_VERSION="0.3.0"
-ARTIFACT_VERSION="0.3.0"
+FADE_VERSION="0.3.1"
+ARTIFACT_VERSION="0.3.1"
 
 # Colors for output
 RED='\033[0;31m'
@@ -2980,6 +2980,7 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   status        Show current work queue
+  export        Export FADE context to a single file for Claude web
   migrate       Move legacy FADE files into contained fade/ structure
   update        Update FADE CLI and prompt.md to latest versions from GitHub
   version       Show FADE version

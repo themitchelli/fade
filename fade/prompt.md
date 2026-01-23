@@ -1,4 +1,4 @@
-<!-- FADE prompt.md v0.3.0 -->
+<!-- FADE prompt.md v0.3.1 -->
 
 # FADE Execution Prompt
 
@@ -399,6 +399,8 @@ If blocked:
   ├── prompt.md     # Execution instructions
   ├── progress.md   # Session history (append-only)
   ├── learned.md    # Cumulative memory (append-only)
+  ├── standards/    # Coding standards documents
+  ├── tests/        # Regression tests
   ├── prd.json      # Priority PRD (optional)
   ├── prds/         # PRD queue
   └── prd-archive/  # Completed PRDs

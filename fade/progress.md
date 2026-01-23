@@ -925,3 +925,92 @@ For blocked stories, use:
   - README documents prd.json in folder table
 - Files changed: bin/fade-cli, README.md, fade/prds/BUG-004-test-generation-broken.json
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-001: Review recent changes (CHORE-001) - COMPLETE
+
+- Reviewed git log since v0.3.0 (50 commits)
+- Identified changes from completed PRDs:
+  - FEAT-008: fade map command (codebase analysis, architecture detection, dependency analysis, --init, fragile areas, gitignore)
+  - BUG-004: Test generation fix (--dangerously-skip-permissions, PRD copy to test folder)
+  - Previously: fade export, standards folder, regression testing, version tracking
+- Documentation gaps found:
+  - README missing fade map command documentation
+  - README missing fade export command documentation
+  - README version shows 0.3.0, needs 0.3.1
+- All PRDs in prd-archive have corresponding progress.md entries
+- Files changed: fade/progress.md
+- Tests: Manual verification of git log and archived PRDs
+
+## 2026-01-23 - US-002: Update README.md (CHORE-001) - COMPLETE
+
+- Updated version header from v0.3.0 to v0.3.1
+- Added `fade map` command documentation with all options (--init, --force) and detection features
+- Added `fade export` command documentation explaining what it exports
+- Added `fade version` command documentation with --all flag
+- Updated project structure to include standards/ and tests/ folders
+- Updated file reference table to include standards/*.md and tests/
+- Updated repository structure to include standards/ folder
+- Updated version manifest example to show 0.3.1
+- All acceptance criteria verified:
+  - README reflects all current commands (init, new, status, run, yolo, map, export, update, migrate, version)
+  - Installation instructions current
+  - Examples accurate
+  - Feature list matches implemented functionality
+- Files changed: README.md
+- Tests: Manual review of all updated sections
+
+## 2026-01-23 - US-003: Update FADE.md project context (CHORE-001) - COMPLETE
+
+- Rewrote FADE.md from template placeholder to actual project description
+- Added version stamp header: <!-- FADE FADE.md v0.3.1 -->
+- Updated Project Overview with actual description and tech stack (Bash, no framework, file-based)
+- Added Coding Standards section with Bash style guide and project conventions
+- Added Standards section linking to all 5 standards documents
+- Added Architecture References with CLI command overview diagram
+- Updated Key Documents table with actual file locations
+- Cleared Off-Limits Modules (none currently)
+- Updated Session Boundaries with FADE-specific actions
+- Updated System Context with current challenges and transition plan (v0.1.x through v0.4.x)
+- Added Active Work Items showing current queue
+- Added Development Environment with local dev and version bumping instructions
+- Added Additional Context noting FADE dogfoods itself
+- Added Target Architecture goals (simple shell, file-based, offline-capable)
+- Added Fragile Areas table identifying cmd_run(), templates, and detect_interruption()
+- Files changed: FADE.md
+- Tests: Content review verified all sections populated
+
+## 2026-01-23 - US-004: Update prompt.md execution protocol (CHORE-001) - COMPLETE
+
+- Updated version stamp from v0.3.0 to v0.3.1
+- Added standards/ and tests/ folders to Contained Structure file locations
+- Verified signal definitions match current implementation (STORY_DONE, ALL_COMPLETE, BLOCKED)
+- Verified story completion workflow is accurate (7 steps)
+- Verified test generation instructions are current (shell scripts, naming convention, SKIP files)
+- All examples reflect actual behavior
+- Files changed: fade/prompt.md
+- Tests: Content review verified all sections accurate
+
+## 2026-01-23 - US-005: Increment version numbers (CHORE-001) - COMPLETE
+
+- Updated FADE_VERSION in bin/fade-cli from 0.3.0 to 0.3.1
+- Updated ARTIFACT_VERSION in bin/fade-cli from 0.3.0 to 0.3.1
+- Updated version comment from "v0.3.0 - Added 'fade yolo'" to "v0.3.1 - Documentation update, fade map and export commands"
+- Updated VERSION file from 0.3.0 to 0.3.1
+- Updated version-manifest.json release and all artifact versions to 0.3.1
+- Verified fade version output shows v0.3.1
+- Verified bash syntax check passes
+- Note: README.md and FADE.md already updated to 0.3.1 in previous stories
+- Note: prompt.md already updated to 0.3.1 in US-004
+- Files changed: bin/fade-cli, VERSION, version-manifest.json
+- Tests: fade version shows v0.3.1, bash -n syntax check passed
+
+## 2026-01-23 - US-006: Verify documentation consistency (CHORE-001) - COMPLETE
+
+- Added `export` command to help text (was missing, now matches README)
+- Verified all 10 commands in help text match README sections (init, new, map, run, yolo, status, export, migrate, update, version)
+- Verified all 5 standards files exist and are linked from FADE.md
+- Verified help text shows v0.3.1
+- Verified bash syntax check passes after help text update
+- No deprecated or removed feature references found
+- Files changed: bin/fade-cli
+- Tests: fade help verified, bash -n syntax check passed

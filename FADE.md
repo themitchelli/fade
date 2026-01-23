@@ -1,4 +1,6 @@
-# Project Name
+<!-- FADE FADE.md v0.3.1 -->
+
+# FADE
 
 <!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
 
@@ -6,169 +8,142 @@
 
 ## Project Overview
 
-<!--
-Describe what this project does and its purpose. Include:
-- What problem does it solve?
-- Who are the users?
-- What's the current state (MVP, production, legacy)?
--->
-
-Brief description of this project.
+FADE (Framework for Agentic Development and Engineering) provides session memory, context management, and execution orchestration for AI coding agents like Claude Code. It solves the problem of starting every session with zero context by automatically loading project standards, progress history, and learnings from previous sessions.
 
 **Tech Stack:**
-- Language:
-- Framework:
-- Database:
+- Language: Bash (shell script)
+- Framework: None (standalone CLI)
+- Database: None (file-based state)
 
-**Repository:** [link]
+**Repository:** https://github.com/themitchelli/fade
 
 ---
 
 ## Coding Standards
 
-<!--
-Define how code should be written in this project. Link to external style guides
-rather than duplicating them. Include project-specific conventions that differ
-from or extend the standard guides.
--->
-
 ### Style Guides
 
-- **TypeScript:** [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)
-- **Python:** [PEP 8](https://peps.python.org/pep-0008/)
-- **API Design:** [JSON:API Specification](https://jsonapi.org/)
+- **Bash:** Follow [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
+- **Markdown:** Use standard GitHub-flavored markdown
 
 ### Project Conventions
 
-- Naming: `camelCase` for variables, `PascalCase` for components
-- Tests: Co-locate with source files as `*.test.ts`
+- Naming: `snake_case` for functions, `UPPER_CASE` for constants
+- Tests: Shell scripts in `fade/tests/` with exit code semantics
 - Commits: Conventional commits format (`feat:`, `fix:`, `chore:`)
+- Always run `bash -n bin/fade-cli` to syntax-check before committing
+
+---
+
+## Standards
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](fade/standards/api-security.md) | Authentication, authorization, input validation, secure error handling |
+| [Git](fade/standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
+| [Coding](fade/standards/coding.md) | Naming, formatting, error handling, code organization |
+| [Testing](fade/standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
+| [Documentation](fade/standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
 
 ---
 
 ## Architecture References
 
-<!--
-Document the high-level architecture and link to detailed design docs.
-Include diagrams, ADRs (Architecture Decision Records), or external references.
-This helps agents understand where new code should go and how components interact.
--->
-
 ### System Overview
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│   API       │────▶│  Database   │
-│   (React)   │     │  (Express)  │     │  (Postgres) │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                              fade-cli                                      │
+│                         (bin/fade-cli)                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  Commands:                                                                 │
+│  ├── init       Create FADE structure in a project                        │
+│  ├── new        Create new PRD files                                      │
+│  ├── map        Analyze codebase for FADE.md context                      │
+│  ├── run        Execute Claude Code with FADE context                     │
+│  ├── yolo       Run in autonomous mode (skip permissions)                 │
+│  ├── status     Show work queue                                           │
+│  ├── export     Export context for Claude web                             │
+│  ├── migrate    Move legacy files to contained structure                  │
+│  ├── update     Update CLI and templates                                  │
+│  └── version    Show version info                                         │
+│                                                                            │
+│  Context Files (per project):                                             │
+│  ├── FADE.md        Project context (human-curated)                       │
+│  ├── prompt.md      Execution protocol for Claude                         │
+│  ├── progress.md    Session history (append-only)                         │
+│  ├── learned.md     Discoveries (append-only)                             │
+│  ├── standards/     Coding standards documents                            │
+│  ├── prds/          PRD queue                                             │
+│  └── tests/         Regression tests                                      │
+│                                                                            │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Documents
 
 | Document | Location | Description |
 |----------|----------|-------------|
-| API Design | `docs/api.md` | REST endpoint specifications |
-| Data Model | `docs/schema.md` | Database schema and relationships |
-| Auth Flow | `docs/auth.md` | Authentication and authorization |
+| CLI Script | `bin/fade-cli` | Main executable (~5000 lines) |
+| Prompt Template | `fade/prompt.md` | Execution protocol embedded in context |
+| Version Manifest | `version-manifest.json` | Version tracking for updates |
 
 ---
 
 ## Off-Limits Modules
 
-<!--
-List modules, files, or directories that agents should NOT modify.
-Common reasons: legacy code pending rewrite, external vendor code,
-security-sensitive modules requiring human review, or code with
-complex implicit dependencies.
--->
-
 | Path | Reason | Contact |
 |------|--------|---------|
-| `src/legacy/` | Legacy code scheduled for rewrite in Q2 | @backend-team |
-| `src/auth/crypto.ts` | Security-critical, requires human review | @security |
-| `vendor/` | Third-party code, do not modify | n/a |
-
-**If you need to modify an off-limits module:** Stop and ask the human for guidance.
+| None currently | - | - |
 
 ---
 
 ## Session Boundaries
 
-<!--
-Define constraints for AI coding sessions. This helps agents understand
-what they can and cannot do, and when to ask for human input.
--->
-
 ### Allowed Actions
 
-- Create, modify, delete files in `src/`, `tests/`, `docs/`
-- Run tests and linters
-- Install dev dependencies
-- Create feature branches
+- Create, modify, delete files in `bin/`, `fade/`, `docs/`
+- Run bash syntax checks (`bash -n bin/fade-cli`)
+- Modify templates embedded in fade-cli
+- Update documentation (README.md, standards/)
 
 ### Requires Human Approval
 
-- Changes to CI/CD configuration (`.github/`, `Dockerfile`)
-- Database migrations
-- Changes to authentication or authorization logic
-- Dependency upgrades (major versions)
-- Deleting more than 5 files in one session
+- Changing the update mechanism (could break user installations)
+- Modifying version numbers (coordinated release)
+- Changes to signal detection logic (could break loop)
 
 ### Never Do
 
 - Push directly to `main` or `master`
-- Modify `.env` files or commit secrets
-- Run destructive database commands in production
-- Disable security features or linters
+- Commit broken syntax (always run `bash -n` first)
+- Remove backwards compatibility for legacy structure
 
 ---
 
 ## System Context
 
-<!--
-Provide awareness of where this work fits in the broader project landscape.
-This helps agents understand sequencing, dependencies, and what else is happening.
--->
-
 ### Current Challenges
 
-<!--
-What problems or constraints is the team currently dealing with?
-Examples: technical debt, scaling issues, team transitions, deadline pressure
--->
-
-- Challenge 1: description
-- Challenge 2: description
+- Test generation relies on Claude Code executing in non-interactive mode
+- Rate limiting can interrupt long PRD executions
 
 ### Transition Plan
 
-<!--
-If the project is undergoing a migration, refactor, or multi-phase initiative,
-document the phases here. Use status indicators:
-  - Link to doc (if detailed plan exists elsewhere)
-  - NOT WRITTEN (planned but not documented)
-  - ✅ COMPLETE (done)
-  - ← CURRENT (active phase)
--->
-
 | Phase | Description | Status |
 |-------|-------------|--------|
-| Phase 1 | Description | ✅ COMPLETE |
-| Phase 2 | Description | ← CURRENT |
-| Phase 3 | Description | NOT WRITTEN |
+| v0.1.x | Basic loop orchestration | ✅ COMPLETE |
+| v0.2.x | Contained structure, archives | ✅ COMPLETE |
+| v0.3.x | Standards, testing, codebase mapping | ✅ COMPLETE |
+| v0.4.x | NPM distribution, quick mode | ← PLANNED |
 
 ### Active Work Items
 
-<!--
-What else is in flight? This helps agents avoid conflicts and understand priorities.
-Include different work types: features, bugs, chores, spikes
-Format: [TYPE] Brief description - Owner/Status
--->
-
-- [FEATURE] Example feature being built - @developer / in progress
-- [BUG] Example bug being investigated - @developer / blocked
-- [CHORE] Example operational task - unassigned
-- [SPIKE] Example research/investigation - @developer / complete
+- [CHORE] Release 0.3.1 documentation update - in progress
+- [FEATURE] Quick mode for ad-hoc tasks - FEAT-009 / queued
+- [FEATURE] NPM distribution - FEAT-010 / queued
+- [FEATURE] Discovery phase - FEAT-011 / queued
 
 ---
 
@@ -176,49 +151,48 @@ Format: [TYPE] Brief description - Owner/Status
 
 ### Local Development
 
-- How to run locally
-- Required environment variables
-- Test commands
+```bash
+# Test changes
+bash -n bin/fade-cli  # Syntax check
 
-### Production/Deployment
+# Link for testing
+sudo ln -sf "$(pwd)/bin/fade-cli" /usr/local/bin/fade
 
-- Deployment process
-- Production environment details
+# Run help to verify
+fade help
+```
+
+### Version Bumping
+
+When releasing:
+1. Update `FADE_VERSION` in `bin/fade-cli`
+2. Update `ARTIFACT_VERSION` in `bin/fade-cli`
+3. Update version in `fade/prompt.md` header
+4. Update `version-manifest.json`
+5. Update `VERSION` file
 
 ---
 
 ## Additional Context
 
-<!--
-Add any other information that helps agents work effectively:
-- Known gotchas or quirks
-- Recent major changes
-- Upcoming planned changes that affect current work
--->
+- FADE dogfoods itself - this repo uses FADE for development
+- The `fade/` folder contains FADE's own context files
+- PRDs drive all feature development
 
 ---
 
 ## Target Architecture
 
-<!--
-Where we're heading. Bias toward these patterns in all work, even when
-the current PRD doesn't directly address them. Remove items when achieved.
--->
-
-- Example: Stateless JWT auth (moving away from sessions)
-- Example: All writes through service layer (no direct DB in routes)
-- Example: Config-driven values (no hardcoding)
+- Simple shell script (no Node.js, no Python runtime requirements)
+- File-based state (no database, no network storage)
+- Works offline (except for `fade update` which fetches from GitHub)
 
 ---
 
 ## Fragile Areas
 
-<!--
-Known problem spots. Exercise extra caution here - smaller commits, more
-verification, ask before major refactoring. Remove when cleaned up.
--->
-
 | Area | Why it's fragile |
 |------|------------------|
-| `example/path/` | Example: Changes cascade unpredictably |
-| `another/module.py` | Example: Looks simple, always takes 5x longer |
+| `cmd_run()` loop | Complex signal detection and restart logic |
+| Template strings | Heredocs with placeholders, easy to break quoting |
+| `detect_interruption()` | Pattern matching for various Claude error states |
