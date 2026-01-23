@@ -1,0 +1,96 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-010",
+  "name": "NPM Package Distribution",
+  "description": "Package FADE CLI as an NPM package for easier installation and updates. Instead of downloading a shell script manually, users can run 'npx fade-cli' or 'npm install -g fade-cli'. Inspired by GSD's 'npx get-shit-done-cc' which dramatically simplifies adoption.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "NPM package structure",
+      "description": "As a maintainer, I want FADE packaged as a valid NPM package so it can be published to npmjs.com",
+      "acceptanceCriteria": [
+        "package.json exists with name, version, description, bin, repository fields",
+        "Package name is 'fade-cli' (or similar available name)",
+        "bin field points to the fade shell script",
+        "files field includes only necessary files (bin/, prompts, templates)",
+        "License field matches LICENSE file"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "npx execution",
+      "description": "As a developer, I want to run 'npx fade-cli init' without installing anything globally",
+      "acceptanceCriteria": [
+        "npx fade-cli runs the CLI without global install",
+        "All fade commands work via npx (init, run, status, etc.)",
+        "First run downloads package, subsequent runs use cache",
+        "Works on macOS, Linux, and Windows (via WSL/Git Bash)"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Global installation",
+      "description": "As a developer, I want to install FADE globally so I can run 'fade' directly",
+      "acceptanceCriteria": [
+        "npm install -g fade-cli works",
+        "After install, 'fade' command is available in PATH",
+        "Global install doesn't conflict with local installs",
+        "Uninstall works: npm uninstall -g fade-cli"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Version management via npm",
+      "description": "As a developer, I want npm update to update FADE so I don't need 'fade update'",
+      "acceptanceCriteria": [
+        "npm update -g fade-cli updates to latest version",
+        "npx fade-cli@latest always runs latest version",
+        "Version in package.json matches FADE_VERSION in script",
+        "fade version shows npm package version"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Preserve fade update for artifacts",
+      "description": "As a developer, I want 'fade update' to still update prompt.md and standards even when using npm",
+      "acceptanceCriteria": [
+        "fade update still updates local prompt.md from latest template",
+        "fade update still syncs standards/ folder",
+        "fade update --check still works for artifact version checking",
+        "npm handles CLI binary, fade update handles project artifacts"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Documentation for npm installation",
+      "description": "As a new user, I want clear docs on how to install and use FADE via npm",
+      "acceptanceCriteria": [
+        "README.md has Installation section with npm commands",
+        "Shows both npx (no install) and global install options",
+        "Documents upgrade path: npx fade-cli@latest or npm update -g",
+        "Notes that fade update is still needed for project artifact updates"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "packageName": "Check npm registry for availability. Options: fade-cli, fade-dev, fade-framework",
+    "binWrapper": "May need a small node wrapper that calls the shell script, or convert entire CLI to node",
+    "windowsSupport": "Shell script works in Git Bash/WSL. Could add .cmd wrapper for native Windows later.",
+    "publishWorkflow": "Add GitHub Action to publish to npm on release tag",
+    "gsdComparison": "GSD uses npx get-shit-done-cc with interactive installer. FADE can start simpler - just the CLI, no installer wizard."
+  }
+}

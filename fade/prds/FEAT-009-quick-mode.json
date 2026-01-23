@@ -1,0 +1,93 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-009",
+  "name": "Quick Mode for Ad-Hoc Tasks",
+  "description": "Add 'fade quick' command for small tasks that don't warrant a full PRD. Maintains FADE guarantees (atomic commits, progress tracking) without PRD ceremony. Inspired by GSD's /gsd:quick which bypasses optional planning steps while maintaining quality guarantees.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Basic quick command",
+      "description": "As a developer, I want to run 'fade quick \"fix typo in README\"' to do small tasks without creating a PRD",
+      "acceptanceCriteria": [
+        "fade quick \"task description\" command exists",
+        "Launches Claude Code with task description as prompt",
+        "Does not require PRD file to exist",
+        "Works in both FADE-initialized and non-FADE projects",
+        "Documented in fade help"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Quick mode context injection",
+      "description": "As a developer, I want quick mode to still use FADE.md context so Claude understands my project",
+      "acceptanceCriteria": [
+        "If FADE.md exists, it's included in context",
+        "If standards/ folder exists, relevant standards are included",
+        "Context is minimal - just FADE.md and task, no PRD protocol",
+        "Quick mode prompt instructs single-task completion, not story workflow"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Atomic commit on completion",
+      "description": "As a developer, I want quick mode to create an atomic commit when done so my git history stays clean",
+      "acceptanceCriteria": [
+        "Quick mode prompt instructs Claude to commit changes when done",
+        "Commit message derived from task description",
+        "Uses conventional commit format (fix:, docs:, chore:, etc.)",
+        "Only commits if changes were made"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Quick task logging",
+      "description": "As a developer, I want quick tasks logged to progress.md so I have a record of ad-hoc work",
+      "acceptanceCriteria": [
+        "Quick mode prompt instructs appending to progress.md",
+        "Log format: '## YYYY-MM-DD HH:MM - QUICK: task description - COMPLETE'",
+        "Includes brief summary of what was done",
+        "If progress.md doesn't exist, skips logging (non-FADE project)"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Quick mode boundaries",
+      "description": "As a developer, I want quick mode to have sensible boundaries so it doesn't become a loophole for skipping planning",
+      "acceptanceCriteria": [
+        "Quick mode prompt limits scope to single-file or few-file changes",
+        "If task seems large, Claude should suggest creating a PRD instead",
+        "Quick mode does not run in loop (single execution)",
+        "No regression test generation for quick tasks"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Quick mode with YOLO",
+      "description": "As a developer, I want 'fade quick --yolo' to run without permission prompts for maximum speed",
+      "acceptanceCriteria": [
+        "fade quick --yolo passes --dangerously-skip-permissions to Claude",
+        "fade quick (without --yolo) uses normal permission model",
+        "Behavior matches fade run --yolo pattern"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "promptTemplate": "Minimal prompt: read FADE.md (if exists), do the task, commit with conventional format, log to progress.md (if exists), done.",
+    "noLoop": "Quick mode is single-shot. No STORY_DONE/ALL_COMPLETE signals. Claude just does the task and exits.",
+    "gsdComparison": "GSD's /gsd:quick has similar purpose. FADE's version is simpler - no phase tracking, just task + commit + log."
+  }
+}

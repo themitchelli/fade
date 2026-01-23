@@ -1,0 +1,102 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-008",
+  "name": "Codebase Mapping for Brownfield Projects",
+  "description": "Add 'fade map' command that analyzes an existing codebase and generates context for FADE.md. Critical for brownfield projects where developers are adding FADE to an existing repo. Inspired by GSD's /gsd:map-codebase which spawns agents to analyze stack, architecture, conventions, and concerns before planning.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Basic codebase analysis",
+      "description": "As a developer adding FADE to an existing project, I want to run 'fade map' to get an automated analysis of my codebase structure",
+      "acceptanceCriteria": [
+        "fade map command exists and is documented in help",
+        "Detects primary language(s) by file extension counts",
+        "Detects framework (React, Express, Django, etc.) from package.json/requirements.txt/etc",
+        "Identifies entry points (main.py, index.js, app.ts, etc.)",
+        "Lists top-level directory structure with brief descriptions",
+        "Output is formatted for easy copy-paste into FADE.md"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Architecture pattern detection",
+      "description": "As a developer, I want fade map to identify common architectural patterns so I understand how the codebase is organized",
+      "acceptanceCriteria": [
+        "Detects MVC/MVVM patterns from directory names (models/, views/, controllers/)",
+        "Detects API structure (routes/, api/, endpoints/)",
+        "Detects test organization (tests/, __tests__/, spec/)",
+        "Detects config patterns (config/, .env files, settings/)",
+        "Reports detected patterns with confidence level (certain/likely/possible)"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Dependency analysis",
+      "description": "As a developer, I want fade map to summarize my project's dependencies so FADE.md captures the tech stack",
+      "acceptanceCriteria": [
+        "Reads package.json (npm), requirements.txt/pyproject.toml (Python), Cargo.toml (Rust), go.mod (Go)",
+        "Categorizes dependencies: framework, database, testing, utilities",
+        "Highlights major dependencies (React, Express, Django, FastAPI, etc.)",
+        "Notes dev vs production dependencies where applicable",
+        "Output suitable for Tech Stack section of FADE.md"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Generate FADE.md draft",
+      "description": "As a developer, I want fade map to optionally generate a draft FADE.md pre-populated with discovered context",
+      "acceptanceCriteria": [
+        "fade map --init generates FADE.md if it doesn't exist",
+        "Populates Tech Stack section from dependency analysis",
+        "Populates Project Overview with detected framework/language",
+        "Populates Architecture References with detected patterns",
+        "Marks all generated content with <!-- AUTO-GENERATED --> comments",
+        "Warns user to review and customize auto-generated content",
+        "Does not overwrite existing FADE.md (use --force to override)"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Identify potential fragile areas",
+      "description": "As a developer, I want fade map to flag potential problem areas so I can populate the Fragile Areas section",
+      "acceptanceCriteria": [
+        "Flags files over 500 lines as potentially complex",
+        "Flags directories with many files (>20) as potentially tangled",
+        "Flags files with 'legacy', 'old', 'deprecated' in name/path",
+        "Flags files with many TODO/FIXME/HACK comments",
+        "Output formatted for Fragile Areas table in FADE.md"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Respect gitignore",
+      "description": "As a developer, I want fade map to respect .gitignore so it doesn't analyze node_modules, venv, build artifacts",
+      "acceptanceCriteria": [
+        "Reads .gitignore if present",
+        "Excludes gitignored paths from analysis",
+        "Also excludes common defaults: node_modules/, venv/, .git/, dist/, build/",
+        "Reports count of excluded paths for transparency"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "approach": "Use shell commands (find, wc, grep) for analysis rather than spawning Claude agents. Keep it fast and deterministic.",
+    "outputFormat": "Markdown sections ready for copy-paste or direct insertion into FADE.md",
+    "gsdComparison": "GSD uses parallel agents for mapping. FADE takes simpler approach with shell analysis - faster, no API costs, deterministic results.",
+    "futureEnhancement": "Could add --deep flag that uses Claude to analyze code semantics, but start with fast shell-based analysis"
+  }
+}

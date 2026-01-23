@@ -1,0 +1,86 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-012",
+  "name": "Context Isolation via Sub-Agents",
+  "description": "Experiment with spawning fresh Claude sessions for story execution to prevent context degradation. GSD's core insight is that Claude quality degrades as context fills ('context rot'). Their solution: each executor gets an isolated 200k-token window. This ENH explores whether FADE can benefit from similar isolation.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Research context rot in FADE sessions",
+      "description": "As a maintainer, I want to understand if/when context rot affects FADE sessions so we can decide if isolation is needed",
+      "acceptanceCriteria": [
+        "Document typical context size after N stories (measure with real PRDs)",
+        "Identify at what context size quality noticeably degrades",
+        "Compare output quality: story 1 vs story 5 vs story 10 in same session",
+        "Document findings in learned.md or spike output"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Design isolation architecture",
+      "description": "As a maintainer, I want a design doc for how sub-agent isolation would work in FADE",
+      "acceptanceCriteria": [
+        "Document how parent orchestrator would spawn child executors",
+        "Define what context each executor receives (PRD, FADE.md, relevant files)",
+        "Define how executor reports completion back to orchestrator",
+        "Address: how does learned.md propagate between sessions?",
+        "Address: how are git commits coordinated across executors?",
+        "Output is a design doc, not implementation"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Prototype isolated story execution",
+      "description": "As a maintainer, I want a minimal prototype of spawning a fresh Claude session per story",
+      "acceptanceCriteria": [
+        "fade run --isolated flag triggers new execution mode",
+        "Each story spawns: claude --print with story-specific context",
+        "Context includes: FADE.md, current story from PRD, relevant standards",
+        "Context excludes: progress.md history, previous story details",
+        "Prototype can execute single story, report success/failure"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Compare isolated vs continuous execution",
+      "description": "As a maintainer, I want to compare quality and speed of isolated vs continuous modes",
+      "acceptanceCriteria": [
+        "Run same PRD (5+ stories) in both modes",
+        "Measure: total time, token usage, output quality",
+        "Quality assessment: code correctness, test pass rate, style consistency",
+        "Document trade-offs: isolation overhead vs context rot prevention",
+        "Make recommendation: default mode, when to use each"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Learned.md synchronization",
+      "description": "As a developer using isolated mode, I want learnings from each story to be available to subsequent stories",
+      "acceptanceCriteria": [
+        "After each isolated story completes, orchestrator reads its learned.md additions",
+        "Learnings are injected into context for next story",
+        "Handles case where executor adds to learned.md mid-story",
+        "Learnings persist even if session is interrupted"
+      ],
+      "priority": 5,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "gsdApproach": "GSD spawns 'executors' with fresh 200k windows. They can run in parallel when tasks are independent.",
+    "fadeConstraint": "FADE is serial by design (one story at a time). Isolation benefits us for long PRDs, not parallelism.",
+    "implementation": "Could use claude --print with context file, or explore Claude Code's Task tool for sub-agents.",
+    "riskOfOverengineering": "This may not be needed if FADE's checkpoint-and-restart pattern already mitigates context rot. US-001 should determine if this is a real problem before building solutions.",
+    "spikeFirst": "Consider making this a SPIKE type PRD if US-001 reveals context rot isn't a significant issue."
+  }
+}
