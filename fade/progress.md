@@ -1096,3 +1096,13 @@ For blocked stories, use:
 - Comparison `[[ "$tests_generated" -gt 0 ]]` now works without syntax error
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-002: Add defensive numeric validation (BUG-006) - COMPLETE
+
+- Added regex validation before numeric comparison: `[[ "$tests_generated" =~ ^[0-9]+$ ]]`
+- If not numeric, defaults to 0 and logs warning to stderr
+- Warning message uses yellow color for visibility
+- This provides defense-in-depth: even if output leaks through US-001 fix, comparison won't fail
+- Pattern `^[0-9]+$` matches one or more digits (0, 1, 123, etc.)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

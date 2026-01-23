@@ -2606,6 +2606,14 @@ cmd_run() {
 
                 # Generate regression tests for completed PRDs (before archiving)
                 local tests_generated=$(generate_tests_for_completed_prds)
+
+                # Defensive validation: ensure tests_generated is numeric
+                # This prevents syntax errors if any output leaks into the variable
+                if ! [[ "$tests_generated" =~ ^[0-9]+$ ]]; then
+                    echo -e "${YELLOW}Warning: test generation returned non-numeric value, defaulting to 0${NC}" >&2
+                    tests_generated=0
+                fi
+
                 if [[ "$tests_generated" -gt 0 ]]; then
                     echo ""
                     echo -e "${GREEN}Generated tests for $tests_generated PRD(s)${NC}"
