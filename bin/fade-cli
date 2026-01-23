@@ -2706,6 +2706,19 @@ cmd_run() {
                     echo -e "  ${CYAN}No completed PRDs to archive${NC}"
                 fi
                 echo ""
+
+                # Check if there are more PRDs with incomplete work
+                local next_prd=$(get_active_prd)
+                if [[ -n "$next_prd" ]]; then
+                    local next_prd_name=$(get_prd_name "$next_prd")
+                    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+                    echo -e "${CYAN}More PRDs in queue. Continuing to: ${next_prd_name}${NC}"
+                    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+                    echo ""
+                    ((iteration++))
+                    sleep 2
+                    continue
+                fi
                 break
             fi
 
