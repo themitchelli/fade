@@ -1159,3 +1159,19 @@ For blocked stories, use:
 - All acceptance criteria satisfied by existing implementation (added during US-002/US-003)
 - Files changed: fade/prds/FEAT-009-quick-mode.json (marked passes: true)
 - Tests: Code review verified all criteria met
+
+## 2026-01-23 - US-005: Quick mode boundaries (FEAT-009) - COMPLETE
+
+- Enhanced quick mode prompt with explicit "Scope Limits" section
+- Added guidance: "Target: single file or a few closely related files"
+- Added explicit stop condition: "If changes span 3+ unrelated files, STOP and recommend creating a PRD"
+- Added prohibition: "No architectural changes, no new features with tests, no multi-step refactors"
+- Verified single execution: cmd_quick uses `exec` which replaces shell (no loop possible)
+- Verified no test generation: cmd_quick has no test generation logic, no signal detection
+- All acceptance criteria verified:
+  - Quick mode prompt limits scope to single-file or few-file changes (Scope Limits section)
+  - If task seems large, Claude suggests creating a PRD (explicit instruction in prompt)
+  - Quick mode does not run in loop (exec $claude_cmd is single execution)
+  - No regression test generation for quick tasks (no test logic in cmd_quick)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

@@ -70,7 +70,7 @@
         "No regression test generation for quick tasks"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

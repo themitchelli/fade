@@ -2781,9 +2781,16 @@ This is SINGLE-TASK mode, NOT story-based workflow:
 - Do NOT output STORY_DONE or ALL_COMPLETE signals
 - Do NOT follow the story completion protocol
 
+## Scope Limits
+
+Quick mode is for small, focused changes only:
+- Target: single file or a few closely related files
+- If changes span 3+ unrelated files, STOP and recommend: \"This task is too large for quick mode. Run 'fade new feature \"<name>\"' to create a PRD.\"
+- No architectural changes, no new features with tests, no multi-step refactors
+
 Steps:
 1. Complete the task described above
-2. Keep changes focused - if the task seems large (more than a few files), suggest creating a PRD instead
+2. Keep changes focused - if the task seems large, suggest creating a PRD instead
 3. If you made changes, commit them with a conventional commit message:
    - Derive the message from the task: \"$task_description\"
    - Choose the appropriate prefix: fix: (bug fix), feat: (new feature), docs: (documentation), chore: (maintenance), refactor: (code restructure)
