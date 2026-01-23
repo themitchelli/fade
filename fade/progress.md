@@ -1286,3 +1286,25 @@ For blocked stories, use:
 - All acceptance criteria satisfied by existing implementation (no code changes required)
 - Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
 - Tests: Code review verified all update functionality
+
+## 2026-01-23 - US-006: Documentation for npm installation (FEAT-010) - COMPLETE
+
+- Updated README.md Quick Start section to show npm/npx as primary installation method
+- Restructured Installation section with 3 options:
+  - Option 1: npx (No Install) - run without installing anything
+  - Option 2: Global Install (Recommended) - npm install -g fade-dev
+  - Option 3: Manual Installation - git clone and symlink (for development)
+- Added Upgrading section with commands for npm and manual users:
+  - npm users: `npm update -g fade-dev` or `npx fade-dev@latest`
+  - Manual users: `fade update`
+- Added "Updating Project Artifacts" section explaining separation:
+  - npm handles CLI binary updates
+  - fade update handles prompt.md, standards/, project templates
+  - Both user types should run `fade update` periodically
+- All acceptance criteria verified:
+  - README.md has Installation section with npm commands
+  - Shows both npx (no install) and global install options
+  - Documents upgrade path: npx fade-dev@latest or npm update -g
+  - Notes that fade update is still needed for project artifact updates
+- Files changed: README.md
+- Tests: Content review verified all sections accurately documented

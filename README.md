@@ -7,51 +7,105 @@ FADE provides session memory, context management, and execution orchestration fo
 ## Quick Start
 
 ```bash
-# 1. Clone the repo
-git clone https://github.com/themitchelli/fade.git
-cd fade
-
-# 2. Symlink to your PATH
-sudo ln -s "$(pwd)/bin/fade-cli" /usr/local/bin/fade
-
-# 3. Verify installation
-fade help
-
-# 4. Initialize FADE in your project
+# 1. Initialize FADE in your project (no install needed)
 cd /path/to/your/project
+npx fade-dev init
+
+# 2. Check your work queue
+npx fade-dev status
+
+# 3. Run Claude Code with FADE context
+npx fade-dev run
+```
+
+Or install globally for shorter commands:
+
+```bash
+npm install -g fade-dev
 fade init
-
-# 5. Check your work queue
 fade status
-
-# 6. Run Claude Code with FADE context
 fade run
 ```
 
 ## Installation
 
-### Option 1: Symlink (Recommended)
+### Option 1: npx (No Install)
+
+Run FADE without installing anything:
+
+```bash
+npx fade-dev init
+npx fade-dev status
+npx fade-dev run
+```
+
+The first run downloads the package; subsequent runs use the npm cache.
+
+### Option 2: Global Install (Recommended)
+
+Install once, use the shorter `fade` command everywhere:
+
+```bash
+npm install -g fade-dev
+```
+
+Verify installation:
+
+```bash
+fade help
+fade version
+```
+
+### Option 3: Manual Installation
+
+For development or if you prefer not to use npm:
 
 ```bash
 git clone https://github.com/themitchelli/fade.git
 sudo ln -s ~/path/to/fade/bin/fade-cli /usr/local/bin/fade
 ```
 
-### Option 2: Add to PATH
-
-Add to your `~/.zshrc` (or `~/.bashrc`):
+Or add to your `~/.zshrc` (or `~/.bashrc`):
 
 ```bash
 export PATH="$HOME/path/to/fade/bin:$PATH"
 ```
 
-Then reload: `source ~/.zshrc`
+### Upgrading
 
-### Verify Installation
+**npm users:**
 
 ```bash
-fade help
+# Global install: update to latest version
+npm update -g fade-dev
+
+# npx users: always get latest with @latest tag
+npx fade-dev@latest init
 ```
+
+**Manual install users:**
+
+```bash
+fade update
+```
+
+### Updating Project Artifacts
+
+The npm package includes the CLI binary. Project artifacts (`prompt.md`, `standards/`, etc.) are managed separately via `fade update`:
+
+```bash
+# Check if project artifacts need updates
+fade update --check
+
+# Update prompt.md and sync standards/
+fade update
+```
+
+This separation means:
+- **npm** handles CLI version updates
+- **fade update** handles project-level template updates
+
+Both npm users and manual install users should run `fade update` periodically to get the latest prompt templates and standards.
 
 ## Project Structure
 

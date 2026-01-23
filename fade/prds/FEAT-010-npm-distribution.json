@@ -83,7 +83,7 @@
         "Notes that fade update is still needed for project artifact updates"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
