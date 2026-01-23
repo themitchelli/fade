@@ -70,7 +70,7 @@
         "npm handles CLI binary, fade update handles project artifacts"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

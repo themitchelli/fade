@@ -1271,3 +1271,18 @@ For blocked stories, use:
 - All acceptance criteria are npm built-in behaviors, no code changes required
 - Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
 - Tests: Local package install verified version consistency
+
+## 2026-01-23 - US-005: Preserve fade update for artifacts (FEAT-010) - COMPLETE
+
+- Verified fade update command already handles project artifacts independently of CLI distribution method
+- Artifact updates verified in cmd_update() function (lines 3682-4481):
+  - prompt.md update: fetches from FADE_PROMPT_URL, compares, prompts user, writes new version (lines 4009-4107)
+  - standards/ sync: creates folder if missing, downloads standard files that don't exist (lines 4112-4161)
+  - --check mode: verifies CLI, FADE.md, prompt.md versions and content diffs (lines 3751-3931)
+- Separation between npm and fade update:
+  - npm package distributes CLI binary via `bin` field in package.json
+  - `fade update` handles prompt.md, standards/, project structure, FADE.md sections
+  - npm users: `npm update -g fade-dev` updates CLI, `fade update` updates project artifacts
+- All acceptance criteria satisfied by existing implementation (no code changes required)
+- Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
+- Tests: Code review verified all update functionality
