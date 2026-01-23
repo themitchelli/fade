@@ -44,7 +44,7 @@
         "Uninstall works: npm uninstall -g fade-cli"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

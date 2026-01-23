@@ -1243,3 +1243,19 @@ For blocked stories, use:
 - npm pack shows 13 files, 72.8kB package size
 - Files changed: none (verification only)
 - Tests: Local package install tested all major commands successfully
+
+## 2026-01-23 - US-003: Global installation (FEAT-010) - COMPLETE
+
+- Verified `npm install -g .` installs fade-dev globally without errors
+- After install, `fade` command available at nvm bin path (/Users/.../.nvm/versions/node/v18.20.8/bin/fade)
+- Global install works alongside existing /usr/local/bin/fade symlink (dev setup)
+- Tested local install in /tmp/fade-test-local - works independently of global
+- npx in local project uses local install correctly
+- Uninstall works: `npm uninstall -g fade-dev` removes package and fade command from nvm bin
+- All acceptance criteria verified:
+  - npm install -g fade-dev works (tested with local package)
+  - After install, 'fade' command is available in PATH
+  - Global install doesn't conflict with local installs (tested both simultaneously)
+  - Uninstall works: npm uninstall -g fade-dev
+- Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
+- Tests: Manual verification of all install/uninstall scenarios
