@@ -3902,6 +3902,14 @@ ${YELLOW}Status Options:${NC}
 ${YELLOW}Map Options:${NC}
   --init        Generate a draft FADE.md pre-populated with detected context
   --force       Overwrite existing FADE.md (requires --init)
+  --diagram     Generate C4 architecture diagram (all levels)
+  --diagram=LEVEL  Generate diagram to specified level:
+                   context   - System Context only
+                   container - System Context + Container
+                   component - All three levels (default)
+  --diagram-output=PATH  Output file path (default: architecture.html)
+  --diagram-title=NAME   Custom system name in diagram
+  --diagram-format=FMT   Output format: html (default) or mermaid
 
 ${YELLOW}Map Exclusions:${NC}
   fade map respects .gitignore patterns and excludes common directories:
@@ -3940,6 +3948,10 @@ ${YELLOW}Examples:${NC}
   fade map                               # Analyze codebase for FADE.md context
   fade map --init                        # Generate draft FADE.md from analysis
   fade map --init --force                # Overwrite existing FADE.md with fresh analysis
+  fade map --diagram                     # Generate C4 architecture.html diagram
+  fade map --diagram=context             # Generate System Context diagram only
+  fade map --diagram --diagram-title="My App"  # Custom system name
+  fade map --diagram-format=mermaid      # Export as .mmd files for docs
   fade new feature "User authentication" # Create a new feature PRD
   fade new bug "Login timeout"           # Create a new bug PRD
   fade new spike "Evaluate caching"      # Create spike PRD and branch
@@ -6601,9 +6613,997 @@ format_dependencies_summary() {
     fi
 }
 
+# ============================================================================
+# C4 DIAGRAM GENERATION
+# ============================================================================
+
+# Detect external systems from dependencies
+# Returns: system_name|type|interaction (one per line)
+# Types: database, queue, auth, storage, api, monitoring
+detect_external_systems() {
+    local deps="$1"
+    local systems=()
+
+    if [[ -z "$deps" ]]; then
+        return
+    fi
+
+    # Database systems
+    if echo "$deps" | grep -qiE 'pg|postgres|postgresql'; then
+        systems+=("PostgreSQL|database|reads from, writes to")
+    fi
+    if echo "$deps" | grep -qiE 'mysql|mysql2'; then
+        systems+=("MySQL|database|reads from, writes to")
+    fi
+    if echo "$deps" | grep -qiE 'mongodb|mongoose'; then
+        systems+=("MongoDB|database|reads from, writes to")
+    fi
+    if echo "$deps" | grep -qiE 'sqlite|sqlite3'; then
+        systems+=("SQLite|database|reads from, writes to")
+    fi
+    if echo "$deps" | grep -qiE 'prisma|@prisma'; then
+        # Prisma is an ORM, try to detect underlying DB
+        if ! echo "$deps" | grep -qiE 'pg|mysql|mongodb|sqlite'; then
+            systems+=("Database (via Prisma)|database|reads from, writes to")
+        fi
+    fi
+    if echo "$deps" | grep -qiE 'sequelize|typeorm|drizzle'; then
+        # ORMs without detected DB
+        if ! echo "$deps" | grep -qiE 'pg|mysql|mongodb|sqlite'; then
+            systems+=("Database (via ORM)|database|reads from, writes to")
+        fi
+    fi
+
+    # Message queues
+    if echo "$deps" | grep -qiE '\bredis\b|ioredis'; then
+        systems+=("Redis|queue|publishes to, subscribes from")
+    fi
+    if echo "$deps" | grep -qiE 'bull|bullmq'; then
+        if ! echo "$deps" | grep -qiE '\bredis\b|ioredis'; then
+            systems+=("Redis (via Bull)|queue|processes jobs from")
+        fi
+    fi
+    if echo "$deps" | grep -qiE 'amqplib|amqp'; then
+        systems+=("RabbitMQ|queue|publishes to, consumes from")
+    fi
+    if echo "$deps" | grep -qiE '@aws-sdk.*sqs|sqs'; then
+        systems+=("Amazon SQS|queue|sends to, receives from")
+    fi
+    if echo "$deps" | grep -qiE 'kafka|kafkajs'; then
+        systems+=("Apache Kafka|queue|produces to, consumes from")
+    fi
+
+    # Auth providers
+    if echo "$deps" | grep -qiE 'passport'; then
+        systems+=("Auth Provider (Passport)|auth|authenticates via")
+    fi
+    if echo "$deps" | grep -qiE 'auth0|@auth0'; then
+        systems+=("Auth0|auth|authenticates via")
+    fi
+    if echo "$deps" | grep -qiE 'firebase-admin|firebase'; then
+        systems+=("Firebase|auth|authenticates via")
+    fi
+    if echo "$deps" | grep -qiE 'jsonwebtoken|jwt'; then
+        # JWT alone doesn't imply external system
+        :
+    fi
+    if echo "$deps" | grep -qiE 'clerk|@clerk'; then
+        systems+=("Clerk|auth|authenticates via")
+    fi
+    if echo "$deps" | grep -qiE 'next-auth|@next-auth'; then
+        systems+=("NextAuth|auth|authenticates via")
+    fi
+
+    # Cloud storage
+    if echo "$deps" | grep -qiE 'aws-sdk|@aws-sdk.*s3'; then
+        systems+=("Amazon S3|storage|stores files in")
+    fi
+    if echo "$deps" | grep -qiE '@google-cloud/storage|gcs'; then
+        systems+=("Google Cloud Storage|storage|stores files in")
+    fi
+    if echo "$deps" | grep -qiE 'cloudinary'; then
+        systems+=("Cloudinary|storage|stores images in")
+    fi
+    if echo "$deps" | grep -qiE '@azure/storage-blob'; then
+        systems+=("Azure Blob Storage|storage|stores files in")
+    fi
+
+    # External APIs
+    if echo "$deps" | grep -qiE 'stripe|@stripe'; then
+        systems+=("Stripe|api|processes payments via")
+    fi
+    if echo "$deps" | grep -qiE 'twilio|@twilio'; then
+        systems+=("Twilio|api|sends messages via")
+    fi
+    if echo "$deps" | grep -qiE 'sendgrid|@sendgrid'; then
+        systems+=("SendGrid|api|sends emails via")
+    fi
+    if echo "$deps" | grep -qiE 'mailgun'; then
+        systems+=("Mailgun|api|sends emails via")
+    fi
+    if echo "$deps" | grep -qiE 'openai'; then
+        systems+=("OpenAI API|api|uses AI via")
+    fi
+    if echo "$deps" | grep -qiE '@anthropic'; then
+        systems+=("Anthropic API|api|uses AI via")
+    fi
+
+    # Monitoring/Observability
+    if echo "$deps" | grep -qiE '@sentry|sentry'; then
+        systems+=("Sentry|monitoring|reports errors to")
+    fi
+    if echo "$deps" | grep -qiE 'datadog|dd-trace'; then
+        systems+=("Datadog|monitoring|sends metrics to")
+    fi
+    if echo "$deps" | grep -qiE 'newrelic'; then
+        systems+=("New Relic|monitoring|sends telemetry to")
+    fi
+
+    # Output detected systems
+    for sys in "${systems[@]}"; do
+        echo "$sys"
+    done
+}
+
+# Infer users/actors from framework type
+# Returns: actor_name|description (one per line)
+detect_actors() {
+    local frameworks="$1"
+    local actors=()
+
+    # Default actor for any app
+    actors+=("User|End user of the application")
+
+    # Web apps typically have browser users
+    if echo "$frameworks" | grep -qiE 'react|vue|angular|svelte|next|nuxt|gatsby'; then
+        actors=("Web User|Uses the application via web browser")
+    fi
+
+    # CLI tools have command-line users
+    if echo "$frameworks" | grep -qiE 'commander|yargs|click|typer|clap|cobra'; then
+        actors=("CLI User|Uses the application via command line")
+    fi
+
+    # API servers typically have API consumers
+    if echo "$frameworks" | grep -qiE 'express|fastify|nestjs|django|flask|fastapi|rails|gin|actix|axum'; then
+        actors+=("API Consumer|External system consuming the API")
+    fi
+
+    # Mobile frameworks
+    if echo "$frameworks" | grep -qiE 'react-native|expo|flutter'; then
+        actors=("Mobile User|Uses the application via mobile device")
+    fi
+
+    # Output unique actors
+    printf '%s\n' "${actors[@]}" | sort -u
+}
+
+# Determine system type description from frameworks
+get_system_type() {
+    local frameworks="$1"
+
+    if echo "$frameworks" | grep -qiE 'next|nuxt|gatsby'; then
+        echo "Full-stack Web Application"
+    elif echo "$frameworks" | grep -qiE 'react|vue|angular|svelte'; then
+        echo "Single Page Application"
+    elif echo "$frameworks" | grep -qiE 'express|fastify|nestjs|django|flask|fastapi|rails|gin|actix|axum|spring'; then
+        echo "API Server"
+    elif echo "$frameworks" | grep -qiE 'electron'; then
+        echo "Desktop Application"
+    elif echo "$frameworks" | grep -qiE 'react-native|expo|flutter'; then
+        echo "Mobile Application"
+    elif echo "$frameworks" | grep -qiE 'commander|yargs|click|typer|clap|cobra'; then
+        echo "Command Line Tool"
+    else
+        echo "Software System"
+    fi
+}
+
+# Generate C4 System Context diagram in Mermaid format
+# Args: system_name, system_type, actors (newline-separated), external_systems (newline-separated)
+generate_c4_context_mermaid() {
+    local system_name="$1"
+    local system_type="$2"
+    local actors="$3"
+    local external_systems="$4"
+
+    local mermaid=""
+    mermaid+="C4Context"$'\n'
+    mermaid+="    title System Context diagram for $system_name"$'\n'
+    mermaid+=""$'\n'
+
+    # Add actors
+    local actor_id=0
+    while IFS='|' read -r actor_name actor_desc; do
+        [[ -z "$actor_name" ]] && continue
+        ((actor_id++))
+        local safe_id
+        safe_id=$(echo "$actor_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+        mermaid+="    Person(${safe_id}, \"$actor_name\", \"$actor_desc\")"$'\n'
+    done <<< "$actors"
+    mermaid+=""$'\n'
+
+    # Add the main system
+    local system_id
+    system_id=$(echo "$system_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+    mermaid+="    System(${system_id}, \"$system_name\", \"$system_type\")"$'\n'
+    mermaid+=""$'\n'
+
+    # Add external systems by type
+    local has_boundary=false
+    local current_boundary=""
+
+    while IFS='|' read -r ext_name ext_type ext_interaction; do
+        [[ -z "$ext_name" ]] && continue
+
+        local ext_id
+        ext_id=$(echo "$ext_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+
+        case "$ext_type" in
+            database)
+                mermaid+="    SystemDb(${ext_id}, \"$ext_name\", \"Database\")"$'\n'
+                ;;
+            queue)
+                mermaid+="    SystemQueue(${ext_id}, \"$ext_name\", \"Message Queue\")"$'\n'
+                ;;
+            *)
+                mermaid+="    System_Ext(${ext_id}, \"$ext_name\", \"External System\")"$'\n'
+                ;;
+        esac
+    done <<< "$external_systems"
+    mermaid+=""$'\n'
+
+    # Add relationships from actors to main system
+    actor_id=0
+    while IFS='|' read -r actor_name actor_desc; do
+        [[ -z "$actor_name" ]] && continue
+        ((actor_id++))
+        local safe_id
+        safe_id=$(echo "$actor_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+        mermaid+="    Rel(${safe_id}, ${system_id}, \"Uses\")"$'\n'
+    done <<< "$actors"
+
+    # Add relationships from main system to external systems
+    while IFS='|' read -r ext_name ext_type ext_interaction; do
+        [[ -z "$ext_name" ]] && continue
+        local ext_id
+        ext_id=$(echo "$ext_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+        mermaid+="    Rel(${system_id}, ${ext_id}, \"$ext_interaction\")"$'\n'
+    done <<< "$external_systems"
+
+    echo "$mermaid"
+}
+
+# Generate C4 Container diagram in Mermaid format
+# Args: system_name, frameworks, deps, dirs (detected directories)
+generate_c4_container_mermaid() {
+    local system_name="$1"
+    local frameworks="$2"
+    local deps="$3"
+    local dirs="$4"
+
+    local mermaid=""
+    mermaid+="C4Container"$'\n'
+    mermaid+="    title Container diagram for $system_name"$'\n'
+    mermaid+=""$'\n'
+
+    # Boundary for main system
+    local system_id
+    system_id=$(echo "$system_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+    mermaid+="    Container_Boundary(${system_id}_boundary, \"$system_name\") {"$'\n'
+
+    local containers=()
+    local container_techs=()
+
+    # Detect containers from framework/structure
+
+    # Web/Frontend container
+    if echo "$frameworks" | grep -qiE 'react|vue|angular|svelte'; then
+        local tech="JavaScript"
+        echo "$frameworks" | grep -qi 'react' && tech="React"
+        echo "$frameworks" | grep -qi 'vue' && tech="Vue.js"
+        echo "$frameworks" | grep -qi 'angular' && tech="Angular"
+        echo "$frameworks" | grep -qi 'svelte' && tech="Svelte"
+        containers+=("Web_App|Web Application|$tech|Delivers the user interface")
+    fi
+
+    # API/Backend container
+    if echo "$frameworks" | grep -qiE 'express|fastify|nestjs|koa|hapi'; then
+        local tech="Node.js"
+        echo "$frameworks" | grep -qi 'express' && tech="Express.js"
+        echo "$frameworks" | grep -qi 'fastify' && tech="Fastify"
+        echo "$frameworks" | grep -qi 'nestjs' && tech="NestJS"
+        containers+=("API_Server|API Server|$tech|Handles API requests")
+    fi
+
+    if echo "$frameworks" | grep -qiE 'django|flask|fastapi'; then
+        local tech="Python"
+        echo "$frameworks" | grep -qi 'django' && tech="Django"
+        echo "$frameworks" | grep -qi 'flask' && tech="Flask"
+        echo "$frameworks" | grep -qi 'fastapi' && tech="FastAPI"
+        containers+=("API_Server|API Server|$tech|Handles API requests")
+    fi
+
+    if echo "$frameworks" | grep -qiE 'rails|sinatra'; then
+        local tech="Ruby"
+        echo "$frameworks" | grep -qi 'rails' && tech="Ruby on Rails"
+        containers+=("API_Server|API Server|$tech|Handles API requests")
+    fi
+
+    if echo "$frameworks" | grep -qiE 'gin|echo|fiber|chi'; then
+        local tech="Go"
+        containers+=("API_Server|API Server|$tech|Handles API requests")
+    fi
+
+    if echo "$frameworks" | grep -qiE 'actix|axum|rocket'; then
+        local tech="Rust"
+        containers+=("API_Server|API Server|$tech|Handles API requests")
+    fi
+
+    # Full-stack frameworks
+    if echo "$frameworks" | grep -qiE 'next\.js|nextjs|next'; then
+        containers+=("Next_App|Next.js Application|Next.js|Full-stack web application with SSR")
+    fi
+
+    if echo "$frameworks" | grep -qiE 'nuxt'; then
+        containers+=("Nuxt_App|Nuxt.js Application|Nuxt.js|Full-stack web application with SSR")
+    fi
+
+    # Worker containers (detected from queue dependencies)
+    if echo "$deps" | grep -qiE 'bull|bullmq|celery|sidekiq|faktory'; then
+        containers+=("Worker|Background Worker|Job Queue|Processes background jobs")
+    fi
+
+    # CLI container
+    if echo "$frameworks" | grep -qiE 'commander|yargs|click|typer|clap|cobra'; then
+        containers+=("CLI|Command Line Interface|Shell|Provides CLI commands")
+    fi
+
+    # If no containers detected, add a generic one
+    if [[ ${#containers[@]} -eq 0 ]]; then
+        containers+=("App|Application|Various|Main application container")
+    fi
+
+    # Output containers
+    for container in "${containers[@]}"; do
+        IFS='|' read -r c_id c_name c_tech c_desc <<< "$container"
+        mermaid+="        Container(${c_id}, \"$c_name\", \"$c_tech\", \"$c_desc\")"$'\n'
+    done
+
+    mermaid+="    }"$'\n'
+    mermaid+=""$'\n'
+
+    # External systems (databases, queues, etc.)
+    local external_systems
+    external_systems=$(detect_external_systems "$deps")
+
+    while IFS='|' read -r ext_name ext_type ext_interaction; do
+        [[ -z "$ext_name" ]] && continue
+        local ext_id
+        ext_id=$(echo "$ext_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+
+        case "$ext_type" in
+            database)
+                mermaid+="    ContainerDb(${ext_id}, \"$ext_name\", \"Database\", \"Stores application data\")"$'\n'
+                ;;
+            queue)
+                mermaid+="    ContainerQueue(${ext_id}, \"$ext_name\", \"Message Queue\", \"Handles async messaging\")"$'\n'
+                ;;
+            *)
+                mermaid+="    System_Ext(${ext_id}, \"$ext_name\", \"External Service\")"$'\n'
+                ;;
+        esac
+    done <<< "$external_systems"
+    mermaid+=""$'\n'
+
+    # Add relationships
+    # First container talks to databases/queues
+    if [[ ${#containers[@]} -gt 0 ]]; then
+        local first_container_id
+        first_container_id=$(echo "${containers[0]}" | cut -d'|' -f1)
+
+        while IFS='|' read -r ext_name ext_type ext_interaction; do
+            [[ -z "$ext_name" ]] && continue
+            local ext_id
+            ext_id=$(echo "$ext_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+            mermaid+="    Rel(${first_container_id}, ${ext_id}, \"$ext_interaction\")"$'\n'
+        done <<< "$external_systems"
+    fi
+
+    echo "$mermaid"
+}
+
+# Generate C4 Component diagram in Mermaid format
+# Args: system_name, dirs (directory structure), arch_patterns
+generate_c4_component_mermaid() {
+    local system_name="$1"
+    local dirs="$2"
+    local arch_patterns="$3"
+
+    local mermaid=""
+    mermaid+="C4Component"$'\n'
+    mermaid+="    title Component diagram for $system_name"$'\n'
+    mermaid+=""$'\n'
+
+    local system_id
+    system_id=$(echo "$system_name" | tr ' ' '_' | tr -cd '[:alnum:]_')
+    mermaid+="    Container_Boundary(${system_id}_container, \"Application\") {"$'\n'
+
+    local components=()
+    local layer_presentation=()
+    local layer_business=()
+    local layer_data=()
+
+    # Scan for actual directories recursively (max depth 3)
+    local all_dirs
+    all_dirs=$(find . -maxdepth 3 -type d 2>/dev/null | grep -v '^\.$' | grep -v 'node_modules\|\.git\|__pycache__\|\.venv\|venv\|dist\|build' | xargs -I{} basename {} 2>/dev/null | sort -u)
+
+    # Detect components from directory structure
+    # Presentation layer
+    if echo "$all_dirs" | grep -qiE '^(routes|api|endpoints|handlers|controllers|views|pages|components)$'; then
+        if echo "$all_dirs" | grep -qi '^routes$'; then
+            layer_presentation+=("Routes|Routes|Handles HTTP routing")
+        fi
+        if echo "$all_dirs" | grep -qi '^controllers$'; then
+            layer_presentation+=("Controllers|Controllers|Handles request/response")
+        fi
+        if echo "$all_dirs" | grep -qi '^handlers$'; then
+            layer_presentation+=("Handlers|Handlers|Handles incoming requests")
+        fi
+        if echo "$all_dirs" | grep -qi '^views$'; then
+            layer_presentation+=("Views|Views|Renders UI templates")
+        fi
+        if echo "$all_dirs" | grep -qi '^pages$'; then
+            layer_presentation+=("Pages|Pages|Page-level components")
+        fi
+        if echo "$all_dirs" | grep -qi '^components$'; then
+            layer_presentation+=("UI_Components|UI Components|Reusable UI components")
+        fi
+    fi
+
+    # Business layer
+    if echo "$all_dirs" | grep -qiE '^(services|business|domain|usecases|core)$'; then
+        if echo "$all_dirs" | grep -qi '^services$'; then
+            layer_business+=("Services|Services|Business logic and orchestration")
+        fi
+        if echo "$all_dirs" | grep -qi '^domain$'; then
+            layer_business+=("Domain|Domain|Core business rules")
+        fi
+        if echo "$all_dirs" | grep -qi '^usecases$'; then
+            layer_business+=("UseCases|Use Cases|Application use cases")
+        fi
+    fi
+
+    # Data layer
+    if echo "$all_dirs" | grep -qiE '^(models|entities|repositories|dal|data)$'; then
+        if echo "$all_dirs" | grep -qi '^models$'; then
+            layer_data+=("Models|Models|Data models and schemas")
+        fi
+        if echo "$all_dirs" | grep -qi '^entities$'; then
+            layer_data+=("Entities|Entities|Domain entities")
+        fi
+        if echo "$all_dirs" | grep -qi '^repositories$'; then
+            layer_data+=("Repositories|Repositories|Data access abstraction")
+        fi
+    fi
+
+    # Utilities/Infrastructure
+    local layer_infra=()
+    if echo "$all_dirs" | grep -qiE '^(utils|lib|helpers|common|shared|middleware|config)$'; then
+        if echo "$all_dirs" | grep -qi '^middleware$'; then
+            layer_infra+=("Middleware|Middleware|Request/response middleware")
+        fi
+        if echo "$all_dirs" | grep -qi '^utils$'; then
+            layer_infra+=("Utils|Utilities|Shared utility functions")
+        fi
+        if echo "$all_dirs" | grep -qi '^config$'; then
+            layer_infra+=("Config|Configuration|Application configuration")
+        fi
+    fi
+
+    # Output presentation layer
+    if [[ ${#layer_presentation[@]} -gt 0 ]]; then
+        mermaid+="        %% Presentation Layer"$'\n'
+        for comp in "${layer_presentation[@]}"; do
+            IFS='|' read -r c_id c_name c_desc <<< "$comp"
+            mermaid+="        Component(${c_id}, \"$c_name\", \"\", \"$c_desc\")"$'\n'
+        done
+        mermaid+=""$'\n'
+    fi
+
+    # Output business layer
+    if [[ ${#layer_business[@]} -gt 0 ]]; then
+        mermaid+="        %% Business Layer"$'\n'
+        for comp in "${layer_business[@]}"; do
+            IFS='|' read -r c_id c_name c_desc <<< "$comp"
+            mermaid+="        Component(${c_id}, \"$c_name\", \"\", \"$c_desc\")"$'\n'
+        done
+        mermaid+=""$'\n'
+    fi
+
+    # Output data layer
+    if [[ ${#layer_data[@]} -gt 0 ]]; then
+        mermaid+="        %% Data Layer"$'\n'
+        for comp in "${layer_data[@]}"; do
+            IFS='|' read -r c_id c_name c_desc <<< "$comp"
+            mermaid+="        Component(${c_id}, \"$c_name\", \"\", \"$c_desc\")"$'\n'
+        done
+        mermaid+=""$'\n'
+    fi
+
+    # Output infrastructure layer
+    if [[ ${#layer_infra[@]} -gt 0 ]]; then
+        mermaid+="        %% Infrastructure Layer"$'\n'
+        for comp in "${layer_infra[@]}"; do
+            IFS='|' read -r c_id c_name c_desc <<< "$comp"
+            mermaid+="        Component(${c_id}, \"$c_name\", \"\", \"$c_desc\")"$'\n'
+        done
+        mermaid+=""$'\n'
+    fi
+
+    # If no components detected, add generic ones
+    if [[ ${#layer_presentation[@]} -eq 0 ]] && [[ ${#layer_business[@]} -eq 0 ]] && [[ ${#layer_data[@]} -eq 0 ]]; then
+        mermaid+="        Component(Main, \"Main\", \"\", \"Main application logic\")"$'\n'
+    fi
+
+    mermaid+="    }"$'\n'
+    mermaid+=""$'\n'
+
+    # Add relationships between layers
+    # Presentation -> Business
+    if [[ ${#layer_presentation[@]} -gt 0 ]] && [[ ${#layer_business[@]} -gt 0 ]]; then
+        local pres_id
+        pres_id=$(echo "${layer_presentation[0]}" | cut -d'|' -f1)
+        local bus_id
+        bus_id=$(echo "${layer_business[0]}" | cut -d'|' -f1)
+        mermaid+="    Rel(${pres_id}, ${bus_id}, \"Uses\")"$'\n'
+    fi
+
+    # Business -> Data
+    if [[ ${#layer_business[@]} -gt 0 ]] && [[ ${#layer_data[@]} -gt 0 ]]; then
+        local bus_id
+        bus_id=$(echo "${layer_business[0]}" | cut -d'|' -f1)
+        local data_id
+        data_id=$(echo "${layer_data[0]}" | cut -d'|' -f1)
+        mermaid+="    Rel(${bus_id}, ${data_id}, \"Uses\")"$'\n'
+    fi
+
+    # Presentation -> Data (if no business layer)
+    if [[ ${#layer_presentation[@]} -gt 0 ]] && [[ ${#layer_business[@]} -eq 0 ]] && [[ ${#layer_data[@]} -gt 0 ]]; then
+        local pres_id
+        pres_id=$(echo "${layer_presentation[0]}" | cut -d'|' -f1)
+        local data_id
+        data_id=$(echo "${layer_data[0]}" | cut -d'|' -f1)
+        mermaid+="    Rel(${pres_id}, ${data_id}, \"Uses\")"$'\n'
+    fi
+
+    echo "$mermaid"
+}
+
+# Generate self-contained HTML file with C4 diagrams
+# Args: output_file, system_name, context_mermaid, container_mermaid, component_mermaid, diagram_level
+generate_c4_html() {
+    local output_file="$1"
+    local system_name="$2"
+    local context_mermaid="$3"
+    local container_mermaid="$4"
+    local component_mermaid="$5"
+    local diagram_level="${6:-component}"
+
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+
+    cat > "$output_file" << 'HTMLEOF'
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>C4 Architecture Diagram - SYSTEM_NAME_PLACEHOLDER</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #333333;
+            --border-color: #e0e0e0;
+            --tab-bg: #f5f5f5;
+            --tab-active-bg: #ffffff;
+            --tab-hover-bg: #e8e8e8;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #1e1e1e;
+            --text-color: #e0e0e0;
+            --border-color: #444444;
+            --tab-bg: #2d2d2d;
+            --tab-active-bg: #1e1e1e;
+            --tab-hover-bg: #3d3d3d;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 1.5em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        button {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--tab-bg);
+            color: var(--text-color);
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background: var(--tab-hover-bg);
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            border: none;
+            background: var(--tab-bg);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            font-size: 14px;
+            color: var(--text-color);
+            transition: all 0.2s;
+        }
+
+        .tab:hover {
+            background: var(--tab-hover-bg);
+        }
+
+        .tab.active {
+            background: var(--tab-active-bg);
+            border-bottom-color: #4a90d9;
+            font-weight: 500;
+        }
+
+        .diagram-container {
+            display: none;
+            min-height: 400px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 20px;
+            position: relative;
+        }
+
+        .diagram-container.active {
+            display: block;
+        }
+
+        .diagram-wrapper {
+            transform-origin: top left;
+            transition: transform 0.1s ease-out;
+        }
+
+        .zoom-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            background: var(--bg-color);
+            padding: 5px;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            z-index: 10;
+        }
+
+        .zoom-controls button {
+            width: 32px;
+            height: 32px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .footer {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            font-size: 12px;
+            color: #888;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .mermaid {
+            text-align: center;
+        }
+
+        /* Dark mode for Mermaid diagrams */
+        [data-theme="dark"] .mermaid {
+            filter: invert(0.9) hue-rotate(180deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>SYSTEM_NAME_PLACEHOLDER - C4 Architecture</h1>
+        <div class="controls">
+            <button onclick="toggleTheme()" id="themeBtn">🌙 Dark Mode</button>
+            <button onclick="exportPNG()">📷 Export PNG</button>
+        </div>
+    </div>
+
+    <div class="tabs">
+        <button class="tab active" onclick="showTab('context')">System Context</button>
+        <!-- CONTAINER_TAB_PLACEHOLDER -->
+        <!-- COMPONENT_TAB_PLACEHOLDER -->
+    </div>
+
+    <div id="context" class="diagram-container active">
+        <div class="zoom-controls">
+            <button onclick="zoomIn('context')">+</button>
+            <button onclick="zoomOut('context')">−</button>
+            <button onclick="resetZoom('context')">⟲</button>
+        </div>
+        <div class="diagram-wrapper" id="context-wrapper">
+            <div class="mermaid" id="context-diagram">
+CONTEXT_MERMAID_PLACEHOLDER
+            </div>
+        </div>
+    </div>
+
+    <!-- CONTAINER_DIAGRAM_PLACEHOLDER -->
+
+    <!-- COMPONENT_DIAGRAM_PLACEHOLDER -->
+
+    <div class="footer">
+        <span>Generated by FADE vFADE_VERSION_PLACEHOLDER</span>
+        <span>TIMESTAMP_PLACEHOLDER</span>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: true,
+            theme: 'default',
+            securityLevel: 'loose',
+            c4: {
+                useMaxWidth: true
+            }
+        });
+
+        // Zoom state for each diagram
+        const zoomState = {
+            context: 1,
+            container: 1,
+            component: 1
+        };
+
+        function showTab(tabName) {
+            // Hide all containers
+            document.querySelectorAll('.diagram-container').forEach(c => {
+                c.classList.remove('active');
+            });
+            // Deactivate all tabs
+            document.querySelectorAll('.tab').forEach(t => {
+                t.classList.remove('active');
+            });
+            // Show selected container
+            document.getElementById(tabName).classList.add('active');
+            // Activate selected tab
+            event.target.classList.add('active');
+        }
+
+        function zoomIn(id) {
+            zoomState[id] = Math.min(zoomState[id] + 0.1, 2);
+            applyZoom(id);
+        }
+
+        function zoomOut(id) {
+            zoomState[id] = Math.max(zoomState[id] - 0.1, 0.5);
+            applyZoom(id);
+        }
+
+        function resetZoom(id) {
+            zoomState[id] = 1;
+            applyZoom(id);
+        }
+
+        function applyZoom(id) {
+            const wrapper = document.getElementById(id + '-wrapper');
+            if (wrapper) {
+                wrapper.style.transform = `scale(${zoomState[id]})`;
+            }
+        }
+
+        function toggleTheme() {
+            const body = document.body;
+            const btn = document.getElementById('themeBtn');
+            if (body.getAttribute('data-theme') === 'dark') {
+                body.removeAttribute('data-theme');
+                btn.textContent = '🌙 Dark Mode';
+            } else {
+                body.setAttribute('data-theme', 'dark');
+                btn.textContent = '☀️ Light Mode';
+            }
+        }
+
+        function exportPNG() {
+            const activeContainer = document.querySelector('.diagram-container.active');
+            const svg = activeContainer.querySelector('svg');
+            if (!svg) {
+                alert('Diagram not ready yet. Please wait for it to render.');
+                return;
+            }
+
+            // Create canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const svgData = new XMLSerializer().serializeToString(svg);
+            const img = new Image();
+
+            // Set canvas size
+            const bbox = svg.getBoundingClientRect();
+            canvas.width = bbox.width * 2;
+            canvas.height = bbox.height * 2;
+            ctx.scale(2, 2);
+            ctx.fillStyle = 'white';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            img.onload = function() {
+                ctx.drawImage(img, 0, 0);
+                const link = document.createElement('a');
+                link.download = 'c4-diagram.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            };
+
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+        }
+    </script>
+</body>
+</html>
+HTMLEOF
+
+    # Replace simple placeholders
+    sed -i.bak "s/SYSTEM_NAME_PLACEHOLDER/$system_name/g" "$output_file"
+    sed -i.bak "s/FADE_VERSION_PLACEHOLDER/$FADE_VERSION/g" "$output_file"
+    sed -i.bak "s/TIMESTAMP_PLACEHOLDER/$timestamp/g" "$output_file"
+
+    # Write mermaid content to temporary files for reliable replacement
+    local context_tmp="${output_file}.context.tmp"
+    local container_tmp="${output_file}.container.tmp"
+    local component_tmp="${output_file}.component.tmp"
+
+    echo "$context_mermaid" > "$context_tmp"
+
+    # Replace CONTEXT_MERMAID_PLACEHOLDER using file-based approach
+    local temp_file="${output_file}.tmp"
+    while IFS= read -r line; do
+        if [[ "$line" == *"CONTEXT_MERMAID_PLACEHOLDER"* ]]; then
+            cat "$context_tmp"
+        else
+            echo "$line"
+        fi
+    done < "$output_file" > "$temp_file"
+    mv "$temp_file" "$output_file"
+    rm -f "$context_tmp"
+
+    # Add container tab and diagram if needed
+    if [[ "$diagram_level" == "container" ]] || [[ "$diagram_level" == "component" ]]; then
+        sed -i.bak 's/<!-- CONTAINER_TAB_PLACEHOLDER -->/<button class="tab" onclick="showTab('\''container'\'')">Container<\/button>/' "$output_file"
+
+        # Build container HTML content
+        {
+            echo '<div id="container" class="diagram-container">'
+            echo '        <div class="zoom-controls">'
+            echo "            <button onclick=\"zoomIn('container')\">+</button>"
+            echo "            <button onclick=\"zoomOut('container')\">−</button>"
+            echo "            <button onclick=\"resetZoom('container')\">⟲</button>"
+            echo '        </div>'
+            echo '        <div class="diagram-wrapper" id="container-wrapper">'
+            echo '            <div class="mermaid" id="container-diagram">'
+            echo "$container_mermaid"
+            echo '            </div>'
+            echo '        </div>'
+            echo '    </div>'
+        } > "$container_tmp"
+
+        # Replace placeholder
+        while IFS= read -r line; do
+            if [[ "$line" == *"<!-- CONTAINER_DIAGRAM_PLACEHOLDER -->"* ]]; then
+                cat "$container_tmp"
+            else
+                echo "$line"
+            fi
+        done < "$output_file" > "$temp_file"
+        mv "$temp_file" "$output_file"
+        rm -f "$container_tmp"
+    else
+        sed -i.bak 's/<!-- CONTAINER_TAB_PLACEHOLDER -->//' "$output_file"
+        sed -i.bak 's/<!-- CONTAINER_DIAGRAM_PLACEHOLDER -->//' "$output_file"
+    fi
+
+    # Add component tab and diagram if needed
+    if [[ "$diagram_level" == "component" ]]; then
+        sed -i.bak 's/<!-- COMPONENT_TAB_PLACEHOLDER -->/<button class="tab" onclick="showTab('\''component'\'')">Component<\/button>/' "$output_file"
+
+        # Build component HTML content
+        {
+            echo '<div id="component" class="diagram-container">'
+            echo '        <div class="zoom-controls">'
+            echo "            <button onclick=\"zoomIn('component')\">+</button>"
+            echo "            <button onclick=\"zoomOut('component')\">−</button>"
+            echo "            <button onclick=\"resetZoom('component')\">⟲</button>"
+            echo '        </div>'
+            echo '        <div class="diagram-wrapper" id="component-wrapper">'
+            echo '            <div class="mermaid" id="component-diagram">'
+            echo "$component_mermaid"
+            echo '            </div>'
+            echo '        </div>'
+            echo '    </div>'
+        } > "$component_tmp"
+
+        # Replace placeholder
+        while IFS= read -r line; do
+            if [[ "$line" == *"<!-- COMPONENT_DIAGRAM_PLACEHOLDER -->"* ]]; then
+                cat "$component_tmp"
+            else
+                echo "$line"
+            fi
+        done < "$output_file" > "$temp_file"
+        mv "$temp_file" "$output_file"
+        rm -f "$component_tmp"
+    else
+        sed -i.bak 's/<!-- COMPONENT_TAB_PLACEHOLDER -->//' "$output_file"
+        sed -i.bak 's/<!-- COMPONENT_DIAGRAM_PLACEHOLDER -->//' "$output_file"
+    fi
+
+    # Clean up backup files
+    rm -f "${output_file}.bak"
+}
+
 cmd_map() {
     local init_mode=false
     local force_mode=false
+    local diagram_mode=false
+    local diagram_level="component"
+    local diagram_output="architecture.html"
+    local diagram_title=""
+    local diagram_format="html"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -6616,9 +7616,40 @@ cmd_map() {
                 force_mode=true
                 shift
                 ;;
+            --diagram)
+                diagram_mode=true
+                shift
+                ;;
+            --diagram=*)
+                diagram_mode=true
+                diagram_level="${1#--diagram=}"
+                if [[ ! "$diagram_level" =~ ^(context|container|component)$ ]]; then
+                    echo -e "${RED}Invalid diagram level: $diagram_level${NC}"
+                    echo "Valid levels: context, container, component"
+                    return 1
+                fi
+                shift
+                ;;
+            --diagram-output=*)
+                diagram_output="${1#--diagram-output=}"
+                shift
+                ;;
+            --diagram-title=*)
+                diagram_title="${1#--diagram-title=}"
+                shift
+                ;;
+            --diagram-format=*)
+                diagram_format="${1#--diagram-format=}"
+                if [[ ! "$diagram_format" =~ ^(html|mermaid)$ ]]; then
+                    echo -e "${RED}Invalid diagram format: $diagram_format${NC}"
+                    echo "Valid formats: html, mermaid"
+                    return 1
+                fi
+                shift
+                ;;
             *)
                 echo -e "${RED}Unknown option: $1${NC}"
-                echo "Usage: fade map [--init] [--force]"
+                echo "Usage: fade map [--init] [--force] [--diagram[=level]] [--diagram-output=PATH] [--diagram-title=NAME] [--diagram-format=FORMAT]"
                 return 1
                 ;;
         esac
@@ -6938,6 +7969,128 @@ cmd_map() {
 
     echo '```'
     echo ""
+
+    # =========================================================================
+    # DIAGRAM GENERATION (--diagram mode)
+    # =========================================================================
+    if [[ "$diagram_mode" == true ]]; then
+        echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+        echo -e "${CYAN}Generating C4 Architecture Diagram...${NC}"
+        echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+        echo ""
+
+        # Determine system name
+        local system_name
+        if [[ -n "$diagram_title" ]]; then
+            system_name="$diagram_title"
+        elif [[ -f "package.json" ]]; then
+            system_name=$(grep -m1 '"name"' package.json 2>/dev/null | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+        elif [[ -f "Cargo.toml" ]]; then
+            system_name=$(grep -m1 '^name' Cargo.toml 2>/dev/null | sed 's/.*=[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+        elif [[ -f "pyproject.toml" ]]; then
+            system_name=$(grep -m1 'name' pyproject.toml 2>/dev/null | sed 's/.*=[[:space:]]*"\([^"]*\)".*/\1/' | head -1)
+        fi
+        if [[ -z "$system_name" ]]; then
+            system_name=$(basename "$(pwd)")
+        fi
+        echo "System name: $system_name"
+
+        # Detect system type and actors
+        local system_type
+        system_type=$(get_system_type "$frameworks")
+        echo "System type: $system_type"
+
+        local actors
+        actors=$(detect_actors "$frameworks")
+        echo "Actors detected: $(echo "$actors" | wc -l | tr -d ' ')"
+
+        # Detect external systems
+        local external_systems
+        external_systems=$(detect_external_systems "$deps")
+        local ext_count
+        ext_count=$(echo "$external_systems" | grep -c '|' 2>/dev/null || echo "0")
+        echo "External systems detected: $ext_count"
+        echo ""
+
+        # Generate Mermaid diagrams
+        local context_mermaid=""
+        local container_mermaid=""
+        local component_mermaid=""
+
+        # Always generate context diagram
+        context_mermaid=$(generate_c4_context_mermaid "$system_name" "$system_type" "$actors" "$external_systems")
+
+        # Generate container diagram if level is container or component
+        if [[ "$diagram_level" == "container" ]] || [[ "$diagram_level" == "component" ]]; then
+            container_mermaid=$(generate_c4_container_mermaid "$system_name" "$frameworks" "$deps" "$dirs")
+        fi
+
+        # Generate component diagram if level is component
+        if [[ "$diagram_level" == "component" ]]; then
+            component_mermaid=$(generate_c4_component_mermaid "$system_name" "$dirs" "$arch_patterns")
+        fi
+
+        # Output based on format
+        if [[ "$diagram_format" == "mermaid" ]]; then
+            # Output .mmd files
+            local base_name
+            base_name="${diagram_output%.html}"
+            base_name="${base_name%.mmd}"
+
+            # Context diagram
+            echo "# C4 System Context Diagram" > "${base_name}_context.mmd"
+            echo "# Generated by FADE v$FADE_VERSION on $(date '+%Y-%m-%d %H:%M:%S')" >> "${base_name}_context.mmd"
+            echo "" >> "${base_name}_context.mmd"
+            echo '```mermaid' >> "${base_name}_context.mmd"
+            echo "$context_mermaid" >> "${base_name}_context.mmd"
+            echo '```' >> "${base_name}_context.mmd"
+            echo -e "${GREEN}✓ Created ${base_name}_context.mmd${NC}"
+
+            if [[ "$diagram_level" == "container" ]] || [[ "$diagram_level" == "component" ]]; then
+                echo "# C4 Container Diagram" > "${base_name}_container.mmd"
+                echo "# Generated by FADE v$FADE_VERSION on $(date '+%Y-%m-%d %H:%M:%S')" >> "${base_name}_container.mmd"
+                echo "" >> "${base_name}_container.mmd"
+                echo '```mermaid' >> "${base_name}_container.mmd"
+                echo "$container_mermaid" >> "${base_name}_container.mmd"
+                echo '```' >> "${base_name}_container.mmd"
+                echo -e "${GREEN}✓ Created ${base_name}_container.mmd${NC}"
+            fi
+
+            if [[ "$diagram_level" == "component" ]]; then
+                echo "# C4 Component Diagram" > "${base_name}_component.mmd"
+                echo "# Generated by FADE v$FADE_VERSION on $(date '+%Y-%m-%d %H:%M:%S')" >> "${base_name}_component.mmd"
+                echo "" >> "${base_name}_component.mmd"
+                echo '```mermaid' >> "${base_name}_component.mmd"
+                echo "$component_mermaid" >> "${base_name}_component.mmd"
+                echo '```' >> "${base_name}_component.mmd"
+                echo -e "${GREEN}✓ Created ${base_name}_component.mmd${NC}"
+            fi
+        else
+            # Output HTML file
+            generate_c4_html "$diagram_output" "$system_name" "$context_mermaid" "$container_mermaid" "$component_mermaid" "$diagram_level"
+            echo -e "${GREEN}✓ Created $diagram_output${NC}"
+        fi
+
+        echo ""
+        echo "Diagram levels included:"
+        echo "  - System Context: ✓"
+        if [[ "$diagram_level" == "container" ]] || [[ "$diagram_level" == "component" ]]; then
+            echo "  - Container: ✓"
+        else
+            echo "  - Container: (use --diagram=container to include)"
+        fi
+        if [[ "$diagram_level" == "component" ]]; then
+            echo "  - Component: ✓"
+        else
+            echo "  - Component: (use --diagram=component to include)"
+        fi
+        echo ""
+
+        if [[ "$diagram_format" != "mermaid" ]]; then
+            echo "Open $diagram_output in a browser to view the interactive diagram."
+        fi
+        return 0
+    fi
 
     # =========================================================================
     # GENERATE FADE.MD (--init mode)

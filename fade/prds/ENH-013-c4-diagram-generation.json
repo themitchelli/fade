@@ -19,7 +19,7 @@
         "Relationships labeled with interaction type (uses, reads, writes)"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -34,7 +34,7 @@
         "Container diagram accessible via tab/toggle in HTML output"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -48,7 +48,7 @@
         "Component diagram accessible via tab/toggle in HTML output"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -63,7 +63,7 @@
         "Generated timestamp and FADE version shown in footer"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -78,7 +78,7 @@
         "Options documented in fade map --help"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -92,7 +92,7 @@
         "Format documented in fade map --help"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

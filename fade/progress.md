@@ -1436,3 +1436,29 @@ For blocked stories, use:
   - Optional field - PRDs work fine without discovery docs (conditional inclusion)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - ENH-013: C4 Architecture Diagram Generation - COMPLETE
+
+- Added C4 diagram generation to `fade map --diagram` command
+- Implemented all 6 user stories:
+  - US-001: System Context diagram showing system and external dependencies
+  - US-002: Container diagram showing application containers and external services
+  - US-003: Component diagram showing architectural layers (presentation, business, data)
+  - US-004: Interactive HTML output with tabs, zoom, dark mode, PNG export
+  - US-005: Diagram customization (--diagram=level, --diagram-output, --diagram-title)
+  - US-006: Mermaid DSL export (--diagram-format=mermaid)
+- New helper functions added:
+  - detect_external_systems(): Detects databases, queues, auth, storage, APIs, monitoring from deps
+  - detect_actors(): Infers users from framework type (web, CLI, API, mobile)
+  - get_system_type(): Determines system type from frameworks
+  - generate_c4_context_mermaid(): Generates C4Context diagram in Mermaid syntax
+  - generate_c4_container_mermaid(): Generates C4Container diagram
+  - generate_c4_component_mermaid(): Generates C4Component diagram with layer detection
+  - generate_c4_html(): Creates self-contained HTML with embedded Mermaid.js CDN
+- Detection heuristics cover: PostgreSQL, MySQL, MongoDB, SQLite, Redis, RabbitMQ, SQS, Kafka, Auth0, Firebase, Passport, Clerk, NextAuth, S3, GCS, Azure Blob, Stripe, Twilio, SendGrid, OpenAI, Anthropic, Sentry, Datadog, New Relic
+- Component detection scans recursively (max depth 3) for: routes, controllers, handlers, views, pages, components, services, domain, usecases, models, entities, repositories, middleware, utils, config
+- HTML features: tab switching, zoom controls, dark/light mode toggle, PNG export, responsive layout
+- Mermaid export creates separate .mmd files with comments and code blocks for easy embedding
+- Updated help text with Map Options and examples
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, tested on sample project with Express/Mongoose/Redis/Stripe/Sentry
