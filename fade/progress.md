@@ -1308,3 +1308,29 @@ For blocked stories, use:
   - Notes that fade update is still needed for project artifact updates
 - Files changed: README.md
 - Tests: Content review verified all sections accurately documented
+
+## 2026-01-23 - US-001: Interactive discovery session (FEAT-011) - COMPLETE
+
+- Added cmd_discover() function to bin/fade-cli for interactive feature exploration
+- Command accepts feature name: `fade discover "user authentication"`
+- Launches interactive Claude session (not --print mode) for natural conversation
+- Builds context with:
+  - Discovery session guidelines and role definition
+  - Question categories: Goals & Context, Technical Decisions, Edge Cases & Risks, Scope & Boundaries
+  - FADE.md content for project-specific context (if available)
+  - Detection of fade map output to enable codebase-aware questions
+- Session flow designed to ask one question at a time, wait for answers
+- Added discover command to main case statement
+- Added Discover Command section to help text with:
+  - Command description in Commands list
+  - Dedicated section explaining what questions are asked
+  - Example in Examples section
+- Ctrl+C exit works naturally via exec handing over terminal
+- All acceptance criteria verified:
+  - fade discover command launches interactive Claude session
+  - Session asks about: goals, constraints, tech preferences, edge cases
+  - Questions are contextual based on project type (from FADE.md)
+  - Session can be exited early with Ctrl+C
+  - Documented in fade help
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, fade discover without args shows usage, fade help shows command

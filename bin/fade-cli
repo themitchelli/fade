@@ -2939,6 +2939,169 @@ Start working on the task now. Keep it simple and focused.
     exec $claude_cmd "$context"
 }
 
+# ============================================================================
+# DISCOVER COMMAND
+# ============================================================================
+
+cmd_discover() {
+    local feature_name="${1:-}"
+
+    # Validate feature name
+    if [[ -z "$feature_name" ]]; then
+        echo -e "${RED}Error: Feature name required.${NC}"
+        echo ""
+        echo "Usage: fade discover \"<feature name>\""
+        echo ""
+        echo "Examples:"
+        echo "  fade discover \"user authentication\""
+        echo "  fade discover \"API rate limiting\""
+        echo "  fade discover \"dark mode toggle\""
+        exit 1
+    fi
+
+    # Build discovery context
+    local context=""
+    context+="# FADE Discovery Session
+
+You are running in FADE discovery mode - an interactive session to explore implementation details BEFORE writing a PRD.
+
+## Feature Being Explored
+
+**$feature_name**
+
+## Your Role
+
+You are a technical consultant helping the developer think through implementation details. Your job is to:
+1. Ask clarifying questions about the feature
+2. Surface hidden assumptions and edge cases
+3. Identify technical decisions that need to be made
+4. Help the developer articulate requirements clearly
+
+## Session Guidelines
+
+- This is a CONVERSATION, not a monologue. Ask one question at a time, wait for answers.
+- Start by understanding the developer's goals and constraints
+- Ask follow-up questions based on their answers
+- Be curious - dig into ambiguous areas
+- Don't assume you know the best approach - explore options together
+- Keep the conversation focused on the feature being explored
+
+## Question Categories
+
+Throughout the session, explore these areas as relevant:
+
+**Goals & Context**
+- What problem does this feature solve?
+- Who are the users? What's their context?
+- What does success look like?
+- Are there constraints (time, budget, existing systems)?
+
+**Technical Decisions**
+- Are there existing patterns in the codebase to follow?
+- What dependencies or integrations are involved?
+- What are the performance requirements?
+- How should errors be handled?
+
+**Edge Cases & Risks**
+- What could go wrong?
+- How should the system behave in edge cases?
+- Are there security considerations?
+- What about backwards compatibility?
+
+**Scope & Boundaries**
+- What's in scope vs out of scope?
+- Are there related features this touches?
+- What's the minimum viable version?
+
+"
+
+    # Add project context from FADE.md if available
+    if [[ -f "FADE.md" ]]; then
+        context+="## Project Context
+
+The following is from FADE.md - the project's context file. Use this to ask project-specific questions.
+
+---
+
+$(cat FADE.md)
+
+---
+
+**Use this context to:**
+- Reference existing patterns mentioned in the codebase
+- Ask about integration with documented systems
+- Understand project conventions and constraints
+- Tailor questions to the tech stack
+
+"
+    fi
+
+    # Add codebase analysis context if fade map was run (check for common indicators)
+    local has_map_context=false
+    if [[ -f "FADE.md" ]]; then
+        # Check if FADE.md has auto-generated sections (indicates fade map was used)
+        if grep -q "AUTO-GENERATED" "FADE.md" 2>/dev/null; then
+            has_map_context=true
+        fi
+        # Or check for Architecture References section with detected patterns
+        if grep -q "Architecture References" "FADE.md" 2>/dev/null; then
+            has_map_context=true
+        fi
+    fi
+
+    if [[ "$has_map_context" == true ]]; then
+        context+="## Codebase Analysis Available
+
+This project has been analyzed with 'fade map'. The FADE.md above includes detected:
+- Languages and frameworks
+- Architecture patterns
+- Key dependencies
+- Directory structure
+
+Reference these when asking about implementation approach. For example:
+- \"I see the project uses Express.js - should this endpoint follow the same patterns as existing routes?\"
+- \"The codebase has a services/ layer - would this feature live there?\"
+
+"
+    fi
+
+    context+="## Session Flow
+
+1. **Start with open questions** - Understand what they're trying to build and why
+2. **Drill into specifics** - Based on their answers, explore technical details
+3. **Surface decisions** - Identify choices that need to be made
+4. **Summarize periodically** - Confirm understanding before moving on
+
+## Important Notes
+
+- The developer can exit at any time with Ctrl+C
+- This session does NOT create files or modify code
+- The goal is exploration and clarity, not implementation
+- Keep notes of decisions made - these will inform the PRD
+
+## Begin
+
+Start by greeting the developer and asking an open question about the feature: **$feature_name**
+
+What are they trying to accomplish? What's the context?
+"
+
+    # Display banner
+    echo -e "${CYAN}FADE Discovery Session${NC}"
+    echo ""
+    echo -e "Feature: ${GREEN}$feature_name${NC}"
+    echo ""
+    echo "This is an interactive session to explore implementation details."
+    echo "Press Ctrl+C at any time to exit."
+    echo ""
+    echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+    echo ""
+
+    # Launch interactive Claude session (no --print, no --dangerously-skip-permissions)
+    # Interactive mode allows natural conversation
+    exec claude "$context"
+}
+
 cmd_new() {
     local prd_type="${1:-}"
     local prd_name="${2:-}"
@@ -3260,6 +3423,7 @@ ${YELLOW}Usage:${NC} fade <command> [options]
 ${YELLOW}Commands:${NC}
   init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
   new           Create a new PRD file (fade new <type> "<name>")
+  discover      Interactive session to explore implementation details before PRD
   map           Analyze codebase and generate FADE.md context (for brownfield projects)
   run           Show work queue, choose STOP/ALL mode, start Claude Code
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
@@ -3281,6 +3445,19 @@ ${YELLOW}New Command:${NC}
   - Uses fade/prds/ for contained structure
   - Falls back to prds/ for legacy structure
   - For spikes, also creates and switches to a feature branch
+
+${YELLOW}Discover Command:${NC}
+  fade discover "<feature name>"
+
+  Interactive session to explore implementation details BEFORE writing a PRD.
+  Helps think through requirements by asking about:
+  - Goals: What problem does this solve? Who are the users?
+  - Constraints: Time, budget, existing systems?
+  - Tech decisions: Patterns to follow, integrations, error handling?
+  - Edge cases: What could go wrong? Security? Backwards compatibility?
+
+  Uses FADE.md context to ask project-specific questions.
+  Press Ctrl+C at any time to exit the session.
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"
@@ -3355,6 +3532,7 @@ ${YELLOW}Examples:${NC}
   fade new feature "User authentication" # Create a new feature PRD
   fade new bug "Login timeout"           # Create a new bug PRD
   fade new spike "Evaluate caching"      # Create spike PRD and branch
+  fade discover "user authentication"    # Explore feature before writing PRD
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade run                               # See queue, pick mode, start working
@@ -6755,6 +6933,10 @@ case "${1:-}" in
     quick)
         shift
         cmd_quick "$@"
+        ;;
+    discover)
+        shift
+        cmd_discover "$@"
         ;;
     status)
         shift
