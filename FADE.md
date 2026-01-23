@@ -40,6 +40,7 @@ FADE (Framework for Agentic Development and Engineering) provides session memory
 | Standard | Description |
 |----------|-------------|
 | [API Security](fade/standards/api-security.md) | Authentication, authorization, input validation, secure error handling |
+| [Architecture](fade/standards/architecture.md) | Operational excellence, security, reliability, performance, cost, sustainability |
 | [Git](fade/standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
 | [Coding](fade/standards/coding.md) | Naming, formatting, error handling, code organization |
 | [Testing](fade/standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |

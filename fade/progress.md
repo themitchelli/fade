@@ -1211,3 +1211,12 @@ For blocked stories, use:
 - Follows existing table format (Work Type | Standard to Read)
 - Files changed: fade/prompt.md
 - Tests: Verified table format matches existing rows
+
+## 2026-01-23 - US-003: Link from FADE.md (ENH-001) - COMPLETE
+
+- Added Architecture row to FADE.md Standards table
+- Description summarizes 6 pillars: Operational excellence, security, reliability, performance, cost, sustainability
+- Link points to fade/standards/architecture.md
+- Placed alphabetically after API Security
+- Files changed: FADE.md
+- Tests: Verified link format matches existing rows

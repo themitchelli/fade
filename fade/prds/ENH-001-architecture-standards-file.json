@@ -43,7 +43,7 @@
         "Link points to fade/standards/architecture.md"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
