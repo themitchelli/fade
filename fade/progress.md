@@ -1059,3 +1059,25 @@ For blocked stories, use:
 - TESTS_GENERATED signal reliably detected in output
 - Files changed: bin/fade-cli line 1218
 - Tests: bash -n syntax check passed, manual test verified file creation and signal detection
+
+## 2026-01-23 - US-004: Add integration test for ALL mode flow (BUG-005) - COMPLETE
+
+- Created fade/tests/PRD-BUG-005/ folder for integration tests
+- Added test_us001_01_find_prd_correct.sh: verifies find_prd_by_story_id returns correct PRD
+  - Tests with multiple PRDs containing different stories
+  - Verifies function finds correct PRD by story ID, not alphabetically
+  - Tests fallback for non-existent story ID
+- Added test_us001_02_summary_uses_find.sh: verifies display_iteration_summary uses find_prd_by_story_id
+  - Confirms call pattern in fade-cli code
+  - Verifies function checks fade/prd.json first (priority order)
+- Added test_us002_01_output_to_stderr.sh: verifies test generation outputs to stderr
+  - Counts >&2 redirections in run_test_generation function
+  - Verifies stdout/stderr documentation comment exists
+- Added test_us003_01_claude_invocation.sh: verifies correct Claude invocation flags
+  - Confirms --print flag for non-interactive mode
+  - Confirms --dangerously-skip-permissions for autonomous file creation
+  - Verifies correct flag order
+- Copied PRD to test folder for traceability
+- All 4 tests pass via fade/tests/run.sh
+- Files changed: fade/tests/PRD-BUG-005/*.sh (4 new test files), fade/tests/PRD-BUG-005/prd.json
+- Tests: fade/tests/run.sh shows 4 passed, 0 failed
