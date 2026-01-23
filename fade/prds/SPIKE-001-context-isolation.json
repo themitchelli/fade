@@ -1,10 +1,12 @@
 {
-  "type": "enhancement",
+  "type": "spike",
   "project": "FADE",
-  "id": "ENH-012",
+  "id": "SPIKE-001",
   "name": "Context Isolation via Sub-Agents",
   "description": "Experiment with spawning fresh Claude sessions for story execution to prevent context degradation. GSD's core insight is that Claude quality degrades as context fills ('context rot'). Their solution: each executor gets an isolated 200k-token window. This ENH explores whether FADE can benefit from similar isolation.",
   "dependsOn": [],
+  "branchName": "spike/context-isolation",
+  "outputArtifact": "docs/spike-context-isolation.md",
   "userStories": [
     {
       "id": "US-001",
