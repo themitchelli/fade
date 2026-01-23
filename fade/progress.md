@@ -1220,3 +1220,15 @@ For blocked stories, use:
 - Placed alphabetically after API Security
 - Files changed: FADE.md
 - Tests: Verified link format matches existing rows
+
+## 2026-01-23 - US-001: NPM package structure (FEAT-010) - COMPLETE
+
+- Created package.json with all required fields (name, version, description, bin, repository)
+- Package name: fade-dev (fade-cli was taken on npm)
+- Version: 0.3.1 (matches FADE_VERSION in fade-cli script)
+- bin field maps "fade" command to ./bin/fade-cli
+- files field includes: bin/, fade/prompt.md, fade/standards/, VERSION, version-manifest.json
+- Created MIT LICENSE file matching package.json license field
+- Verified with npm pack --dry-run: package is 72.8kB, 13 files
+- Files changed: package.json (new), LICENSE (new)
+- Tests: npm pkg get validates all fields, npm pack --dry-run shows correct contents

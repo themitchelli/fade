@@ -1,0 +1,38 @@
+{
+  "name": "fade-dev",
+  "version": "0.3.1",
+  "description": "Framework for Agentic Development and Engineering - Session memory, context management, and execution orchestration for AI coding agents like Claude Code",
+  "bin": {
+    "fade": "./bin/fade-cli"
+  },
+  "files": [
+    "bin/",
+    "fade/prompt.md",
+    "fade/standards/",
+    "VERSION",
+    "version-manifest.json"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/themitchelli/fade.git"
+  },
+  "keywords": [
+    "claude",
+    "ai",
+    "agent",
+    "development",
+    "automation",
+    "context-management",
+    "session-memory",
+    "ai-coding"
+  ],
+  "author": "The Mitchelli <steve@mitchelli.dev>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/themitchelli/fade/issues"
+  },
+  "homepage": "https://github.com/themitchelli/fade#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
