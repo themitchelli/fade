@@ -62,6 +62,7 @@ Before starting work, check if any standards in `standards/` apply to your task.
 | Code style, naming, structure | `standards/coding.md` |
 | Writing tests | `standards/testing.md` |
 | Writing documentation | `standards/documentation.md` |
+| System design, new services, infrastructure | `standards/architecture.md` |
 
 **Specifically:** When working on API endpoints, read `standards/api-security.md` first.
 

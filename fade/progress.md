@@ -1203,3 +1203,11 @@ For blocked stories, use:
 - Quick Reference table summarizing core question for each pillar
 - Files changed: fade/standards/architecture.md (new)
 - Tests: Word count verified under limit
+
+## 2026-01-23 - US-002: Add to prompt.md standards table (ENH-001) - COMPLETE
+
+- Added architecture.md to "When to Read Standards" table in prompt.md
+- Mapped to work types: System design, new services, infrastructure
+- Follows existing table format (Work Type | Standard to Read)
+- Files changed: fade/prompt.md
+- Tests: Verified table format matches existing rows
