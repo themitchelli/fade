@@ -1357,3 +1357,19 @@ For blocked stories, use:
   - Output is markdown suitable for reference when writing PRD
 - Files changed: bin/fade-cli, fade/discoveries/README.md
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-003: Domain-specific questions (FEAT-011) - COMPLETE
+
+- Added "Domain-Specific Questions" section to discovery prompt in cmd_discover()
+- API Endpoint Features questions: auth, authorization, input validation, error handling, response format, rate limiting, caching, idempotency
+- UI Component Features questions: layout, interactions, states, accessibility, responsiveness, theming, animations, error display
+- Data/Database Features questions: schema design, data validation, migrations, backwards compat, performance, data integrity, audit trail, data lifecycle
+- Added "How to Use Domain Questions" guidance for detecting domain, asking relevant questions, handling cross-domain features
+- Question sets embedded directly in the discovery prompt context (not in separate standards files)
+- All acceptance criteria verified:
+  - If building API endpoint: asks about auth, validation, error handling, response format
+  - If building UI component: asks about layout, interactions, states, accessibility
+  - If building data feature: asks about schema, validation, migrations, backwards compat
+  - Question sets defined embedded in prompt
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

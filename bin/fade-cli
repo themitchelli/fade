@@ -3066,6 +3066,50 @@ Throughout the session, explore these areas as relevant:
 - Are there related features this touches?
 - What's the minimum viable version?
 
+## Domain-Specific Questions
+
+Based on what type of feature is being discussed, use these targeted question sets:
+
+### API Endpoint Features
+If the feature involves creating or modifying API endpoints, routes, or backend services:
+- **Authentication**: Who can access this endpoint? What auth method (JWT, API key, session)?
+- **Authorization**: Are there role-based restrictions? What permissions are required?
+- **Input Validation**: What inputs does it accept? What validation rules apply?
+- **Error Handling**: What error responses are needed? HTTP status codes?
+- **Response Format**: What does the success response look like? Pagination needed?
+- **Rate Limiting**: Should this endpoint be rate limited? What thresholds?
+- **Caching**: Can responses be cached? For how long?
+- **Idempotency**: Should repeated calls have the same effect?
+
+### UI Component Features
+If the feature involves creating or modifying user interface components:
+- **Layout**: Where does this component appear? Desktop/mobile/both?
+- **Interactions**: What user actions trigger behavior? Click, hover, drag?
+- **States**: What states can it be in? Loading, error, empty, success?
+- **Accessibility**: Keyboard navigation? Screen reader support? ARIA labels?
+- **Responsiveness**: How does it adapt to different screen sizes?
+- **Theming**: Does it need dark/light mode support?
+- **Animations**: Are there transitions or animations?
+- **Error Display**: How are validation errors shown to the user?
+
+### Data/Database Features
+If the feature involves data models, schemas, or database operations:
+- **Schema Design**: What entities/tables are involved? Relationships?
+- **Data Validation**: What constraints apply? Required fields? Formats?
+- **Migrations**: How will existing data be migrated? Breaking changes?
+- **Backwards Compatibility**: Can old clients still work with new schema?
+- **Performance**: Expected data volume? Need for indexes?
+- **Data Integrity**: Foreign keys? Cascading deletes? Soft deletes?
+- **Audit Trail**: Should changes be tracked? Who changed what when?
+- **Data Lifecycle**: Retention policy? Archival? GDPR considerations?
+
+### How to Use Domain Questions
+
+1. **Detect the domain**: Based on the feature description and early conversation, identify if it's primarily API, UI, data, or a mix
+2. **Ask relevant questions**: Work through the applicable domain questions naturally in conversation
+3. **Cross-domain features**: Many features span multiple domains - ask questions from all applicable sets
+4. **Skip irrelevant questions**: Not all questions apply to every feature - use judgment
+
 "
 
     # Add project context from FADE.md if available
