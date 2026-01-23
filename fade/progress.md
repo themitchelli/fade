@@ -1047,3 +1047,15 @@ For blocked stories, use:
 - Also redirected the tee output of Claude Code to stderr so user sees real-time progress
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-003: Diagnose and fix test file generation (BUG-005) - COMPLETE
+
+- Root cause: `claude --dangerously-skip-permissions` without `--print` runs in interactive mode
+- Interactive mode doesn't work properly when output is piped through tee
+- Fix: Added `--print` flag to Claude invocation: `claude --print --dangerously-skip-permissions`
+- `--print --dangerously-skip-permissions` enables non-interactive mode with autonomous file creation
+- Verified via manual test: Claude creates test files successfully with the new invocation
+- Test file created with correct naming convention and executable permissions
+- TESTS_GENERATED signal reliably detected in output
+- Files changed: bin/fade-cli line 1218
+- Tests: bash -n syntax check passed, manual test verified file creation and signal detection

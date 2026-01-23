@@ -1205,15 +1205,17 @@ run_test_generation() {
     echo "" >&2
 
     # Run Claude Code with the test generation prompt
+    # Use --print for non-interactive mode (required for piped execution)
     # Use --dangerously-skip-permissions so Claude can create test files autonomously
     local output
     local output_file
     output_file=$(mktemp)
 
-    # Run Claude with autonomous permissions to create files
+    # Run Claude with --print mode and autonomous permissions to create files
+    # --print enables non-interactive single-turn mode that still allows tool usage
     # Capture output to file for signal detection
     # Note: tee outputs to stderr so user sees progress, stdout goes to file only
-    claude --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file" >&2
+    claude --print --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file" >&2
     local exit_code=${PIPESTATUS[0]}
 
     output=$(cat "$output_file")

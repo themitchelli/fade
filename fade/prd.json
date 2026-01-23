@@ -44,7 +44,7 @@
         "TESTS_GENERATED signal is reliably detected"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
