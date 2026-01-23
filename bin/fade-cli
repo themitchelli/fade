@@ -2448,6 +2448,40 @@ TESTS_EOF
         echo -e "  ${YELLOW}skip${NC}: fade/tests/ (already exists)"
     fi
 
+    # Create fade/discoveries/ folder
+    if [[ ! -d "fade/discoveries" ]]; then
+        mkdir -p "fade/discoveries"
+        cat > "fade/discoveries/README.md" << 'DISCOVERIES_EOF'
+# Discoveries Folder
+
+Discovery documents from `fade discover` sessions.
+
+## Purpose
+
+Discovery docs capture implementation decisions BEFORE writing a PRD.
+They help surface edge cases, constraints, and technical choices early.
+
+## Workflow
+
+1. Run `fade discover "feature name"` for interactive exploration
+2. Session output saved to `{slug}.md` in this folder
+3. Reference when writing the PRD in `fade/prds/`
+4. Optionally link from PRD via `"discoveryDoc": "discoveries/{slug}.md"`
+
+## Format
+
+Each discovery doc contains:
+- **Summary**: What was discussed
+- **Decisions**: Technical choices made
+- **Open Questions**: Items needing resolution
+- **Suggested Stories**: Potential user stories for PRD
+DISCOVERIES_EOF
+        echo -e "  ${GREEN}create${NC}: fade/discoveries/"
+        ((created++))
+    else
+        echo -e "  ${YELLOW}skip${NC}: fade/discoveries/ (already exists)"
+    fi
+
     # Create fade/standards/ folder
     if [[ ! -d "fade/standards" ]]; then
         mkdir -p "fade/standards"
@@ -2959,6 +2993,25 @@ cmd_discover() {
         exit 1
     fi
 
+    # Generate slug from feature name for output file
+    local slug=$(generate_slug "$feature_name")
+
+    # Determine discoveries folder location (prefer contained structure)
+    local discoveries_dir=""
+    if [[ -d "fade/discoveries" ]]; then
+        discoveries_dir="fade/discoveries"
+    elif [[ -d "fade" ]]; then
+        # fade/ exists but no discoveries folder - create it
+        mkdir -p "fade/discoveries"
+        discoveries_dir="fade/discoveries"
+    else
+        # Legacy structure - create at root
+        mkdir -p "discoveries"
+        discoveries_dir="discoveries"
+    fi
+
+    local output_file="$discoveries_dir/${slug}.md"
+
     # Build discovery context
     local context=""
     context+="# FADE Discovery Session
@@ -3075,9 +3128,57 @@ Reference these when asking about implementation approach. For example:
 ## Important Notes
 
 - The developer can exit at any time with Ctrl+C
-- This session does NOT create files or modify code
-- The goal is exploration and clarity, not implementation
 - Keep notes of decisions made - these will inform the PRD
+
+## Session Wrap-Up
+
+When the developer indicates they're ready to wrap up (says 'done', 'that's all', 'let's wrap up', etc.), or when you've covered the key areas:
+
+1. Summarize what you learned
+2. Ask: \"Ready for me to save the discovery document?\"
+3. When they confirm, use the Write tool to create the discovery document at: **$output_file**
+
+The discovery document MUST use this exact format:
+
+\`\`\`markdown
+# Discovery: $feature_name
+
+*Generated: $(date '+%Y-%m-%d')*
+
+## Summary
+
+[2-3 sentences describing what this feature is and its primary purpose]
+
+## Decisions
+
+Decisions made during the discovery session:
+
+- **[Decision topic]**: [What was decided and why]
+- **[Decision topic]**: [What was decided and why]
+[Add more as needed]
+
+## Open Questions
+
+Questions that still need answers before implementation:
+
+- [ ] [Question that needs resolution]
+- [ ] [Question that needs resolution]
+[Add more as needed, or \"None - all questions resolved\" if applicable]
+
+## Suggested Stories
+
+Potential user stories for the PRD:
+
+1. **[Story title]**: [Brief description of what this story delivers]
+2. **[Story title]**: [Brief description of what this story delivers]
+[Add more as needed]
+
+## Notes
+
+Additional context, constraints, or considerations:
+
+- [Any other relevant notes from the discussion]
+\`\`\`
 
 ## Begin
 
@@ -3090,16 +3191,18 @@ What are they trying to accomplish? What's the context?
     echo -e "${CYAN}FADE Discovery Session${NC}"
     echo ""
     echo -e "Feature: ${GREEN}$feature_name${NC}"
+    echo -e "Output:  ${YELLOW}$output_file${NC}"
     echo ""
     echo "This is an interactive session to explore implementation details."
-    echo "Press Ctrl+C at any time to exit."
+    echo "When done, say 'wrap up' and Claude will save the discovery document."
+    echo "Press Ctrl+C at any time to exit without saving."
     echo ""
     echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
     echo ""
 
-    # Launch interactive Claude session (no --print, no --dangerously-skip-permissions)
-    # Interactive mode allows natural conversation
-    exec claude "$context"
+    # Launch interactive Claude session with write permissions
+    # --dangerously-skip-permissions allows Claude to write the discovery file
+    exec claude --dangerously-skip-permissions "$context"
 }
 
 cmd_new() {
@@ -3457,7 +3560,12 @@ ${YELLOW}Discover Command:${NC}
   - Edge cases: What could go wrong? Security? Backwards compatibility?
 
   Uses FADE.md context to ask project-specific questions.
-  Press Ctrl+C at any time to exit the session.
+  When done, say "wrap up" and Claude saves the discovery document.
+
+  Output: fade/discoveries/{slug}.md (or discoveries/{slug}.md for legacy)
+  Format: Summary, Decisions, Open Questions, Suggested Stories
+
+  Press Ctrl+C at any time to exit without saving.
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"

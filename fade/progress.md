@@ -1334,3 +1334,26 @@ For blocked stories, use:
   - Documented in fade help
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, fade discover without args shows usage, fade help shows command
+
+## 2026-01-23 - US-002: Discovery output format (FEAT-011) - COMPLETE
+
+- Enhanced cmd_discover() to save discovery session output to markdown file
+- Output saved to fade/discoveries/{slug}.md (or discoveries/{slug}.md for legacy structure)
+- Slug generated from feature name using existing generate_slug() function
+- Discovery document format includes all required sections:
+  - Summary: Brief description of what was discussed
+  - Decisions: Technical choices made during session
+  - Open Questions: Items needing resolution before implementation
+  - Suggested Stories: Potential user stories for PRD
+- Session instructs Claude to write the file when developer says "wrap up"
+- Uses --dangerously-skip-permissions to allow Claude to write the discovery file
+- Added fade/discoveries/ folder creation to cmd_init()
+- Updated help text to document output file location and format
+- Created fade/discoveries/README.md in FADE project itself
+- All acceptance criteria verified:
+  - Output saved to fade/discoveries/{slug}.md
+  - Format includes: Summary, Decisions, Open Questions, Suggested Stories
+  - Slug derived from feature name provided at start of session
+  - Output is markdown suitable for reference when writing PRD
+- Files changed: bin/fade-cli, fade/discoveries/README.md
+- Tests: bash -n syntax check passed

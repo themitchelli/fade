@@ -31,7 +31,7 @@
         "Output is markdown suitable for reference when writing PRD"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
