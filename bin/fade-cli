@@ -4937,6 +4937,154 @@ detect_architecture_patterns() {
 }
 
 # ============================================================================
+# FRAGILE AREA DETECTION
+# ============================================================================
+
+# Detect potential fragile areas in the codebase
+# Returns lines in format: path|reason|severity (high/medium/low)
+detect_fragile_areas() {
+    local dir="${1:-.}"
+    local fragile_areas=()
+
+    # Common directories to exclude from analysis
+    local exclude_pattern='-not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/venv/*" -not -path "*/__pycache__/*" -not -path "*/dist/*" -not -path "*/build/*" -not -path "*/.next/*" -not -path "*/vendor/*" -not -path "*/target/*"'
+
+    # -------------------------------------------------------------------------
+    # Files over 500 lines (potentially complex)
+    # -------------------------------------------------------------------------
+    while IFS= read -r file; do
+        if [[ -n "$file" ]]; then
+            local lines
+            lines=$(wc -l < "$file" 2>/dev/null | tr -d ' ')
+            if [[ "$lines" -ge 500 ]]; then
+                local rel_path
+                rel_path="${file#$dir/}"
+                if [[ "$lines" -ge 1000 ]]; then
+                    fragile_areas+=("$rel_path|${lines} lines - very large file|high")
+                else
+                    fragile_areas+=("$rel_path|${lines} lines - large file|medium")
+                fi
+            fi
+        fi
+    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" -o -name "*.c" -o -name "*.cpp" -o -name "*.h" \) \
+        -not -path "*/node_modules/*" \
+        -not -path "*/.git/*" \
+        -not -path "*/venv/*" \
+        -not -path "*/__pycache__/*" \
+        -not -path "*/dist/*" \
+        -not -path "*/build/*" \
+        -not -path "*/.next/*" \
+        -not -path "*/vendor/*" \
+        -not -path "*/target/*" \
+        2>/dev/null)
+
+    # -------------------------------------------------------------------------
+    # Directories with many files (>20) - potentially tangled
+    # -------------------------------------------------------------------------
+    while IFS= read -r subdir; do
+        if [[ -n "$subdir" ]] && [[ -d "$subdir" ]]; then
+            local file_count
+            file_count=$(find "$subdir" -maxdepth 1 -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" \) 2>/dev/null | wc -l | tr -d ' ')
+            if [[ "$file_count" -gt 20 ]]; then
+                local rel_path
+                rel_path="${subdir#$dir/}"
+                if [[ "$file_count" -gt 50 ]]; then
+                    fragile_areas+=("$rel_path/|${file_count} files in one directory|high")
+                else
+                    fragile_areas+=("$rel_path/|${file_count} files in one directory|medium")
+                fi
+            fi
+        fi
+    done < <(find "$dir" -type d \
+        -not -path "*/node_modules/*" \
+        -not -path "*/.git/*" \
+        -not -path "*/venv/*" \
+        -not -path "*/__pycache__/*" \
+        -not -path "*/dist/*" \
+        -not -path "*/build/*" \
+        -not -path "*/.next/*" \
+        -not -path "*/vendor/*" \
+        -not -path "*/target/*" \
+        2>/dev/null | head -100)
+
+    # -------------------------------------------------------------------------
+    # Files/directories with 'legacy', 'old', 'deprecated' in name
+    # -------------------------------------------------------------------------
+    while IFS= read -r item; do
+        if [[ -n "$item" ]]; then
+            local rel_path
+            rel_path="${item#$dir/}"
+            local basename
+            basename=$(basename "$item" | tr '[:upper:]' '[:lower:]')
+            local reason=""
+
+            if [[ "$basename" == *legacy* ]]; then
+                reason="legacy code"
+            elif [[ "$basename" == *old* ]] || [[ "$basename" == *_old* ]] || [[ "$basename" == *-old* ]]; then
+                reason="marked as old"
+            elif [[ "$basename" == *deprecated* ]]; then
+                reason="deprecated code"
+            fi
+
+            if [[ -n "$reason" ]]; then
+                fragile_areas+=("$rel_path|$reason|medium")
+            fi
+        fi
+    done < <(find "$dir" \( -type f -o -type d \) \
+        -not -path "*/node_modules/*" \
+        -not -path "*/.git/*" \
+        -not -path "*/venv/*" \
+        -not -path "*/__pycache__/*" \
+        -not -path "*/dist/*" \
+        -not -path "*/build/*" \
+        -not -path "*/.next/*" \
+        -not -path "*/vendor/*" \
+        -not -path "*/target/*" \
+        \( -iname "*legacy*" -o -iname "*_old*" -o -iname "*-old*" -o -iname "*deprecated*" \) \
+        2>/dev/null | head -20)
+
+    # -------------------------------------------------------------------------
+    # Files with many TODO/FIXME/HACK comments
+    # -------------------------------------------------------------------------
+    while IFS= read -r file; do
+        if [[ -n "$file" ]] && [[ -f "$file" ]]; then
+            local comment_count
+            # Use grep -c and tr to remove any whitespace, default to 0 if grep fails
+            comment_count=$(grep -c -E '(TODO|FIXME|HACK|XXX|BUG):?' "$file" 2>/dev/null | tr -d '[:space:]' || true)
+            # Ensure it's a number, default to 0 if empty
+            [[ -z "$comment_count" ]] && comment_count=0
+            if [[ "$comment_count" -ge 5 ]]; then
+                local rel_path
+                rel_path="${file#$dir/}"
+                if [[ "$comment_count" -ge 10 ]]; then
+                    fragile_areas+=("$rel_path|${comment_count} TODO/FIXME/HACK comments|high")
+                else
+                    fragile_areas+=("$rel_path|${comment_count} TODO/FIXME/HACK comments|medium")
+                fi
+            fi
+        fi
+    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" \) \
+        -not -path "*/node_modules/*" \
+        -not -path "*/.git/*" \
+        -not -path "*/venv/*" \
+        -not -path "*/__pycache__/*" \
+        -not -path "*/dist/*" \
+        -not -path "*/build/*" \
+        -not -path "*/.next/*" \
+        -not -path "*/vendor/*" \
+        -not -path "*/target/*" \
+        2>/dev/null)
+
+    # -------------------------------------------------------------------------
+    # Output Results (deduplicated, sorted by severity)
+    # -------------------------------------------------------------------------
+    # High severity first, then medium, then low
+    for area in "${fragile_areas[@]}"; do
+        echo "$area"
+    done | sort -t'|' -k3 -r | head -20
+}
+
+# ============================================================================
 # DEPENDENCY ANALYSIS
 # ============================================================================
 
@@ -5568,6 +5716,36 @@ cmd_map() {
     echo ""
 
     # =========================================================================
+    # FRAGILE AREAS DETECTION
+    # =========================================================================
+    echo -e "${YELLOW}## Potential Fragile Areas${NC}"
+    echo ""
+
+    local fragile_areas
+    fragile_areas=$(detect_fragile_areas ".")
+
+    if [[ -z "$fragile_areas" ]]; then
+        echo "No potential fragile areas detected."
+    else
+        echo "Detected potential problem spots:"
+        echo ""
+        echo "| Path | Reason | Severity |"
+        echo "|------|--------|----------|"
+        echo "$fragile_areas" | while IFS='|' read -r path reason severity; do
+            # Format severity with visual indicator
+            local sev_display
+            case "$severity" in
+                high) sev_display="🔴 high" ;;
+                medium) sev_display="🟡 medium" ;;
+                low) sev_display="🟢 low" ;;
+                *) sev_display="$severity" ;;
+            esac
+            echo "| \`$path\` | $reason | $sev_display |"
+        done
+    fi
+    echo ""
+
+    # =========================================================================
     # FADE.MD READY OUTPUT
     # =========================================================================
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
@@ -5639,6 +5817,18 @@ cmd_map() {
         echo "|---------|------------|----------|"
         echo "$arch_patterns" | while IFS='|' read -r pattern confidence evidence; do
             echo "| $pattern | $confidence | $evidence |"
+        done
+        echo ""
+    fi
+
+    # Fragile areas for FADE.md
+    if [[ -n "$fragile_areas" ]]; then
+        echo "### Potential Fragile Areas"
+        echo ""
+        echo "| Area | Why it's fragile |"
+        echo "|------|------------------|"
+        echo "$fragile_areas" | while IFS='|' read -r path reason severity; do
+            echo "| \`$path\` | $reason |"
         done
         echo ""
     fi
@@ -5834,7 +6024,7 @@ cmd_map() {
         fade_content+="---"$'\n'
         fade_content+=""$'\n'
 
-        # Fragile Areas section (template)
+        # Fragile Areas section (populated from detection or template)
         fade_content+="## Fragile Areas"$'\n'
         fade_content+=""$'\n'
         fade_content+="<!--"$'\n'
@@ -5844,8 +6034,18 @@ cmd_map() {
         fade_content+=""$'\n'
         fade_content+="| Area | Why it's fragile |"$'\n'
         fade_content+="|------|------------------|"$'\n'
-        fade_content+="| \`example/path/\` | Example: Changes cascade unpredictably |"$'\n'
-        fade_content+="| \`another/module.py\` | Example: Looks simple, always takes 5x longer |"$'\n'
+
+        if [[ -n "$fragile_areas" ]]; then
+            # Use detected fragile areas
+            fade_content+="<!-- AUTO-GENERATED: Potential fragile areas detected from codebase -->"$'\n'
+            while IFS='|' read -r path reason severity; do
+                fade_content+="| \`$path\` | $reason |"$'\n'
+            done <<< "$fragile_areas"
+        else
+            # Fall back to template examples
+            fade_content+="| \`example/path/\` | Example: Changes cascade unpredictably |"$'\n'
+            fade_content+="| \`another/module.py\` | Example: Looks simple, always takes 5x longer |"$'\n'
+        fi
         fade_content+=""$'\n'
         fade_content+="---"$'\n'
         fade_content+=""$'\n'
@@ -6001,7 +6201,11 @@ cmd_map() {
             echo "  - Key Dependencies: Verify categorization is accurate"
         fi
         echo "  - Off-Limits Modules: Update with your actual off-limits paths"
-        echo "  - Fragile Areas: Add known problem spots"
+        if [[ -n "$fragile_areas" ]]; then
+            echo "  - Fragile Areas: Review detected problem spots, add any missing"
+        else
+            echo "  - Fragile Areas: Add known problem spots"
+        fi
         echo "  - Session Boundaries: Customize allowed/forbidden actions"
         echo ""
         echo "Look for <!-- AUTO-GENERATED --> comments to find sections that need review."

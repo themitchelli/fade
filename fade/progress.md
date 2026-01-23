@@ -851,3 +851,22 @@ For blocked stories, use:
 - Updated main case statement to pass arguments to cmd_map
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests verified FADE.md generation, overwrite protection, and --force flag
+
+## 2026-01-23 - US-005: Identify potential fragile areas (FEAT-008) - COMPLETE
+
+- Added detect_fragile_areas() function to identify potential problem spots in codebase
+- Function analyzes and flags:
+  - Files over 500 lines (medium severity) or 1000 lines (high severity) as potentially complex
+  - Directories with more than 20 files (medium) or 50 files (high) as potentially tangled
+  - Files/directories with 'legacy', 'old', 'deprecated' in name (medium severity)
+  - Files with 5+ TODO/FIXME/HACK/XXX/BUG comments (medium) or 10+ (high severity)
+- Added "Potential Fragile Areas" section to fade map output between Directory Structure and FADE.md Ready Output
+- Fragile areas displayed in table format with Path, Reason, and Severity (🔴 high / 🟡 medium) columns
+- Added fragile areas to FADE.md ready output section for easy copy-paste
+- Updated fade map --init to populate Fragile Areas section with detected areas instead of placeholder examples
+- Fragile areas in generated FADE.md marked with <!-- AUTO-GENERATED --> comment
+- Updated review guidance to mention "Review detected problem spots" when fragile areas found
+- Excluded common directories from analysis: node_modules, .git, venv, __pycache__, dist, build, .next, vendor, target
+- Results sorted by severity and limited to top 20 items
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests on simulated project verified detection of all criteria

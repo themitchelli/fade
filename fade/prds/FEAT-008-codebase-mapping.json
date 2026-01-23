@@ -77,7 +77,7 @@
         "Output formatted for Fragile Areas table in FADE.md"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
