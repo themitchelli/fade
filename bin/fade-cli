@@ -2997,6 +2997,12 @@ ${YELLOW}Map Options:${NC}
   --init        Generate a draft FADE.md pre-populated with detected context
   --force       Overwrite existing FADE.md (requires --init)
 
+${YELLOW}Map Exclusions:${NC}
+  fade map respects .gitignore patterns and excludes common directories:
+  - Default excludes: node_modules, .git, venv, dist, build, target, vendor, etc.
+  - Gitignore: If .gitignore exists, patterns are merged with defaults
+  - Reports exclusion count for transparency
+
 ${YELLOW}Version Options:${NC}
   --all, -a     Show CLI version plus all detected artifact versions
 
@@ -4311,26 +4317,207 @@ cmd_export() {
 # MAP COMMAND
 # ============================================================================
 
+# Global variables for gitignore exclusions
+GITIGNORE_PATTERNS=()
+EXCLUDED_PATHS_COUNT=0
+DEFAULT_EXCLUDES=(
+    "node_modules"
+    ".git"
+    "venv"
+    "__pycache__"
+    "dist"
+    "build"
+    ".next"
+    "target"
+    "vendor"
+    "coverage"
+    "out"
+    ".cache"
+    ".venv"
+    "env"
+    ".env"
+    "*.pyc"
+    "*.pyo"
+    ".DS_Store"
+)
+
+# Parse .gitignore file and populate GITIGNORE_PATTERNS array
+# Also counts how many gitignore patterns were loaded
+parse_gitignore() {
+    local dir="${1:-.}"
+    GITIGNORE_PATTERNS=()
+
+    if [[ ! -f "$dir/.gitignore" ]]; then
+        return
+    fi
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        # Skip empty lines and comments
+        [[ -z "$line" ]] && continue
+        [[ "$line" =~ ^[[:space:]]*# ]] && continue
+
+        # Trim whitespace
+        line="${line#"${line%%[![:space:]]*}"}"
+        line="${line%"${line##*[![:space:]]}"}"
+
+        # Skip empty after trim
+        [[ -z "$line" ]] && continue
+
+        # Skip negation patterns (lines starting with !)
+        [[ "$line" =~ ^! ]] && continue
+
+        # Remove trailing slash if present (we'll handle directories generically)
+        line="${line%/}"
+
+        # Skip patterns that are already in defaults
+        local is_default=false
+        for default in "${DEFAULT_EXCLUDES[@]}"; do
+            if [[ "$line" == "$default" ]]; then
+                is_default=true
+                break
+            fi
+        done
+        [[ "$is_default" == true ]] && continue
+
+        # Add to patterns array
+        GITIGNORE_PATTERNS+=("$line")
+    done < "$dir/.gitignore"
+}
+
+# Build find exclusion arguments from default excludes + gitignore patterns
+# Returns a string that can be used with eval in find commands
+build_find_exclusions() {
+    local excludes=""
+
+    # Add default excludes
+    for pattern in "${DEFAULT_EXCLUDES[@]}"; do
+        # Handle glob patterns differently
+        if [[ "$pattern" == *"*"* ]]; then
+            excludes+=" -not -name '$pattern'"
+        else
+            excludes+=" -not -path '*/$pattern/*' -not -name '$pattern'"
+        fi
+    done
+
+    # Add gitignore patterns
+    for pattern in "${GITIGNORE_PATTERNS[@]}"; do
+        # Handle glob patterns
+        if [[ "$pattern" == *"*"* ]]; then
+            excludes+=" -not -name '$pattern' -not -path '*/$pattern'"
+        elif [[ "$pattern" == *"/"* ]]; then
+            # Path pattern
+            excludes+=" -not -path '*/$pattern/*' -not -path '*/$pattern'"
+        else
+            # Simple name pattern - treat as both file and directory
+            excludes+=" -not -path '*/$pattern/*' -not -name '$pattern'"
+        fi
+    done
+
+    echo "$excludes"
+}
+
+# Check if a path should be excluded based on default excludes + gitignore
+# Returns 0 if should be excluded, 1 if should be included
+should_exclude_path() {
+    local path="$1"
+    local name
+    name=$(basename "$path")
+
+    # Check default excludes
+    for pattern in "${DEFAULT_EXCLUDES[@]}"; do
+        if [[ "$pattern" == *"*"* ]]; then
+            # Glob pattern - use bash pattern matching
+            # shellcheck disable=SC2053
+            if [[ "$name" == $pattern ]]; then
+                return 0
+            fi
+        elif [[ "$name" == "$pattern" ]]; then
+            return 0
+        fi
+    done
+
+    # Check gitignore patterns
+    for pattern in "${GITIGNORE_PATTERNS[@]}"; do
+        if [[ "$pattern" == *"*"* ]]; then
+            # Glob pattern
+            # shellcheck disable=SC2053
+            if [[ "$name" == $pattern ]] || [[ "$path" == *"$pattern"* ]]; then
+                return 0
+            fi
+        elif [[ "$pattern" == *"/"* ]]; then
+            # Path pattern
+            if [[ "$path" == *"$pattern"* ]]; then
+                return 0
+            fi
+        elif [[ "$name" == "$pattern" ]]; then
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+# Count excluded paths for transparency reporting
+count_excluded_paths() {
+    local dir="${1:-.}"
+    EXCLUDED_PATHS_COUNT=0
+
+    # Count directories that match exclusion patterns
+    while IFS= read -r entry; do
+        [[ -z "$entry" ]] && continue
+        local name
+        name=$(basename "$entry")
+        if should_exclude_path "$name"; then
+            ((EXCLUDED_PATHS_COUNT++))
+        fi
+    done < <(find "$dir" -maxdepth 3 -type d 2>/dev/null)
+
+    # Also count files matching glob patterns from defaults
+    for pattern in "${DEFAULT_EXCLUDES[@]}"; do
+        if [[ "$pattern" == *"*"* ]]; then
+            local count
+            count=$(find "$dir" -maxdepth 5 -type f -name "$pattern" 2>/dev/null | wc -l | tr -d ' ')
+            EXCLUDED_PATHS_COUNT=$((EXCLUDED_PATHS_COUNT + count))
+        fi
+    done
+}
+
+# Get exclusion summary for display
+get_exclusion_summary() {
+    local gitignore_count=${#GITIGNORE_PATTERNS[@]}
+    local default_count=${#DEFAULT_EXCLUDES[@]}
+
+    if [[ $gitignore_count -gt 0 ]]; then
+        echo "$default_count default patterns + $gitignore_count from .gitignore ($EXCLUDED_PATHS_COUNT paths excluded)"
+    else
+        echo "$default_count default patterns ($EXCLUDED_PATHS_COUNT paths excluded)"
+    fi
+}
+
 # Detect primary language(s) by file extension counts
+# Uses global GITIGNORE_PATTERNS and DEFAULT_EXCLUDES for filtering
 detect_languages() {
     local dir="${1:-.}"
 
-    # Count files by extension, excluding common non-code directories
-    # Use find to get extensions, sort and count
-    find "$dir" -type f \
-        -not -path '*/node_modules/*' \
-        -not -path '*/.git/*' \
-        -not -path '*/venv/*' \
-        -not -path '*/__pycache__/*' \
-        -not -path '*/dist/*' \
-        -not -path '*/build/*' \
-        -not -path '*/.next/*' \
-        -not -path '*/target/*' \
-        -not -path '*/vendor/*' \
-        -not -name '.DS_Store' \
-        -not -name '*.pyc' \
-        -not -name '*.pyo' \
-        2>/dev/null | \
+    # Get all files, then filter using should_exclude_path
+    # This respects both default excludes and .gitignore patterns
+    find "$dir" -type f 2>/dev/null | while read -r file; do
+        # Check each path component for exclusion
+        local exclude=false
+        local check_path="$file"
+        while [[ "$check_path" != "." && "$check_path" != "/" ]]; do
+            local component
+            component=$(basename "$check_path")
+            if should_exclude_path "$component"; then
+                exclude=true
+                break
+            fi
+            check_path=$(dirname "$check_path")
+        done
+        if [[ "$exclude" == false ]]; then
+            echo "$file"
+        fi
+    done | \
     sed 's/.*\.//' | \
     grep -E '^[a-zA-Z0-9]+$' | \
     sort | uniq -c | sort -rn | head -10
@@ -4700,12 +4887,10 @@ describe_directories() {
             continue
         fi
 
-        # Skip common excluded directories
-        case "$name" in
-            node_modules|venv|.git|__pycache__|.next|target|dist|build|out|coverage)
-                continue
-                ;;
-        esac
+        # Skip excluded directories (uses default excludes + gitignore)
+        if should_exclude_path "$name"; then
+            continue
+        fi
 
         local desc
         desc=$(get_dir_description "$name")
@@ -4819,12 +5004,23 @@ detect_architecture_patterns() {
     fi
 
     # Check for colocated tests (*.test.ts, *.spec.js pattern)
+    # Filter using should_exclude_path for consistency with gitignore
     local colocated_count
-    colocated_count=$(find "$dir" -type f \( -name "*.test.*" -o -name "*.spec.*" \) \
-        -not -path '*/node_modules/*' \
-        -not -path '*/.git/*' \
-        -not -path '*/venv/*' \
-        2>/dev/null | head -20 | wc -l | tr -d ' ')
+    colocated_count=$(find "$dir" -type f \( -name "*.test.*" -o -name "*.spec.*" \) 2>/dev/null | \
+        while read -r file; do
+            local exclude=false
+            local check_path="$file"
+            while [[ "$check_path" != "." && "$check_path" != "/" ]]; do
+                local component
+                component=$(basename "$check_path")
+                if should_exclude_path "$component"; then
+                    exclude=true
+                    break
+                fi
+                check_path=$(dirname "$check_path")
+            done
+            [[ "$exclude" == false ]] && echo "$file"
+        done | head -20 | wc -l | tr -d ' ')
 
     if [[ "$colocated_count" -gt 5 ]]; then
         test_dirs+="colocated "
@@ -4942,12 +5138,29 @@ detect_architecture_patterns() {
 
 # Detect potential fragile areas in the codebase
 # Returns lines in format: path|reason|severity (high/medium/low)
+# Helper function to filter find results using gitignore + default excludes
+# Reads paths from stdin, outputs non-excluded paths to stdout
+filter_excluded_paths() {
+    while read -r path; do
+        [[ -z "$path" ]] && continue
+        local exclude=false
+        local check_path="$path"
+        while [[ "$check_path" != "." && "$check_path" != "/" ]]; do
+            local component
+            component=$(basename "$check_path")
+            if should_exclude_path "$component"; then
+                exclude=true
+                break
+            fi
+            check_path=$(dirname "$check_path")
+        done
+        [[ "$exclude" == false ]] && echo "$path"
+    done
+}
+
 detect_fragile_areas() {
     local dir="${1:-.}"
     local fragile_areas=()
-
-    # Common directories to exclude from analysis
-    local exclude_pattern='-not -path "*/node_modules/*" -not -path "*/.git/*" -not -path "*/venv/*" -not -path "*/__pycache__/*" -not -path "*/dist/*" -not -path "*/build/*" -not -path "*/.next/*" -not -path "*/vendor/*" -not -path "*/target/*"'
 
     # -------------------------------------------------------------------------
     # Files over 500 lines (potentially complex)
@@ -4966,17 +5179,7 @@ detect_fragile_areas() {
                 fi
             fi
         fi
-    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" -o -name "*.c" -o -name "*.cpp" -o -name "*.h" \) \
-        -not -path "*/node_modules/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/venv/*" \
-        -not -path "*/__pycache__/*" \
-        -not -path "*/dist/*" \
-        -not -path "*/build/*" \
-        -not -path "*/.next/*" \
-        -not -path "*/vendor/*" \
-        -not -path "*/target/*" \
-        2>/dev/null)
+    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" -o -name "*.c" -o -name "*.cpp" -o -name "*.h" \) 2>/dev/null | filter_excluded_paths)
 
     # -------------------------------------------------------------------------
     # Directories with many files (>20) - potentially tangled
@@ -4995,17 +5198,7 @@ detect_fragile_areas() {
                 fi
             fi
         fi
-    done < <(find "$dir" -type d \
-        -not -path "*/node_modules/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/venv/*" \
-        -not -path "*/__pycache__/*" \
-        -not -path "*/dist/*" \
-        -not -path "*/build/*" \
-        -not -path "*/.next/*" \
-        -not -path "*/vendor/*" \
-        -not -path "*/target/*" \
-        2>/dev/null | head -100)
+    done < <(find "$dir" -type d 2>/dev/null | filter_excluded_paths | head -100)
 
     # -------------------------------------------------------------------------
     # Files/directories with 'legacy', 'old', 'deprecated' in name
@@ -5030,18 +5223,7 @@ detect_fragile_areas() {
                 fragile_areas+=("$rel_path|$reason|medium")
             fi
         fi
-    done < <(find "$dir" \( -type f -o -type d \) \
-        -not -path "*/node_modules/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/venv/*" \
-        -not -path "*/__pycache__/*" \
-        -not -path "*/dist/*" \
-        -not -path "*/build/*" \
-        -not -path "*/.next/*" \
-        -not -path "*/vendor/*" \
-        -not -path "*/target/*" \
-        \( -iname "*legacy*" -o -iname "*_old*" -o -iname "*-old*" -o -iname "*deprecated*" \) \
-        2>/dev/null | head -20)
+    done < <(find "$dir" \( -type f -o -type d \) \( -iname "*legacy*" -o -iname "*_old*" -o -iname "*-old*" -o -iname "*deprecated*" \) 2>/dev/null | filter_excluded_paths | head -20)
 
     # -------------------------------------------------------------------------
     # Files with many TODO/FIXME/HACK comments
@@ -5063,17 +5245,7 @@ detect_fragile_areas() {
                 fi
             fi
         fi
-    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" \) \
-        -not -path "*/node_modules/*" \
-        -not -path "*/.git/*" \
-        -not -path "*/venv/*" \
-        -not -path "*/__pycache__/*" \
-        -not -path "*/dist/*" \
-        -not -path "*/build/*" \
-        -not -path "*/.next/*" \
-        -not -path "*/vendor/*" \
-        -not -path "*/target/*" \
-        2>/dev/null)
+    done < <(find "$dir" -type f \( -name "*.js" -o -name "*.ts" -o -name "*.tsx" -o -name "*.jsx" -o -name "*.py" -o -name "*.go" -o -name "*.rs" -o -name "*.rb" -o -name "*.java" -o -name "*.php" \) 2>/dev/null | filter_excluded_paths)
 
     # -------------------------------------------------------------------------
     # Output Results (deduplicated, sorted by severity)
@@ -5550,6 +5722,27 @@ cmd_map() {
     fi
 
     echo -e "${CYAN}FADE Codebase Map${NC}"
+    echo ""
+
+    # =========================================================================
+    # GITIGNORE PARSING
+    # =========================================================================
+    # Parse .gitignore to build exclusion patterns
+    parse_gitignore "."
+    count_excluded_paths "."
+
+    # Show exclusion summary for transparency
+    local exclusion_summary
+    exclusion_summary=$(get_exclusion_summary)
+    echo -e "${YELLOW}## Exclusions${NC}"
+    echo ""
+    if [[ -f ".gitignore" ]]; then
+        echo "Using .gitignore: ${GREEN}yes${NC}"
+        echo "Patterns: $exclusion_summary"
+    else
+        echo "Using .gitignore: ${YELLOW}not found${NC} (using defaults only)"
+        echo "Patterns: $exclusion_summary"
+    fi
     echo ""
 
     # =========================================================================

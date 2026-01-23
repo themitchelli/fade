@@ -90,7 +90,7 @@
         "Reports count of excluded paths for transparency"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

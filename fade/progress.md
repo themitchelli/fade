@@ -870,3 +870,27 @@ For blocked stories, use:
 - Results sorted by severity and limited to top 20 items
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests on simulated project verified detection of all criteria
+
+## 2026-01-23 - US-006: Respect gitignore (FEAT-008) - COMPLETE
+
+- Added gitignore parsing and exclusion system to fade map command
+- New global variables: GITIGNORE_PATTERNS[], EXCLUDED_PATHS_COUNT, DEFAULT_EXCLUDES[]
+- New functions:
+  - parse_gitignore(): Reads .gitignore file and populates GITIGNORE_PATTERNS array
+  - build_find_exclusions(): Generates find command exclusion arguments (unused, kept for future)
+  - should_exclude_path(): Checks if a path matches default excludes or gitignore patterns
+  - count_excluded_paths(): Counts how many paths are excluded for transparency reporting
+  - get_exclusion_summary(): Formats exclusion info for display
+  - filter_excluded_paths(): Helper to filter find results through exclusion logic
+- Updated detect_languages() to filter files using should_exclude_path()
+- Updated describe_directories() to skip excluded directories using should_exclude_path()
+- Updated detect_architecture_patterns() colocated test detection to use filter_excluded_paths()
+- Updated detect_fragile_areas() all four find operations to use filter_excluded_paths()
+- Added "## Exclusions" section to fade map output showing:
+  - Whether .gitignore was found and used
+  - Count of default patterns + gitignore patterns
+  - Count of excluded paths
+- Updated help text with "Map Exclusions" section documenting the behavior
+- Default excludes: node_modules, .git, venv, __pycache__, dist, build, .next, target, vendor, coverage, out, .cache, .venv, env, .env, *.pyc, *.pyo, .DS_Store
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests verified gitignore patterns correctly excluded custom directories
