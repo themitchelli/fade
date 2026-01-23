@@ -1164,16 +1164,18 @@ run_test_generation() {
     local tests_dir=$(get_tests_dir)
     local prd_tests_dir="$tests_dir/$prd_id"
 
-    echo ""
-    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
-    echo -e "${CYAN}📝 Generating Regression Tests for $prd_id${NC}"
-    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
-    echo ""
+    # All display output goes to stderr so generate_tests_for_completed_prds
+    # can capture just the count on stdout
+    echo "" >&2
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}" >&2
+    echo -e "${CYAN}📝 Generating Regression Tests for $prd_id${NC}" >&2
+    echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}" >&2
+    echo "" >&2
 
     # Check if tests already exist for this PRD
     if [[ -d "$prd_tests_dir" ]] && [[ -n "$(ls -A "$prd_tests_dir" 2>/dev/null)" ]]; then
-        echo -e "${YELLOW}Tests already exist in $prd_tests_dir${NC}"
-        echo -e "  Skipping test generation (delete folder to regenerate)"
+        echo -e "${YELLOW}Tests already exist in $prd_tests_dir${NC}" >&2
+        echo -e "  Skipping test generation (delete folder to regenerate)" >&2
         return 0
     fi
 
@@ -1185,7 +1187,7 @@ run_test_generation() {
     if [[ ! -f "$prd_tests_dir/prd.json" ]]; then
         cp "$prd_file" "$prd_tests_dir/prd.json" 2>/dev/null || true
         if [[ -f "$prd_tests_dir/prd.json" ]]; then
-            echo -e "  PRD copied to: ${GREEN}$prd_tests_dir/prd.json${NC}"
+            echo -e "  PRD copied to: ${GREEN}$prd_tests_dir/prd.json${NC}" >&2
         fi
     fi
 
@@ -1194,13 +1196,13 @@ run_test_generation() {
     context=$(build_test_generation_context "$prd_file")
 
     if [[ $? -ne 0 ]]; then
-        echo -e "${RED}Failed to build test generation context${NC}"
+        echo -e "${RED}Failed to build test generation context${NC}" >&2
         return 1
     fi
 
-    echo "Running Claude Code for test generation..."
-    echo -e "  Tests will be created in: ${GREEN}$prd_tests_dir${NC}"
-    echo ""
+    echo "Running Claude Code for test generation..." >&2
+    echo -e "  Tests will be created in: ${GREEN}$prd_tests_dir${NC}" >&2
+    echo "" >&2
 
     # Run Claude Code with the test generation prompt
     # Use --dangerously-skip-permissions so Claude can create test files autonomously
@@ -1210,7 +1212,8 @@ run_test_generation() {
 
     # Run Claude with autonomous permissions to create files
     # Capture output to file for signal detection
-    claude --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file"
+    # Note: tee outputs to stderr so user sees progress, stdout goes to file only
+    claude --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file" >&2
     local exit_code=${PIPESTATUS[0]}
 
     output=$(cat "$output_file")
@@ -1219,16 +1222,16 @@ run_test_generation() {
     # Check for TESTS_GENERATED signal
     if echo "$output" | grep -q "TESTS_GENERATED"; then
         local generated_prd=$(echo "$output" | grep -o 'TESTS_GENERATED:[[:space:]]*[A-Za-z0-9-]*' | head -1 | sed 's/TESTS_GENERATED:[[:space:]]*//')
-        echo ""
-        echo -e "${GREEN}✓ Tests generated for $generated_prd${NC}"
+        echo "" >&2
+        echo -e "${GREEN}✓ Tests generated for $generated_prd${NC}" >&2
 
         # Count generated test files
         local test_count=$(find "$prd_tests_dir" -name "test_*.sh" 2>/dev/null | wc -l | tr -d ' ')
         local skip_count=$(find "$prd_tests_dir" -name "SKIP_*.md" 2>/dev/null | wc -l | tr -d ' ')
 
-        echo -e "  Test files: ${GREEN}$test_count${NC}"
+        echo -e "  Test files: ${GREEN}$test_count${NC}" >&2
         if [[ "$skip_count" -gt 0 ]]; then
-            echo -e "  Skipped ACs: ${YELLOW}$skip_count${NC}"
+            echo -e "  Skipped ACs: ${YELLOW}$skip_count${NC}" >&2
         fi
 
         # Make all test files executable
@@ -1236,14 +1239,14 @@ run_test_generation() {
 
         return 0
     else
-        echo ""
-        echo -e "${YELLOW}⚠ Test generation completed but no TESTS_GENERATED signal detected${NC}"
-        echo -e "  Check $prd_tests_dir for any generated files"
+        echo "" >&2
+        echo -e "${YELLOW}⚠ Test generation completed but no TESTS_GENERATED signal detected${NC}" >&2
+        echo -e "  Check $prd_tests_dir for any generated files" >&2
 
         # Still count what was generated
         local test_count=$(find "$prd_tests_dir" -name "test_*.sh" 2>/dev/null | wc -l | tr -d ' ')
         if [[ "$test_count" -gt 0 ]]; then
-            echo -e "  Found ${GREEN}$test_count${NC} test file(s)"
+            echo -e "  Found ${GREEN}$test_count${NC} test file(s)" >&2
             find "$prd_tests_dir" -name "test_*.sh" -exec chmod +x {} \;
         fi
 

@@ -1037,3 +1037,13 @@ For blocked stories, use:
 - Iteration summary now shows correct PRD name, acceptance criteria, and checkbox status
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-002: Fix output capture in generate_tests_for_completed_prds (BUG-005) - COMPLETE
+
+- Redirected all echo statements in run_test_generation() to stderr using >&2
+- This ensures generate_tests_for_completed_prds() only outputs the count to stdout
+- Display banners and progress messages still visible to user via stderr
+- The comparison [[ "$tests_generated" -gt 0 ]] now works correctly without syntax error
+- Also redirected the tee output of Claude Code to stderr so user sees real-time progress
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
