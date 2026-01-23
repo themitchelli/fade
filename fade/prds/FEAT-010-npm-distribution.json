@@ -31,7 +31,7 @@
         "Works on macOS, Linux, and Windows (via WSL/Git Bash)"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

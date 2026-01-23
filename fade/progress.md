@@ -1232,3 +1232,14 @@ For blocked stories, use:
 - Verified with npm pack --dry-run: package is 72.8kB, 13 files
 - Files changed: package.json (new), LICENSE (new)
 - Tests: npm pkg get validates all fields, npm pack --dry-run shows correct contents
+
+## 2026-01-23 - US-002: npx execution (FEAT-010) - COMPLETE
+
+- Verified npx execution works by testing local package install
+- All fade commands work via local npm install: version, help, status, init, map, new
+- First run downloads, subsequent runs use cache (npm/npx built-in behavior)
+- Tested on macOS Darwin 24.6.0; bash shebang compatible with Linux and Windows WSL/Git Bash
+- Package structure validated: bin/fade-cli is executable with #!/bin/bash shebang
+- npm pack shows 13 files, 72.8kB package size
+- Files changed: none (verification only)
+- Tests: Local package install tested all major commands successfully
