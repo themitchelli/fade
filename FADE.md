@@ -195,3 +195,30 @@ Add any other information that helps agents work effectively:
 - Recent major changes
 - Upcoming planned changes that affect current work
 -->
+
+---
+
+## Target Architecture
+
+<!--
+Where we're heading. Bias toward these patterns in all work, even when
+the current PRD doesn't directly address them. Remove items when achieved.
+-->
+
+- Example: Stateless JWT auth (moving away from sessions)
+- Example: All writes through service layer (no direct DB in routes)
+- Example: Config-driven values (no hardcoding)
+
+---
+
+## Fragile Areas
+
+<!--
+Known problem spots. Exercise extra caution here - smaller commits, more
+verification, ask before major refactoring. Remove when cleaned up.
+-->
+
+| Area | Why it's fragile |
+|------|------------------|
+| `example/path/` | Example: Changes cascade unpredictably |
+| `another/module.py` | Example: Looks simple, always takes 5x longer |
