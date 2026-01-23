@@ -894,3 +894,14 @@ For blocked stories, use:
 - Default excludes: node_modules, .git, venv, __pycache__, dist, build, .next, target, vendor, coverage, out, .cache, .venv, env, .env, *.pyc, *.pyo, .DS_Store
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests verified gitignore patterns correctly excluded custom directories
+
+## 2026-01-23 - US-001: Fix test generation to actually create files (BUG-004) - COMPLETE
+
+- Fixed run_test_generation() function in bin/fade-cli to use `claude --dangerously-skip-permissions` instead of `claude --print`
+- The `--print` flag was single-turn mode that only outputs text and cannot execute tool calls to create files
+- With `--dangerously-skip-permissions`, Claude can now use Write tool to create test files in fade/tests/PRD-xxx/
+- Changed from piped input (`echo "$context" | claude --print`) to argument-based input (`claude --dangerously-skip-permissions "$context"`)
+- Added output capture via temp file and `tee` to display real-time output while also detecting TESTS_GENERATED signal
+- Preserved existing chmod +x logic to make test files executable after generation
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

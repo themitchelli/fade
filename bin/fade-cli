@@ -1147,10 +1147,18 @@ run_test_generation() {
     echo ""
 
     # Run Claude Code with the test generation prompt
-    # Use --print flag and pipe the context to it
+    # Use --dangerously-skip-permissions so Claude can create test files autonomously
     local output
-    output=$(echo "$context" | claude --print 2>&1)
-    local exit_code=$?
+    local output_file
+    output_file=$(mktemp)
+
+    # Run Claude with autonomous permissions to create files
+    # Capture output to file for signal detection
+    claude --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file"
+    local exit_code=${PIPESTATUS[0]}
+
+    output=$(cat "$output_file")
+    rm -f "$output_file"
 
     # Check for TESTS_GENERATED signal
     if echo "$output" | grep -q "TESTS_GENERATED"; then

@@ -1,0 +1,74 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "BUG-004",
+  "name": "Test Generation Broken - claude --print Cannot Create Files",
+  "description": "The regression test generation feature (ENH-009) is non-functional. The implementation uses 'claude --print' which is a single-turn mode that cannot execute tool calls. Claude receives the prompt but cannot create test files. Additionally, PRDs should be copied to test folders for traceability.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix test generation to actually create files",
+      "description": "As a developer completing a PRD, I want regression tests to actually be generated so the feature works as documented",
+      "acceptanceCriteria": [
+        "run_test_generation uses a Claude mode that supports file creation (not --print)",
+        "On ALL_COMPLETE, test files are actually written to fade/tests/PRD-xxx/",
+        "TESTS_GENERATED signal is detected after successful generation",
+        "Test files are created with executable permissions"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Copy PRD to test folder during test generation",
+      "description": "As a developer reviewing regression tests, I want the original PRD preserved alongside the tests so I can understand what acceptance criteria they validate",
+      "acceptanceCriteria": [
+        "When run_test_generation creates fade/tests/PRD-xxx/, it copies the source PRD JSON to that folder",
+        "PRD is saved as fade/tests/PRD-xxx/prd.json",
+        "Copy happens before test generation (so tests and PRD are always paired)",
+        "Original PRD file is not modified or moved"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Skip PRD copy if already present",
+      "description": "As a developer regenerating tests, I want the existing PRD preserved so manual edits are not lost",
+      "acceptanceCriteria": [
+        "If fade/tests/PRD-xxx/prd.json already exists, do not overwrite it",
+        "No warning or message needed when skipping (silent skip)",
+        "Existing prd.json is never modified by test regeneration"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Update README documentation",
+      "description": "As a FADE user reading documentation, I want accurate information about test generation",
+      "acceptanceCriteria": [
+        "README.md Regression Testing section mentions prd.json in test folders",
+        "Folder table includes: fade/tests/PRD-*/prd.json | Source PRD for test traceability"
+      ],
+      "priority": 4,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "rootCause": "Line 1152 uses 'claude --print' which is single-turn and cannot create files. The prompt asks Claude to create test files, but --print mode only outputs text.",
+    "location": "bin/fade-cli run_test_generation function around line 1114-1188",
+    "fixOptions": [
+      "Option A: Use 'claude' without --print (interactive mode with tool use)",
+      "Option B: Use 'claude --dangerously-skip-permissions' for autonomous file creation",
+      "Option C: Parse --print output and write files from bash (fragile, not recommended)"
+    ],
+    "prdCopy": "Add before line 1138: cp \"$prd_file\" \"$prd_tests_dir/prd.json\" 2>/dev/null || true",
+    "considerations": [
+      "Test generation needs write access to fade/tests/PRD-xxx/",
+      "Consider timeout for test generation (Claude session could hang)",
+      "PRD copy should use || true to avoid failing on edge cases"
+    ]
+  }
+}
