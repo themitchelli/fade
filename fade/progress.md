@@ -1462,3 +1462,17 @@ For blocked stories, use:
 - Updated help text with Map Options and examples
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, tested on sample project with Express/Mongoose/Redis/Stripe/Sentry
+
+## 2026-01-23 - US-001: Research context rot in FADE sessions (SPIKE-001) - COMPLETE
+
+- Analyzed FADE context files: FADE.md (1.9k tokens), prompt.md (3.5k tokens), progress.md (22.8k tokens), learned.md (139 tokens)
+- Total static context: ~28,000 tokens (14% of 200k window)
+- Progress.md is primary growth driver at ~930 bytes per entry
+- Key finding: FADE's checkpoint-and-restart pattern already provides effective context isolation
+- Each STORY_DONE signal triggers restart with fresh context, preventing intra-session accumulation
+- Analyzed ENH-009 (9 stories) - no quality degradation observed between story 1 and story 9
+- Single story context usage: ~45-60k tokens typical, well within bounds
+- Recommendation: Do NOT implement full sub-agent isolation; current architecture is sufficient
+- Identified edge cases where isolation would help: very long stories, parallel tasks, rate limit recovery
+- Files changed: docs/spike-context-isolation.md (created)
+- Tests: N/A (research spike)
