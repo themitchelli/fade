@@ -1,0 +1,111 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-013",
+  "name": "C4 Architecture Diagram Generation",
+  "description": "Extend 'fade map' to generate interactive C4 architecture diagrams as a self-contained HTML file. Uses Mermaid.js for rendering, requiring no external dependencies at view time. Provides visual representation of system context, containers, and components detected during codebase analysis.",
+  "dependsOn": ["FEAT-008"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Generate System Context diagram",
+      "description": "As a developer, I want fade map to generate a C4 System Context diagram showing my system and its external dependencies",
+      "acceptanceCriteria": [
+        "fade map --diagram generates architecture.html in project root",
+        "HTML file is self-contained with embedded Mermaid.js CDN link",
+        "Diagram shows the system as central element",
+        "External systems detected from dependencies (databases, APIs, auth providers) shown as external actors",
+        "Users/actors inferred from framework type (web app, CLI, API server)",
+        "Relationships labeled with interaction type (uses, reads, writes)"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Generate Container diagram",
+      "description": "As a developer, I want a C4 Container diagram showing the major containers in my application",
+      "acceptanceCriteria": [
+        "Container diagram shows application containers (web app, API, workers, etc.)",
+        "Database containers detected from ORM/driver dependencies",
+        "Message queues detected from queue dependencies (Redis, RabbitMQ, SQS)",
+        "External service integrations shown as external containers",
+        "Technology labels included (Node.js, PostgreSQL, Redis, etc.)",
+        "Container diagram accessible via tab/toggle in HTML output"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Generate Component diagram",
+      "description": "As a developer, I want a C4 Component diagram showing the major components within my application",
+      "acceptanceCriteria": [
+        "Components detected from directory structure (routes/, controllers/, services/, models/)",
+        "Component relationships inferred from import patterns where detectable",
+        "Components grouped by architectural layer (presentation, business, data)",
+        "Each component labeled with its responsibility based on directory/file naming",
+        "Component diagram accessible via tab/toggle in HTML output"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Interactive HTML output",
+      "description": "As a developer, I want the HTML diagram to be interactive and self-contained for easy sharing",
+      "acceptanceCriteria": [
+        "Single HTML file with no external dependencies except CDN (works offline after first load)",
+        "Tabs or buttons to switch between Context, Container, and Component views",
+        "Zoom and pan controls for large diagrams",
+        "Dark/light mode toggle",
+        "Export to PNG button using Mermaid's built-in export",
+        "Generated timestamp and FADE version shown in footer"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Diagram customization options",
+      "description": "As a developer, I want to customize what's included in the generated diagrams",
+      "acceptanceCriteria": [
+        "--diagram=context generates only System Context diagram",
+        "--diagram=container generates Context + Container diagrams",
+        "--diagram=component generates all three levels (default)",
+        "--diagram-output=PATH allows custom output location",
+        "--diagram-title='My System' sets custom system name",
+        "Options documented in fade map --help"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Mermaid DSL export",
+      "description": "As a developer, I want to export the raw Mermaid diagram code for use in documentation",
+      "acceptanceCriteria": [
+        "--diagram-format=mermaid outputs .mmd files instead of HTML",
+        "Generates context.mmd, container.mmd, component.mmd as separate files",
+        "Files can be embedded in README.md or other markdown docs",
+        "Includes comments in .mmd files explaining each section",
+        "Format documented in fade map --help"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "approach": "Generate Mermaid C4 diagram syntax from codebase analysis results. Use Mermaid's native C4 diagram support (C4Context, C4Container, C4Component).",
+    "mermaidC4Syntax": "Mermaid supports C4 natively: Person(), System(), Container(), Component(), Rel(), SystemDb(), SystemQueue()",
+    "htmlTemplate": "Embed Mermaid via CDN, include tab switching logic, zoom controls via CSS transform. Single file ~50KB uncompressed.",
+    "detectionHeuristics": {
+      "databases": "Look for pg, mysql, mongodb, prisma, sequelize, typeorm, mongoose in dependencies",
+      "queues": "Look for redis, ioredis, bull, amqplib, sqs in dependencies",
+      "auth": "Look for passport, auth0, firebase-admin, jsonwebtoken in dependencies",
+      "storage": "Look for aws-sdk, @google-cloud/storage, multer in dependencies"
+    },
+    "limitations": "Component relationships are best-effort based on directory structure. Deep import analysis would require AST parsing which is out of scope for shell-based approach.",
+    "futureEnhancement": "Could add --deep-diagram flag that uses Claude to analyze actual code relationships for more accurate component diagrams."
+  }
+}
