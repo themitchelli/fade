@@ -30,7 +30,7 @@
         "Original PRD file is not modified or moved"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -42,7 +42,7 @@
         "Existing prd.json is never modified by test regeneration"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -53,7 +53,7 @@
         "Folder table includes: fade/tests/PRD-*/prd.json | Source PRD for test traceability"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

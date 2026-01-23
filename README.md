@@ -265,6 +265,7 @@ FADE includes lightweight regression testing that runs after each story completi
 | `fade/tests/` | Test folder root |
 | `fade/tests/run.sh` | Test runner (auto-generated) |
 | `fade/tests/PRD-*/` | Tests for each PRD |
+| `fade/tests/PRD-*/prd.json` | Source PRD for test traceability |
 | `fade/tests/failed.log` | Failure details (created on failures) |
 
 **How it works:**

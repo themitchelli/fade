@@ -1133,6 +1133,15 @@ run_test_generation() {
     # Create the PRD tests directory
     mkdir -p "$prd_tests_dir"
 
+    # Copy the source PRD to the test folder for traceability
+    # Skip if prd.json already exists (preserves manual edits)
+    if [[ ! -f "$prd_tests_dir/prd.json" ]]; then
+        cp "$prd_file" "$prd_tests_dir/prd.json" 2>/dev/null || true
+        if [[ -f "$prd_tests_dir/prd.json" ]]; then
+            echo -e "  PRD copied to: ${GREEN}$prd_tests_dir/prd.json${NC}"
+        fi
+    fi
+
     # Build context for test generation
     local context
     context=$(build_test_generation_context "$prd_file")

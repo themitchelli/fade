@@ -905,3 +905,23 @@ For blocked stories, use:
 - Preserved existing chmod +x logic to make test files executable after generation
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-002, US-003, US-004: PRD copy to test folder (BUG-004) - COMPLETE
+
+- Added PRD copy to run_test_generation() function in bin/fade-cli (line 1136-1143)
+- After creating the PRD tests directory, copies source PRD to fade/tests/PRD-xxx/prd.json
+- Skip logic: only copies if prd.json doesn't already exist (preserves manual edits)
+- Silent skip: no message when prd.json already exists
+- Copy happens before test generation context is built (tests and PRD always paired)
+- Uses `cp "$prd_file" "$prd_tests_dir/prd.json" 2>/dev/null || true` for safe error handling
+- Updated README.md Regression Testing section with new table row for prd.json traceability
+- All acceptance criteria for US-002, US-003, US-004 verified:
+  - PRD copied to test folder when generating tests
+  - PRD saved as prd.json in the PRD test folder
+  - Copy happens before test generation
+  - Original PRD not modified
+  - Existing prd.json preserved (not overwritten)
+  - Silent skip (no warning)
+  - README documents prd.json in folder table
+- Files changed: bin/fade-cli, README.md, fade/prds/BUG-004-test-generation-broken.json
+- Tests: bash -n syntax check passed
