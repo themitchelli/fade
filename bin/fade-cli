@@ -2784,9 +2784,13 @@ This is SINGLE-TASK mode, NOT story-based workflow:
 Steps:
 1. Complete the task described above
 2. Keep changes focused - if the task seems large (more than a few files), suggest creating a PRD instead
-3. Commit your changes with an appropriate conventional commit message (feat:, fix:, docs:, chore:, refactor:)
-4. Only commit if you actually made changes
-5. When done, simply confirm what you did - no special signals needed
+3. If you made changes, commit them with a conventional commit message:
+   - Derive the message from the task: \"$task_description\"
+   - Choose the appropriate prefix: fix: (bug fix), feat: (new feature), docs: (documentation), chore: (maintenance), refactor: (code restructure)
+   - Example: task \"fix typo in README\" → commit \"docs: fix typo in README\"
+   - Example: task \"add .gitignore entry for .env\" → commit \"chore: add .gitignore entry for .env\"
+4. Only commit if you actually made changes - skip commit if no files were modified
+5. When done, confirm what you did - no special signals needed
 
 "
 

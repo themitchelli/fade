@@ -1133,3 +1133,18 @@ For blocked stories, use:
 - No PRD protocol elements included in context
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-003: Atomic commit on completion (FEAT-009) - COMPLETE
+
+- Enhanced quick mode commit instructions in cmd_quick() to be more explicit
+- Commit message now explicitly derived from task description with instruction and variable reference
+- Added concrete examples: "fix typo in README" → "docs: fix typo in README"
+- Listed all conventional commit prefixes: fix:, feat:, docs:, chore:, refactor:
+- Clarified conditional: "Only commit if you actually made changes - skip commit if no files were modified"
+- All acceptance criteria verified:
+  - Quick mode prompt instructs Claude to commit changes when done
+  - Commit message derived from task description (with $task_description reference)
+  - Uses conventional commit format (all prefixes listed)
+  - Only commits if changes were made
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
