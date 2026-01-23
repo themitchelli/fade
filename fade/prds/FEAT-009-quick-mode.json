@@ -57,7 +57,7 @@
         "If progress.md doesn't exist, skips logging (non-FADE project)"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

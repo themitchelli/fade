@@ -1148,3 +1148,14 @@ For blocked stories, use:
   - Only commits if changes were made
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-23 - US-004: Quick task logging (FEAT-009) - COMPLETE
+
+- Verified quick mode already includes progress.md logging instructions (lines 2888-2909)
+- Checks for progress.md in both fade/ and root locations
+- Only adds logging instructions if progress.md exists (skips for non-FADE projects)
+- Log format matches spec: `## YYYY-MM-DD HH:MM - QUICK: task description - COMPLETE`
+- Template includes brief summary and files changed placeholders
+- All acceptance criteria satisfied by existing implementation (added during US-002/US-003)
+- Files changed: fade/prds/FEAT-009-quick-mode.json (marked passes: true)
+- Tests: Code review verified all criteria met
