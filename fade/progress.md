@@ -1119,3 +1119,17 @@ For blocked stories, use:
 - All 19 tests pass via fade/tests/run.sh
 - Files changed: fade/tests/PRD-BUG-006/ (5 test files, 3 SKIP files, prd.json)
 - Tests: 19 passed, 0 failed
+
+## 2026-01-23 - US-002: Quick mode context injection (FEAT-009) - COMPLETE
+
+- Added relevant standards injection to cmd_quick() based on task description keywords
+- Standards detection checks for: API/endpoint, git, test, documentation, and coding keywords
+- Checks both fade/standards/ (contained) and standards/ (legacy) locations
+- Only includes standards that match task keywords to keep context minimal
+- Updated quick mode instructions to explicitly state SINGLE-TASK mode
+- Added clear prohibition: "Do NOT output STORY_DONE or ALL_COMPLETE signals"
+- Added clear prohibition: "Do NOT follow the story completion protocol"
+- Context remains minimal: FADE.md (if exists) + relevant standards (if match) + task description
+- No PRD protocol elements included in context
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

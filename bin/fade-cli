@@ -2775,10 +2775,18 @@ $task_description
 
 ## Instructions
 
+This is SINGLE-TASK mode, NOT story-based workflow:
+- Complete ONLY the task described above
+- Do NOT look for PRD files or user stories
+- Do NOT output STORY_DONE or ALL_COMPLETE signals
+- Do NOT follow the story completion protocol
+
+Steps:
 1. Complete the task described above
 2. Keep changes focused - if the task seems large (more than a few files), suggest creating a PRD instead
 3. Commit your changes with an appropriate conventional commit message (feat:, fix:, docs:, chore:, refactor:)
 4. Only commit if you actually made changes
+5. When done, simply confirm what you did - no special signals needed
 
 "
 
@@ -2789,6 +2797,88 @@ $task_description
 $(cat FADE.md)
 
 "
+    fi
+
+    # Add relevant standards if standards/ folder exists
+    local standards_dir=""
+    if [[ -d "fade/standards" ]]; then
+        standards_dir="fade/standards"
+    elif [[ -d "standards" ]]; then
+        standards_dir="standards"
+    fi
+
+    if [[ -n "$standards_dir" ]]; then
+        local task_lower=$(echo "$task_description" | tr '[:upper:]' '[:lower:]')
+        local standards_included=false
+        local standards_content=""
+
+        # Check for API/endpoint related keywords
+        if echo "$task_lower" | grep -qE 'api|endpoint|route|controller|handler|auth|validation'; then
+            if [[ -f "$standards_dir/api-security.md" ]]; then
+                standards_content+="### API Security Standards
+
+$(cat "$standards_dir/api-security.md")
+
+"
+                standards_included=true
+            fi
+        fi
+
+        # Check for git related keywords
+        if echo "$task_lower" | grep -qE 'commit|branch|merge|git|rebase'; then
+            if [[ -f "$standards_dir/git.md" ]]; then
+                standards_content+="### Git Standards
+
+$(cat "$standards_dir/git.md")
+
+"
+                standards_included=true
+            fi
+        fi
+
+        # Check for test related keywords
+        if echo "$task_lower" | grep -qE 'test|spec|coverage|mock|unit|integration'; then
+            if [[ -f "$standards_dir/testing.md" ]]; then
+                standards_content+="### Testing Standards
+
+$(cat "$standards_dir/testing.md")
+
+"
+                standards_included=true
+            fi
+        fi
+
+        # Check for documentation related keywords
+        if echo "$task_lower" | grep -qE 'doc|readme|comment|api doc'; then
+            if [[ -f "$standards_dir/documentation.md" ]]; then
+                standards_content+="### Documentation Standards
+
+$(cat "$standards_dir/documentation.md")
+
+"
+                standards_included=true
+            fi
+        fi
+
+        # Always include coding standards for code-related tasks (most tasks)
+        if echo "$task_lower" | grep -qE 'fix|add|update|implement|create|refactor|change|modify|code|function|class'; then
+            if [[ -f "$standards_dir/coding.md" ]]; then
+                standards_content+="### Coding Standards
+
+$(cat "$standards_dir/coding.md")
+
+"
+                standards_included=true
+            fi
+        fi
+
+        if [[ "$standards_included" == true ]]; then
+            context+="## Relevant Standards
+
+The following standards apply to this task. Follow them when making changes.
+
+$standards_content"
+        fi
     fi
 
     # Add instruction to log to progress.md if it exists

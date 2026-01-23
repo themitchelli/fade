@@ -31,7 +31,7 @@
         "Quick mode prompt instructs single-task completion, not story workflow"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
