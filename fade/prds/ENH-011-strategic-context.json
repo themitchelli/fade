@@ -1,0 +1,104 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-011",
+  "name": "Strategic Context for PRD Execution",
+  "description": "Add Target Architecture and Fragile Areas sections to FADE.md, giving Claude strategic awareness when executing PRDs. Claude will know where the project is heading architecturally and where danger lurks in the codebase, enabling better decisions that align with project direction and avoid known problem areas.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add strategic sections to FADE.md template",
+      "description": "As a developer starting a new FADE project, I want the FADE.md template to include Target Architecture and Fragile Areas sections so I can provide strategic context from day one",
+      "acceptanceCriteria": [
+        "FADE_TEMPLATE includes '## Target Architecture' section after Architecture References",
+        "FADE_TEMPLATE includes '## Fragile Areas' section after Target Architecture",
+        "Target Architecture section has comment explaining purpose and 'remove when achieved'",
+        "Fragile Areas section uses table format with Area and Why columns",
+        "Fragile Areas section has comment explaining purpose and 'remove when cleaned up'",
+        "Off-Limits section includes note distinguishing it from Fragile Areas",
+        "fade init creates FADE.md with these new sections"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Update prompt.md to reference strategic sections",
+      "description": "As a developer using FADE, I want prompt.md to instruct Claude to check the strategic sections so Claude considers them during PRD execution",
+      "acceptanceCriteria": [
+        "PROMPT_TEMPLATE Session Start checklist includes 'Check **Target Architecture** to understand directional bias'",
+        "PROMPT_TEMPLATE Session Start checklist includes 'Check **Fragile Areas** for code requiring extra caution'",
+        "These items appear before existing System Context checks",
+        "fade init creates prompt.md with updated checklist"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Detect missing strategic sections in existing FADE.md",
+      "description": "As a developer with an existing FADE project, I want fade update to detect if my FADE.md is missing the recommended strategic sections",
+      "acceptanceCriteria": [
+        "fade update checks if FADE.md exists",
+        "fade update checks if FADE.md contains '## Target Architecture' section",
+        "fade update checks if FADE.md contains '## Fragile Areas' section",
+        "Detection uses simple grep/pattern matching, not parsing",
+        "Missing sections are tracked for reporting"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Prompt user to add missing sections",
+      "description": "As a developer running fade update, I want to be asked if I want the missing strategic sections added to my FADE.md",
+      "acceptanceCriteria": [
+        "If sections missing, fade update shows explanatory message about what they are",
+        "Message explains: Target Architecture = directional bias, Fragile Areas = code requiring caution",
+        "User is prompted with [y/N] confirmation",
+        "Default is N (no changes without explicit consent)",
+        "If user declines, no changes made and update continues normally"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Append sections to FADE.md with permission",
+      "description": "As a developer who confirms the prompt, I want the missing sections appended to my FADE.md without modifying existing content",
+      "acceptanceCriteria": [
+        "Sections are appended to end of FADE.md (safest insertion point)",
+        "Existing FADE.md content is never modified or removed",
+        "Only missing sections are added (if one exists, only add the other)",
+        "Added sections include placeholder examples for user to customize",
+        "Success message tells user to review and customize the sections",
+        "Works correctly if FADE.md has no trailing newline"
+      ],
+      "priority": 5,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Check mode reports missing sections without prompting",
+      "description": "As a developer running fade update --check, I want to see if my FADE.md is missing sections without being prompted to add them",
+      "acceptanceCriteria": [
+        "fade update --check reports missing sections as 'would add: Target Architecture section'",
+        "No interactive prompt in --check mode",
+        "Missing sections contribute to 'updates available' status",
+        "Exit code reflects that updates are available"
+      ],
+      "priority": 6,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "sectionTemplates": {
+      "targetArchitecture": "## Target Architecture\n\n<!--\nWhere we're heading. Bias toward these patterns in all work, even when\nthe current PRD doesn't directly address them. Remove items when achieved.\n-->\n\n- Example: Stateless JWT auth (moving away from sessions)\n- Example: All writes through service layer (no direct DB in routes)\n- Example: Config-driven values (no hardcoding)\n",
+      "fragileAreas": "## Fragile Areas\n\n<!--\nKnown problem spots. Exercise extra caution here - smaller commits, more\nverification, ask before major refactoring. Remove when cleaned up.\n-->\n\n| Area | Why it's fragile |\n|------|------------------|\n| `example/path/` | Example: Changes cascade unpredictably |\n| `another/module.py` | Example: Looks simple, always takes 5x longer |\n"
+    },
+    "detection": "grep -q '## Target Architecture' FADE.md",
+    "insertion": "Append to end of file - safest approach, user can reorder if desired",
+    "offLimitsNote": "Add clarifying note: 'For areas that are risky but not forbidden, see **Fragile Areas**.'"
+  }
+}
