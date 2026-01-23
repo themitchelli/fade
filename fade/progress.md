@@ -1259,3 +1259,15 @@ For blocked stories, use:
   - Uninstall works: npm uninstall -g fade-dev
 - Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
 - Tests: Manual verification of all install/uninstall scenarios
+
+## 2026-01-23 - US-004: Version management via npm (FEAT-010) - COMPLETE
+
+- Verified npm's built-in version management works with fade-dev package
+- npm update -g fade-dev: npm's semver handling automatically updates to latest published version
+- npx fade-dev@latest: @latest tag always fetches most recent version from registry
+- Version consistency: package.json version (0.3.1) matches FADE_VERSION in bin/fade-cli (0.3.1)
+- fade version output: shows v0.3.1 which matches npm package version
+- Tested local npm install: `npm install <path>` installs correct version and runs correctly
+- All acceptance criteria are npm built-in behaviors, no code changes required
+- Files changed: fade/prds/FEAT-010-npm-distribution.json (marked passes: true)
+- Tests: Local package install verified version consistency
