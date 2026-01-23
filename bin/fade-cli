@@ -116,6 +116,33 @@ This helps agents understand where new code should go and how components interac
 
 ---
 
+## Target Architecture
+
+<!--
+Where we're heading. Bias toward these patterns in all work, even when
+the current PRD doesn't directly address them. Remove items when achieved.
+-->
+
+- Example: Stateless JWT auth (moving away from sessions)
+- Example: All writes through service layer (no direct DB in routes)
+- Example: Config-driven values (no hardcoding)
+
+---
+
+## Fragile Areas
+
+<!--
+Known problem spots. Exercise extra caution here - smaller commits, more
+verification, ask before major refactoring. Remove when cleaned up.
+-->
+
+| Area | Why it's fragile |
+|------|------------------|
+| `example/path/` | Example: Changes cascade unpredictably |
+| `another/module.py` | Example: Looks simple, always takes 5x longer |
+
+---
+
 ## Off-Limits Modules
 
 <!--
@@ -123,6 +150,8 @@ List modules, files, or directories that agents should NOT modify.
 Common reasons: legacy code pending rewrite, external vendor code,
 security-sensitive modules requiring human review, or code with
 complex implicit dependencies.
+
+Note: For areas that are risky but not forbidden, see **Fragile Areas** above.
 -->
 
 | Path | Reason | Contact |
@@ -335,6 +364,8 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 ## Session Start
 
 1. Read `FADE.md` for project context, standards, and boundaries
+   - Check **Target Architecture** to understand directional bias
+   - Check **Fragile Areas** for code requiring extra caution
    - Check **System Context** to understand where this work fits
    - Check **Transition Plan** for sequencing
    - Check **Active Work Items** to avoid conflicts
@@ -3528,6 +3559,29 @@ cmd_update() {
             echo ""
         fi
 
+        # Check FADE.md for recommended sections
+        if [[ -f "FADE.md" ]]; then
+            local fade_sections_missing=()
+
+            if ! grep -q "## Target Architecture" "FADE.md"; then
+                fade_sections_missing+=("Target Architecture")
+            fi
+
+            if ! grep -q "## Fragile Areas" "FADE.md"; then
+                fade_sections_missing+=("Fragile Areas")
+            fi
+
+            if [[ ${#fade_sections_missing[@]} -gt 0 ]]; then
+                echo -e "${BOLD}FADE.md Sections:${NC}"
+                for section in "${fade_sections_missing[@]}"; do
+                    has_updates=true
+                    updates_available+=("would add: $section section to FADE.md")
+                    echo -e "  ${YELLOW}missing${NC}: $section"
+                done
+                echo ""
+            fi
+        fi
+
         # Report results
         if [[ "$has_updates" == true ]]; then
             echo -e "${YELLOW}Updates available:${NC}"
@@ -3947,10 +4001,102 @@ RUNSH_EOF
     fi
 
     # ========================================================================
+    # FADE.MD ENHANCEMENT
+    # ========================================================================
+
+    local fade_sections_added=()
+
+    if [[ -f "FADE.md" ]]; then
+        local missing_target_arch=false
+        local missing_fragile_areas=false
+
+        if ! grep -q "## Target Architecture" "FADE.md"; then
+            missing_target_arch=true
+        fi
+
+        if ! grep -q "## Fragile Areas" "FADE.md"; then
+            missing_fragile_areas=true
+        fi
+
+        if [[ "$missing_target_arch" == true ]] || [[ "$missing_fragile_areas" == true ]]; then
+            echo -e "${BOLD}FADE.md Enhancement${NC}"
+            echo ""
+            echo "Your FADE.md is missing recommended sections that help Claude"
+            echo "make better architectural decisions:"
+            echo ""
+
+            if [[ "$missing_target_arch" == true ]]; then
+                echo -e "  • ${YELLOW}Target Architecture${NC} - directional bias for all work"
+            fi
+            if [[ "$missing_fragile_areas" == true ]]; then
+                echo -e "  • ${YELLOW}Fragile Areas${NC} - code requiring extra caution"
+            fi
+
+            echo ""
+            read -p "Add these sections to FADE.md? [y/N]: " confirm </dev/tty
+
+            if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                # Ensure file ends with newline before appending
+                if [[ -s "FADE.md" ]] && [[ "$(tail -c 1 "FADE.md" | wc -l)" -eq 0 ]]; then
+                    echo "" >> "FADE.md"
+                fi
+
+                if [[ "$missing_target_arch" == true ]]; then
+                    cat >> "FADE.md" << 'TARGETARCH_EOF'
+
+---
+
+## Target Architecture
+
+<!--
+Where we're heading. Bias toward these patterns in all work, even when
+the current PRD doesn't directly address them. Remove items when achieved.
+-->
+
+- Example: Stateless JWT auth (moving away from sessions)
+- Example: All writes through service layer (no direct DB in routes)
+- Example: Config-driven values (no hardcoding)
+TARGETARCH_EOF
+                    echo -e "  ${GREEN}✓${NC} Added Target Architecture section"
+                    fade_sections_added+=("Target Architecture")
+                fi
+
+                if [[ "$missing_fragile_areas" == true ]]; then
+                    cat >> "FADE.md" << 'FRAGILEAREAS_EOF'
+
+---
+
+## Fragile Areas
+
+<!--
+Known problem spots. Exercise extra caution here - smaller commits, more
+verification, ask before major refactoring. Remove when cleaned up.
+-->
+
+| Area | Why it's fragile |
+|------|------------------|
+| `example/path/` | Example: Changes cascade unpredictably |
+| `another/module.py` | Example: Looks simple, always takes 5x longer |
+FRAGILEAREAS_EOF
+                    echo -e "  ${GREEN}✓${NC} Added Fragile Areas section"
+                    fade_sections_added+=("Fragile Areas")
+                fi
+
+                echo ""
+                echo -e "  Review and customize these sections for your project."
+                echo ""
+            else
+                echo -e "  ${CYAN}Skipped${NC} - you can add these manually later"
+                echo ""
+            fi
+        fi
+    fi
+
+    # ========================================================================
     # SUMMARY
     # ========================================================================
 
-    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]] || [[ ${#structure_created[@]} -gt 0 ]]; then
+    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]] || [[ ${#structure_created[@]} -gt 0 ]] || [[ ${#fade_sections_added[@]} -gt 0 ]]; then
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
         echo -e "${GREEN}✓ FADE update complete!${NC}"
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -3979,9 +4125,16 @@ RUNSH_EOF
                 echo -e "    ${GREEN}+${NC} $item"
             done
         fi
+        if [[ ${#fade_sections_added[@]} -gt 0 ]]; then
+            echo ""
+            echo -e "  FADE.md sections added:"
+            for section in "${fade_sections_added[@]}"; do
+                echo -e "    ${GREEN}+${NC} $section"
+            done
+        fi
         echo ""
         # Summary line showing count
-        local total_changes=$((artifacts_updated + ${#standards_added[@]} + ${#structure_created[@]}))
+        local total_changes=$((artifacts_updated + ${#standards_added[@]} + ${#structure_created[@]} + ${#fade_sections_added[@]}))
         if [[ $total_changes -gt 0 ]]; then
             local change_word="change"
             if [[ $total_changes -gt 1 ]]; then

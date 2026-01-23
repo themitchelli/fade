@@ -20,7 +20,7 @@
         "fade init creates FADE.md with these new sections"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -33,7 +33,7 @@
         "fade init creates prompt.md with updated checklist"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -47,7 +47,7 @@
         "Missing sections are tracked for reporting"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",
@@ -61,7 +61,7 @@
         "If user declines, no changes made and update continues normally"
       ],
       "priority": 4,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
@@ -76,7 +76,7 @@
         "Works correctly if FADE.md has no trailing newline"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
@@ -89,7 +89,7 @@
         "Exit code reflects that updates are available"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
