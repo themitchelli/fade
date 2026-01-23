@@ -84,7 +84,7 @@
         "Optional field - PRDs work fine without discovery docs"
       ],
       "priority": 6,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

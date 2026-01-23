@@ -1420,3 +1420,19 @@ For blocked stories, use:
   - Flags if proposed feature might conflict with existing code (conflict detection section)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, directory detection verified
+
+## 2026-01-23 - US-006: Reference discovery in PRD execution (FEAT-011) - COMPLETE
+
+- Added get_prd_discovery_doc() helper function to extract discoveryDoc field from PRD JSON
+- Updated build_context() function to include discovery document when active PRD references one
+- Discovery document included after learned.md and before prompt.md in context
+- Context header explains: "This PRD was created from a discovery session. The following context provides the implementation intent and decisions made during feature exploration."
+- Discovery doc is optional - PRDs without discoveryDoc field work normally (no error, no inclusion)
+- File existence check prevents errors if discoveryDoc points to missing file
+- All acceptance criteria verified:
+  - PRD JSON can include 'discoveryDoc' field pointing to discoveries/*.md (already supported)
+  - fade run includes referenced discovery doc in context (added to build_context())
+  - Discovery doc provides implementation intent beyond acceptance criteria (header explains purpose)
+  - Optional field - PRDs work fine without discovery docs (conditional inclusion)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

@@ -651,18 +651,29 @@ prd_has_incomplete_stories() {
 get_prd_name() {
     local prd_file="$1"
     local name=""
-    
+
     name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
-    
+
     if [[ -z "$name" ]]; then
         name=$(grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
     fi
-    
+
     if [[ -z "$name" ]]; then
         name=$(basename "$prd_file" .json)
     fi
-    
+
     echo "$name"
+}
+
+# Get discoveryDoc path from PRD JSON (optional field)
+# Returns empty string if field doesn't exist
+get_prd_discovery_doc() {
+    local prd_file="$1"
+    local discovery_doc=""
+
+    discovery_doc=$(grep -o '"discoveryDoc"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"discoveryDoc"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+
+    echo "$discovery_doc"
 }
 
 # Get PRD type from JSON or filename
@@ -1974,6 +1985,23 @@ $(cat learned.md)
 ---
 
 "
+    fi
+
+    # Include discovery doc if the active PRD references one
+    local active_prd=$(get_active_prd)
+    if [[ -n "$active_prd" ]]; then
+        local discovery_doc=$(get_prd_discovery_doc "$active_prd")
+        if [[ -n "$discovery_doc" ]] && [[ -f "$discovery_doc" ]]; then
+            context+="# DISCOVERY CONTEXT ($discovery_doc)
+
+This PRD was created from a discovery session. The following context provides the implementation intent and decisions made during feature exploration.
+
+$(cat "$discovery_doc")
+
+---
+
+"
+        fi
     fi
 
     # prompt.md: check fade/ first, then root
