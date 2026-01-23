@@ -800,3 +800,17 @@ For blocked stories, use:
 - Added map command to help text and examples
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual tests on simulated projects verified all detection features
+
+## 2026-01-23 - US-002: Architecture pattern detection (FEAT-008) - COMPLETE
+
+- Added detect_architecture_patterns() function to identify common architectural patterns
+- MVC/MVVM detection: checks for models/, views/, controllers/, viewmodels/ directories
+- API structure detection: checks for routes/, api/, endpoints/, handlers/, resources/ directories
+- Test organization detection: checks for tests/, __tests__/, spec/ directories and colocated *.test.* *.spec.* files
+- Config pattern detection: checks for config/, settings/ directories and .env files
+- Additional patterns: Service Layer, Repository Pattern, DDD, Middleware, Component-Based UI, Feature/Module Based, Monorepo
+- Each pattern reported with confidence level: certain (all evidence), likely (partial), possible (minimal)
+- Integrated into cmd_map() with table output showing Pattern, Confidence, Evidence columns
+- Added architecture patterns to FADE.md ready output section
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests verified all confidence levels and pattern detection

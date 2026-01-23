@@ -4711,6 +4711,225 @@ describe_directories() {
     done
 }
 
+# Detect architectural patterns from directory structure
+detect_architecture_patterns() {
+    local dir="${1:-.}"
+    local patterns=()
+    local confidences=()
+
+    # -------------------------------------------------------------------------
+    # MVC / MVVM Pattern Detection
+    # -------------------------------------------------------------------------
+    local mvc_count=0
+    local mvc_dirs=""
+
+    # Check for models
+    if [[ -d "$dir/models" ]] || [[ -d "$dir/src/models" ]] || [[ -d "$dir/app/models" ]]; then
+        ((mvc_count++))
+        mvc_dirs+="models "
+    fi
+
+    # Check for views
+    if [[ -d "$dir/views" ]] || [[ -d "$dir/src/views" ]] || [[ -d "$dir/app/views" ]]; then
+        ((mvc_count++))
+        mvc_dirs+="views "
+    fi
+
+    # Check for controllers
+    if [[ -d "$dir/controllers" ]] || [[ -d "$dir/src/controllers" ]] || [[ -d "$dir/app/controllers" ]]; then
+        ((mvc_count++))
+        mvc_dirs+="controllers "
+    fi
+
+    # Check for viewmodels (MVVM)
+    if [[ -d "$dir/viewmodels" ]] || [[ -d "$dir/src/viewmodels" ]] || [[ -d "$dir/view-models" ]]; then
+        patterns+=("MVVM|certain|viewmodels/")
+    elif [[ $mvc_count -eq 3 ]]; then
+        patterns+=("MVC|certain|${mvc_dirs}")
+    elif [[ $mvc_count -eq 2 ]]; then
+        patterns+=("MVC|likely|${mvc_dirs}")
+    elif [[ $mvc_count -eq 1 ]]; then
+        patterns+=("MVC|possible|${mvc_dirs}")
+    fi
+
+    # -------------------------------------------------------------------------
+    # API Structure Detection
+    # -------------------------------------------------------------------------
+    local api_dirs=""
+    local api_confidence="possible"
+
+    if [[ -d "$dir/routes" ]] || [[ -d "$dir/src/routes" ]] || [[ -d "$dir/app/routes" ]]; then
+        api_dirs+="routes/ "
+        api_confidence="certain"
+    fi
+
+    if [[ -d "$dir/api" ]] || [[ -d "$dir/src/api" ]] || [[ -d "$dir/app/api" ]]; then
+        api_dirs+="api/ "
+        api_confidence="certain"
+    fi
+
+    if [[ -d "$dir/endpoints" ]] || [[ -d "$dir/src/endpoints" ]]; then
+        api_dirs+="endpoints/ "
+        api_confidence="certain"
+    fi
+
+    if [[ -d "$dir/handlers" ]] || [[ -d "$dir/src/handlers" ]]; then
+        api_dirs+="handlers/ "
+        if [[ "$api_confidence" == "possible" ]]; then
+            api_confidence="likely"
+        fi
+    fi
+
+    if [[ -d "$dir/resources" ]] || [[ -d "$dir/src/resources" ]]; then
+        api_dirs+="resources/ "
+        if [[ "$api_confidence" == "possible" ]]; then
+            api_confidence="likely"
+        fi
+    fi
+
+    if [[ -n "$api_dirs" ]]; then
+        patterns+=("API Routes|${api_confidence}|${api_dirs}")
+    fi
+
+    # -------------------------------------------------------------------------
+    # Test Organization Detection
+    # -------------------------------------------------------------------------
+    local test_dirs=""
+    local test_confidence="possible"
+
+    if [[ -d "$dir/tests" ]] || [[ -d "$dir/test" ]]; then
+        test_dirs+="tests/ "
+        test_confidence="certain"
+    fi
+
+    if [[ -d "$dir/__tests__" ]] || [[ -d "$dir/src/__tests__" ]]; then
+        test_dirs+="__tests__/ "
+        test_confidence="certain"
+    fi
+
+    if [[ -d "$dir/spec" ]] || [[ -d "$dir/specs" ]]; then
+        test_dirs+="spec/ "
+        test_confidence="certain"
+    fi
+
+    # Check for colocated tests (*.test.ts, *.spec.js pattern)
+    local colocated_count
+    colocated_count=$(find "$dir" -type f \( -name "*.test.*" -o -name "*.spec.*" \) \
+        -not -path '*/node_modules/*' \
+        -not -path '*/.git/*' \
+        -not -path '*/venv/*' \
+        2>/dev/null | head -20 | wc -l | tr -d ' ')
+
+    if [[ "$colocated_count" -gt 5 ]]; then
+        test_dirs+="colocated "
+        if [[ "$test_confidence" == "possible" ]]; then
+            test_confidence="likely"
+        fi
+    fi
+
+    if [[ -n "$test_dirs" ]]; then
+        patterns+=("Test Organization|${test_confidence}|${test_dirs}")
+    fi
+
+    # -------------------------------------------------------------------------
+    # Config Pattern Detection
+    # -------------------------------------------------------------------------
+    local config_items=""
+    local config_confidence="possible"
+
+    if [[ -d "$dir/config" ]] || [[ -d "$dir/configs" ]] || [[ -d "$dir/src/config" ]]; then
+        config_items+="config/ "
+        config_confidence="certain"
+    fi
+
+    if [[ -d "$dir/settings" ]] || [[ -d "$dir/src/settings" ]]; then
+        config_items+="settings/ "
+        config_confidence="certain"
+    fi
+
+    # Check for .env files
+    local env_count
+    env_count=$(find "$dir" -maxdepth 2 -name ".env*" -type f 2>/dev/null | wc -l | tr -d ' ')
+    if [[ "$env_count" -gt 0 ]]; then
+        config_items+=".env files "
+        if [[ "$config_confidence" == "possible" ]]; then
+            config_confidence="likely"
+        fi
+    fi
+
+    # Check for config files in root
+    if [[ -f "$dir/config.js" ]] || [[ -f "$dir/config.ts" ]] || [[ -f "$dir/config.json" ]] || \
+       [[ -f "$dir/config.yaml" ]] || [[ -f "$dir/config.yml" ]] || [[ -f "$dir/settings.py" ]]; then
+        config_items+="config files "
+        if [[ "$config_confidence" == "possible" ]]; then
+            config_confidence="likely"
+        fi
+    fi
+
+    if [[ -n "$config_items" ]]; then
+        patterns+=("Configuration|${config_confidence}|${config_items}")
+    fi
+
+    # -------------------------------------------------------------------------
+    # Additional Common Patterns
+    # -------------------------------------------------------------------------
+
+    # Service Layer
+    if [[ -d "$dir/services" ]] || [[ -d "$dir/src/services" ]] || [[ -d "$dir/app/services" ]]; then
+        patterns+=("Service Layer|certain|services/")
+    fi
+
+    # Repository Pattern
+    if [[ -d "$dir/repositories" ]] || [[ -d "$dir/src/repositories" ]] || [[ -d "$dir/repo" ]]; then
+        patterns+=("Repository Pattern|certain|repositories/")
+    fi
+
+    # Domain-Driven Design
+    local ddd_count=0
+    [[ -d "$dir/domain" ]] || [[ -d "$dir/src/domain" ]] && ((ddd_count++))
+    [[ -d "$dir/entities" ]] || [[ -d "$dir/src/entities" ]] && ((ddd_count++))
+    [[ -d "$dir/aggregates" ]] || [[ -d "$dir/src/aggregates" ]] && ((ddd_count++))
+    [[ -d "$dir/value-objects" ]] || [[ -d "$dir/src/value-objects" ]] && ((ddd_count++))
+
+    if [[ $ddd_count -ge 2 ]]; then
+        patterns+=("Domain-Driven Design|likely|domain/, entities/")
+    elif [[ $ddd_count -eq 1 ]]; then
+        patterns+=("Domain-Driven Design|possible|domain/")
+    fi
+
+    # Middleware Pattern
+    if [[ -d "$dir/middleware" ]] || [[ -d "$dir/src/middleware" ]] || [[ -d "$dir/middlewares" ]]; then
+        patterns+=("Middleware|certain|middleware/")
+    fi
+
+    # Component-Based (React/Vue/Angular)
+    if [[ -d "$dir/components" ]] || [[ -d "$dir/src/components" ]]; then
+        local component_confidence="certain"
+        patterns+=("Component-Based UI|${component_confidence}|components/")
+    fi
+
+    # Feature-Based/Modular
+    if [[ -d "$dir/features" ]] || [[ -d "$dir/src/features" ]] || [[ -d "$dir/modules" ]] || [[ -d "$dir/src/modules" ]]; then
+        patterns+=("Feature/Module Based|certain|features/ or modules/")
+    fi
+
+    # Monorepo Detection
+    if [[ -d "$dir/packages" ]] || [[ -d "$dir/apps" ]]; then
+        if [[ -f "$dir/lerna.json" ]] || [[ -f "$dir/pnpm-workspace.yaml" ]] || [[ -f "$dir/turbo.json" ]]; then
+            patterns+=("Monorepo|certain|packages/ or apps/")
+        else
+            patterns+=("Monorepo|likely|packages/ or apps/")
+        fi
+    fi
+
+    # -------------------------------------------------------------------------
+    # Output Results
+    # -------------------------------------------------------------------------
+    for pattern in "${patterns[@]}"; do
+        echo "$pattern"
+    done
+}
+
 cmd_map() {
     echo -e "${CYAN}FADE Codebase Map${NC}"
     echo ""
@@ -4755,6 +4974,36 @@ cmd_map() {
         echo ""
         echo "$frameworks" | while read -r fw; do
             echo "- $fw"
+        done
+    fi
+    echo ""
+
+    # =========================================================================
+    # ARCHITECTURE PATTERNS
+    # =========================================================================
+    echo -e "${YELLOW}## Architecture Patterns${NC}"
+    echo ""
+
+    local arch_patterns
+    arch_patterns=$(detect_architecture_patterns ".")
+
+    if [[ -z "$arch_patterns" ]]; then
+        echo "No common architecture patterns detected."
+    else
+        echo "Detected patterns:"
+        echo ""
+        echo "| Pattern | Confidence | Evidence |"
+        echo "|---------|------------|----------|"
+        echo "$arch_patterns" | while IFS='|' read -r pattern confidence evidence; do
+            # Format confidence with color hint in description
+            local conf_display
+            case "$confidence" in
+                certain) conf_display="✓ certain" ;;
+                likely) conf_display="○ likely" ;;
+                possible) conf_display="? possible" ;;
+                *) conf_display="$confidence" ;;
+            esac
+            echo "| $pattern | $conf_display | $evidence |"
         done
     fi
     echo ""
@@ -4838,6 +5087,19 @@ cmd_map() {
         echo '```'
         echo "$dirs"
         echo '```'
+        echo ""
+    fi
+
+    # Architecture patterns for FADE.md
+    if [[ -n "$arch_patterns" ]]; then
+        echo "### Architecture Patterns"
+        echo ""
+        echo "| Pattern | Confidence | Evidence |"
+        echo "|---------|------------|----------|"
+        echo "$arch_patterns" | while IFS='|' read -r pattern confidence evidence; do
+            echo "| $pattern | $confidence | $evidence |"
+        done
+        echo ""
     fi
 
     echo '```'
