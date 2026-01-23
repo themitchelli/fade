@@ -2654,6 +2654,118 @@ cmd_yolo() {
     cmd_run "--yolo" "$@"
 }
 
+cmd_quick() {
+    local yolo_mode=false
+    local task_description=""
+
+    # Parse flags and task description
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --yolo)
+                yolo_mode=true
+                shift
+                ;;
+            *)
+                # Everything else is the task description
+                if [[ -z "$task_description" ]]; then
+                    task_description="$1"
+                else
+                    task_description="$task_description $1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Validate task description
+    if [[ -z "$task_description" ]]; then
+        echo -e "${RED}Error: Task description required.${NC}"
+        echo ""
+        echo "Usage: fade quick \"<task description>\""
+        echo "       fade quick --yolo \"<task description>\""
+        echo ""
+        echo "Examples:"
+        echo "  fade quick \"fix typo in README.md\""
+        echo "  fade quick --yolo \"add .gitignore entry for .env\""
+        echo "  fade quick \"update copyright year in LICENSE\""
+        exit 1
+    fi
+
+    # Build minimal context for quick mode
+    local context=""
+    context+="# QUICK MODE
+
+You are running in FADE quick mode - a single-task execution without PRD ceremony.
+
+## Your Task
+
+$task_description
+
+## Instructions
+
+1. Complete the task described above
+2. Keep changes focused - if the task seems large (more than a few files), suggest creating a PRD instead
+3. Commit your changes with an appropriate conventional commit message (feat:, fix:, docs:, chore:, refactor:)
+4. Only commit if you actually made changes
+
+"
+
+    # Add FADE.md context if it exists
+    if [[ -f "FADE.md" ]]; then
+        context+="## Project Context (FADE.md)
+
+$(cat FADE.md)
+
+"
+    fi
+
+    # Add instruction to log to progress.md if it exists
+    local progress_file=""
+    if [[ -f "fade/progress.md" ]]; then
+        progress_file="fade/progress.md"
+    elif [[ -f "progress.md" ]]; then
+        progress_file="progress.md"
+    fi
+
+    if [[ -n "$progress_file" ]]; then
+        context+="## Progress Logging
+
+After completing the task, append an entry to $progress_file:
+
+\`\`\`
+## $(date '+%Y-%m-%d %H:%M') - QUICK: $task_description - COMPLETE
+
+- Brief summary of what was done
+- Files changed: [list]
+\`\`\`
+
+"
+    fi
+
+    context+="## Begin
+
+Start working on the task now. Keep it simple and focused.
+"
+
+    # Display banner
+    echo -e "${CYAN}FADE Quick Mode${NC}"
+    if [[ "$yolo_mode" == true ]]; then
+        echo -e "${YELLOW}🤘 YOLO - Skipping permission prompts${NC}"
+    fi
+    echo ""
+    echo -e "Task: ${GREEN}$task_description${NC}"
+    echo ""
+
+    # Set Claude command based on yolo mode
+    local claude_cmd="claude"
+    if [[ "$yolo_mode" == true ]]; then
+        claude_cmd="claude --dangerously-skip-permissions"
+    fi
+
+    # Execute Claude with context - single execution, no loop
+    exec $claude_cmd "$context"
+}
+
 cmd_new() {
     local prd_type="${1:-}"
     local prd_name="${2:-}"
@@ -2979,6 +3091,7 @@ ${YELLOW}Commands:${NC}
   run           Show work queue, choose STOP/ALL mode, start Claude Code
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
+  quick         Run a quick task without PRD (fade quick "<task>")
   status        Show current work queue
   export        Export FADE context to a single file for Claude web
   migrate       Move legacy FADE files into contained fade/ structure
@@ -2995,6 +3108,20 @@ ${YELLOW}New Command:${NC}
   - Uses fade/prds/ for contained structure
   - Falls back to prds/ for legacy structure
   - For spikes, also creates and switches to a feature branch
+
+${YELLOW}Quick Command:${NC}
+  fade quick "<task description>"
+
+  Run small tasks without PRD ceremony. Maintains FADE guarantees:
+  - Uses FADE.md context if available
+  - Creates conventional commits
+  - Logs to progress.md if available
+  - Single execution (no loop)
+
+  Works in both FADE-initialized and non-FADE projects.
+
+${YELLOW}Quick Options:${NC}
+  --yolo        Skip permission prompts (use --dangerously-skip-permissions)
 
 ${YELLOW}Run Options:${NC}
   --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
@@ -3055,6 +3182,8 @@ ${YELLOW}Examples:${NC}
   fade new feature "User authentication" # Create a new feature PRD
   fade new bug "Login timeout"           # Create a new bug PRD
   fade new spike "Evaluate caching"      # Create spike PRD and branch
+  fade quick "fix typo in README"        # Quick task without PRD
+  fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade run                               # See queue, pick mode, start working
   fade yolo                              # 🤘 Full auto mode, no prompts
   fade yolo --quiet                      # 🤘 Full auto mode, minimal output
@@ -6449,6 +6578,10 @@ case "${1:-}" in
     yolo)
         shift
         cmd_yolo "$@"
+        ;;
+    quick)
+        shift
+        cmd_quick "$@"
         ;;
     status)
         shift

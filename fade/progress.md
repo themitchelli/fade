@@ -1014,3 +1014,15 @@ For blocked stories, use:
 - No deprecated or removed feature references found
 - Files changed: bin/fade-cli
 - Tests: fade help verified, bash -n syntax check passed
+
+## 2026-01-23 - US-001: Basic quick command (FEAT-009) - COMPLETE
+
+- Added cmd_quick() function to bin/fade-cli for single-task execution without PRD
+- Command accepts task description as argument: `fade quick "fix typo in README"`
+- Launches Claude Code with minimal context (task description + FADE.md if available)
+- Does not require PRD files - works in both FADE and non-FADE projects
+- Added quick command to main case statement
+- Added "Quick Command" and "Quick Options" sections to help text
+- Added quick command examples to help
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, tested in FADE project and empty directory
