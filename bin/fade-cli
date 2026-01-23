@@ -3231,6 +3231,84 @@ Reference these when asking about implementation approach. For example:
 "
     fi
 
+    # Extract specific codebase patterns for more targeted questions
+    local detected_frameworks=""
+    local detected_dirs=""
+    local detected_files=""
+
+    # Detect frameworks by running the same logic as fade map
+    detected_frameworks=$(detect_framework "." 2>/dev/null | head -5 | tr '\n' ', ' | sed 's/, $//')
+
+    # Find key directories that indicate architecture
+    local arch_dirs=""
+    for dir in routes api controllers services models views components handlers middleware lib src app; do
+        if [[ -d "$dir" ]] || [[ -d "src/$dir" ]] || [[ -d "app/$dir" ]]; then
+            arch_dirs+="$dir, "
+        fi
+    done
+    arch_dirs=$(echo "$arch_dirs" | sed 's/, $//')
+
+    # Find example files for pattern reference
+    if [[ -n "$arch_dirs" ]]; then
+        # Get a few example files from the first detected directory
+        local first_dir=$(echo "$arch_dirs" | cut -d',' -f1 | xargs)
+        if [[ -d "$first_dir" ]]; then
+            detected_files=$(ls "$first_dir"/*.{js,ts,py,rb,go,rs} 2>/dev/null | head -3 | tr '\n' ', ' | sed 's/, $//')
+        elif [[ -d "src/$first_dir" ]]; then
+            detected_files=$(ls "src/$first_dir"/*.{js,ts,py,rb,go,rs} 2>/dev/null | head -3 | tr '\n' ', ' | sed 's/, $//')
+        fi
+    fi
+
+    # Add specific codebase patterns to context if detected
+    if [[ -n "$detected_frameworks" ]] || [[ -n "$arch_dirs" ]]; then
+        context+="## Detected Codebase Patterns
+
+**Use these specifics when asking questions:**
+
+"
+        if [[ -n "$detected_frameworks" ]]; then
+            context+="- **Frameworks detected:** $detected_frameworks
+"
+        fi
+
+        if [[ -n "$arch_dirs" ]]; then
+            context+="- **Architecture directories:** $arch_dirs
+"
+        fi
+
+        if [[ -n "$detected_files" ]]; then
+            context+="- **Example files for patterns:** $detected_files
+"
+        fi
+
+        context+="
+**Pattern-aware question examples:**
+- If routes/ exists: \"I see you have a routes/ folder. Should this new endpoint follow the same structure as existing routes?\"
+- If services/ exists: \"Your code uses a services layer. Should the business logic for this feature live in a new service?\"
+- If controllers/ exists: \"How should this feature's controller interact with your existing controller patterns?\"
+- If models/ exists: \"Will this feature need new data models? Should they follow the patterns in your existing models?\"
+
+**Reference real files:** When discussing implementation patterns, mention specific files you see (e.g., \"I notice you have users.controller.ts - should we follow that same structure?\")
+
+"
+    fi
+
+    # Add conflict detection guidance
+    context+="## Conflict Detection
+
+**IMPORTANT:** Before diving deep into the feature, check for potential conflicts:
+
+1. **Similar existing features**: Look in FADE.md and the codebase for features that might overlap with what's being proposed
+2. **Naming collisions**: If the feature involves new routes, components, or services, check if similar names already exist
+3. **Architectural mismatches**: If the feature suggests a pattern different from what exists, flag this as a decision point
+
+**If you detect a potential conflict:**
+- Mention it early: \"I notice you already have X - how does this new feature relate?\"
+- Ask about integration: \"Should this extend the existing feature or replace it?\"
+- Flag for the Decisions section: Any conflict resolution should be documented as a decision
+
+"
+
     context+="## Session Flow
 
 1. **Start with open questions** - Understand what they're trying to build and why

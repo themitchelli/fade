@@ -1396,3 +1396,27 @@ For blocked stories, use:
   - Output path: fade/prds/FEAT-NNN-{slug}.json
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, help text verified, error handling tested
+
+## 2026-01-23 - US-005: Codebase-aware discovery (FEAT-011) - COMPLETE
+
+- Enhanced cmd_discover() in bin/fade-cli to extract specific codebase patterns
+- Added dynamic framework detection using detect_framework() function during discovery
+- Added architecture directory detection (routes/, api/, controllers/, services/, models/, etc.)
+- Added example file detection for pattern reference in detected directories
+- Added "Detected Codebase Patterns" section to discovery context when patterns are found:
+  - Lists detected frameworks
+  - Lists detected architecture directories
+  - Lists example files for pattern reference
+  - Provides pattern-aware question examples (e.g., "I see you have a routes/ folder...")
+- Added "Conflict Detection" section with guidance for:
+  - Detecting similar existing features
+  - Identifying naming collisions
+  - Flagging architectural mismatches
+  - Instructions to mention conflicts early and document resolutions
+- All acceptance criteria verified:
+  - Discovery reads FADE.md for project context (already implemented)
+  - If fade map was run, discovery references its output (enhanced with specific patterns)
+  - Questions reference actual patterns in codebase (detected frameworks, directories, files)
+  - Flags if proposed feature might conflict with existing code (conflict detection section)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, directory detection verified

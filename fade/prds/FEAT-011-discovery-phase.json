@@ -71,7 +71,7 @@
         "Flags if proposed feature might conflict with existing code"
       ],
       "priority": 5,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
