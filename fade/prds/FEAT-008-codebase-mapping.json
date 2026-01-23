@@ -19,7 +19,7 @@
         "Output is formatted for easy copy-paste into FADE.md"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

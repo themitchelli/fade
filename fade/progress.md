@@ -786,3 +786,17 @@ For blocked stories, use:
 - Story was already implemented but not marked complete - this is a documentation checkpoint
 - Files changed: fade/prds/ENH-009-regression-testing.json (marked passes: true)
 - Tests: Manual verification that all acceptance criteria language is present in prompt.md
+
+## 2026-01-23 - US-001: Basic codebase analysis (FEAT-008) - COMPLETE
+
+- Added `fade map` command for analyzing existing codebases
+- Implemented detect_languages() function using find to count files by extension
+- Implemented extension_to_language() to map extensions to human-readable language names
+- Implemented detect_framework() to parse package.json, requirements.txt, pyproject.toml, Cargo.toml, go.mod, Gemfile
+- Detects major frameworks: React, Vue, Angular, Svelte, Next.js, Nuxt, Express, Fastify, NestJS, Django, Flask, FastAPI, etc.
+- Implemented detect_entry_points() to find common entry files (main.py, index.js, app.ts, etc.)
+- Implemented describe_directories() using get_dir_description() case statement for 70+ common directory names
+- Output formatted with two sections: analysis results and copy-paste ready markdown for FADE.md
+- Added map command to help text and examples
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual tests on simulated projects verified all detection features

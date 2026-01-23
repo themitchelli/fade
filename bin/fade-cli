@@ -2958,6 +2958,7 @@ ${YELLOW}Usage:${NC} fade <command> [options]
 ${YELLOW}Commands:${NC}
   init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
   new           Create a new PRD file (fade new <type> "<name>")
+  map           Analyze codebase and generate FADE.md context (for brownfield projects)
   run           Show work queue, choose STOP/ALL mode, start Claude Code
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
@@ -3020,6 +3021,7 @@ ${YELLOW}Git Commit Prefixes:${NC}
 
 ${YELLOW}Examples:${NC}
   fade init                              # Set up FADE in current directory
+  fade map                               # Analyze codebase for FADE.md context
   fade new feature "User authentication" # Create a new feature PRD
   fade new bug "Login timeout"           # Create a new bug PRD
   fade new spike "Evaluate caching"      # Create spike PRD and branch
@@ -4300,6 +4302,554 @@ cmd_export() {
 }
 
 # ============================================================================
+# MAP COMMAND
+# ============================================================================
+
+# Detect primary language(s) by file extension counts
+detect_languages() {
+    local dir="${1:-.}"
+
+    # Count files by extension, excluding common non-code directories
+    # Use find to get extensions, sort and count
+    find "$dir" -type f \
+        -not -path '*/node_modules/*' \
+        -not -path '*/.git/*' \
+        -not -path '*/venv/*' \
+        -not -path '*/__pycache__/*' \
+        -not -path '*/dist/*' \
+        -not -path '*/build/*' \
+        -not -path '*/.next/*' \
+        -not -path '*/target/*' \
+        -not -path '*/vendor/*' \
+        -not -name '.DS_Store' \
+        -not -name '*.pyc' \
+        -not -name '*.pyo' \
+        2>/dev/null | \
+    sed 's/.*\.//' | \
+    grep -E '^[a-zA-Z0-9]+$' | \
+    sort | uniq -c | sort -rn | head -10
+}
+
+# Map extension to language name
+extension_to_language() {
+    local ext="$1"
+    case "$ext" in
+        js) echo "JavaScript" ;;
+        ts) echo "TypeScript" ;;
+        tsx) echo "TypeScript (React)" ;;
+        jsx) echo "JavaScript (React)" ;;
+        py) echo "Python" ;;
+        rb) echo "Ruby" ;;
+        rs) echo "Rust" ;;
+        go) echo "Go" ;;
+        java) echo "Java" ;;
+        kt) echo "Kotlin" ;;
+        swift) echo "Swift" ;;
+        c) echo "C" ;;
+        cpp|cc|cxx) echo "C++" ;;
+        h) echo "C/C++ Header" ;;
+        cs) echo "C#" ;;
+        php) echo "PHP" ;;
+        sh|bash) echo "Shell" ;;
+        sql) echo "SQL" ;;
+        html) echo "HTML" ;;
+        css) echo "CSS" ;;
+        scss|sass) echo "Sass" ;;
+        less) echo "Less" ;;
+        json) echo "JSON" ;;
+        yaml|yml) echo "YAML" ;;
+        md) echo "Markdown" ;;
+        xml) echo "XML" ;;
+        vue) echo "Vue" ;;
+        svelte) echo "Svelte" ;;
+        ex|exs) echo "Elixir" ;;
+        erl) echo "Erlang" ;;
+        hs) echo "Haskell" ;;
+        ml) echo "OCaml" ;;
+        clj|cljs) echo "Clojure" ;;
+        scala) echo "Scala" ;;
+        r) echo "R" ;;
+        lua) echo "Lua" ;;
+        pl|pm) echo "Perl" ;;
+        *) echo "$ext" ;;
+    esac
+}
+
+# Detect framework from manifest files
+detect_framework() {
+    local dir="${1:-.}"
+    local frameworks=()
+
+    # Node.js / JavaScript frameworks
+    if [[ -f "$dir/package.json" ]]; then
+        local deps
+        deps=$(cat "$dir/package.json" 2>/dev/null)
+
+        # React
+        if echo "$deps" | grep -q '"react"'; then
+            if echo "$deps" | grep -q '"next"'; then
+                frameworks+=("Next.js")
+            elif echo "$deps" | grep -q '"gatsby"'; then
+                frameworks+=("Gatsby")
+            else
+                frameworks+=("React")
+            fi
+        fi
+
+        # Vue
+        if echo "$deps" | grep -q '"vue"'; then
+            if echo "$deps" | grep -q '"nuxt"'; then
+                frameworks+=("Nuxt.js")
+            else
+                frameworks+=("Vue.js")
+            fi
+        fi
+
+        # Angular
+        if echo "$deps" | grep -q '"@angular/core"'; then
+            frameworks+=("Angular")
+        fi
+
+        # Svelte
+        if echo "$deps" | grep -q '"svelte"'; then
+            if echo "$deps" | grep -q '"@sveltejs/kit"'; then
+                frameworks+=("SvelteKit")
+            else
+                frameworks+=("Svelte")
+            fi
+        fi
+
+        # Express
+        if echo "$deps" | grep -q '"express"'; then
+            frameworks+=("Express.js")
+        fi
+
+        # Fastify
+        if echo "$deps" | grep -q '"fastify"'; then
+            frameworks+=("Fastify")
+        fi
+
+        # NestJS
+        if echo "$deps" | grep -q '"@nestjs/core"'; then
+            frameworks+=("NestJS")
+        fi
+
+        # Electron
+        if echo "$deps" | grep -q '"electron"'; then
+            frameworks+=("Electron")
+        fi
+
+        # Testing frameworks
+        if echo "$deps" | grep -q '"jest"'; then
+            frameworks+=("Jest")
+        fi
+        if echo "$deps" | grep -q '"vitest"'; then
+            frameworks+=("Vitest")
+        fi
+        if echo "$deps" | grep -q '"mocha"'; then
+            frameworks+=("Mocha")
+        fi
+    fi
+
+    # Python frameworks
+    if [[ -f "$dir/requirements.txt" ]] || [[ -f "$dir/pyproject.toml" ]] || [[ -f "$dir/setup.py" ]]; then
+        local py_deps=""
+        [[ -f "$dir/requirements.txt" ]] && py_deps+=$(cat "$dir/requirements.txt" 2>/dev/null)
+        [[ -f "$dir/pyproject.toml" ]] && py_deps+=$(cat "$dir/pyproject.toml" 2>/dev/null)
+        [[ -f "$dir/setup.py" ]] && py_deps+=$(cat "$dir/setup.py" 2>/dev/null)
+
+        if echo "$py_deps" | grep -qi 'django'; then
+            frameworks+=("Django")
+        fi
+        if echo "$py_deps" | grep -qi 'flask'; then
+            frameworks+=("Flask")
+        fi
+        if echo "$py_deps" | grep -qi 'fastapi'; then
+            frameworks+=("FastAPI")
+        fi
+        if echo "$py_deps" | grep -qi 'pytest'; then
+            frameworks+=("pytest")
+        fi
+        if echo "$py_deps" | grep -qi 'sqlalchemy'; then
+            frameworks+=("SQLAlchemy")
+        fi
+    fi
+
+    # Rust frameworks
+    if [[ -f "$dir/Cargo.toml" ]]; then
+        local cargo_deps
+        cargo_deps=$(cat "$dir/Cargo.toml" 2>/dev/null)
+
+        if echo "$cargo_deps" | grep -q 'actix-web'; then
+            frameworks+=("Actix Web")
+        fi
+        if echo "$cargo_deps" | grep -q 'axum'; then
+            frameworks+=("Axum")
+        fi
+        if echo "$cargo_deps" | grep -q 'rocket'; then
+            frameworks+=("Rocket")
+        fi
+    fi
+
+    # Go frameworks
+    if [[ -f "$dir/go.mod" ]]; then
+        local go_deps
+        go_deps=$(cat "$dir/go.mod" 2>/dev/null)
+
+        if echo "$go_deps" | grep -q 'gin-gonic'; then
+            frameworks+=("Gin")
+        fi
+        if echo "$go_deps" | grep -q 'echo'; then
+            frameworks+=("Echo")
+        fi
+        if echo "$go_deps" | grep -q 'fiber'; then
+            frameworks+=("Fiber")
+        fi
+    fi
+
+    # Ruby frameworks
+    if [[ -f "$dir/Gemfile" ]]; then
+        local gem_deps
+        gem_deps=$(cat "$dir/Gemfile" 2>/dev/null)
+
+        if echo "$gem_deps" | grep -q 'rails'; then
+            frameworks+=("Ruby on Rails")
+        fi
+        if echo "$gem_deps" | grep -q 'sinatra'; then
+            frameworks+=("Sinatra")
+        fi
+    fi
+
+    # Print frameworks
+    if [[ ${#frameworks[@]} -gt 0 ]]; then
+        printf '%s\n' "${frameworks[@]}"
+    fi
+}
+
+# Identify entry points
+detect_entry_points() {
+    local dir="${1:-.}"
+    local entry_points=()
+
+    # Common entry point patterns
+    local patterns=(
+        "main.py"
+        "app.py"
+        "run.py"
+        "server.py"
+        "index.py"
+        "main.js"
+        "index.js"
+        "app.js"
+        "server.js"
+        "main.ts"
+        "index.ts"
+        "app.ts"
+        "server.ts"
+        "main.go"
+        "main.rs"
+        "main.rb"
+        "app.rb"
+        "config.ru"
+        "manage.py"
+        "wsgi.py"
+        "asgi.py"
+    )
+
+    for pattern in "${patterns[@]}"; do
+        # Check in root and src/
+        if [[ -f "$dir/$pattern" ]]; then
+            entry_points+=("$pattern")
+        fi
+        if [[ -f "$dir/src/$pattern" ]]; then
+            entry_points+=("src/$pattern")
+        fi
+    done
+
+    # Check package.json for main/bin
+    if [[ -f "$dir/package.json" ]]; then
+        local main_file
+        main_file=$(grep -o '"main"[[:space:]]*:[[:space:]]*"[^"]*"' "$dir/package.json" 2>/dev/null | sed 's/.*:.*"\([^"]*\)".*/\1/')
+        if [[ -n "$main_file" ]] && [[ -f "$dir/$main_file" ]]; then
+            entry_points+=("$main_file (package.json main)")
+        fi
+
+        # Check for bin entries
+        if grep -q '"bin"' "$dir/package.json" 2>/dev/null; then
+            entry_points+=("(CLI entry in package.json bin)")
+        fi
+    fi
+
+    # Check for scripts in package.json
+    if [[ -f "$dir/package.json" ]]; then
+        if grep -q '"start"' "$dir/package.json" 2>/dev/null; then
+            entry_points+=("npm start (scripts.start)")
+        fi
+        if grep -q '"dev"' "$dir/package.json" 2>/dev/null; then
+            entry_points+=("npm run dev (scripts.dev)")
+        fi
+    fi
+
+    # Print entry points (unique)
+    printf '%s\n' "${entry_points[@]}" | sort -u
+}
+
+# Get description for a directory name
+get_dir_description() {
+    local name="$1"
+    case "$name" in
+        src) echo "Source code" ;;
+        lib) echo "Library code" ;;
+        app) echo "Application code" ;;
+        api) echo "API endpoints" ;;
+        routes) echo "Route handlers" ;;
+        controllers) echo "Controller logic" ;;
+        models) echo "Data models" ;;
+        views) echo "View templates" ;;
+        templates) echo "Template files" ;;
+        components) echo "UI components" ;;
+        pages) echo "Page components" ;;
+        public) echo "Static assets (public)" ;;
+        static) echo "Static files" ;;
+        assets) echo "Asset files" ;;
+        styles) echo "Stylesheets" ;;
+        css) echo "CSS files" ;;
+        js) echo "JavaScript files" ;;
+        tests) echo "Test files" ;;
+        test) echo "Test files" ;;
+        __tests__) echo "Test files (Jest)" ;;
+        spec) echo "Test specifications" ;;
+        docs) echo "Documentation" ;;
+        doc) echo "Documentation" ;;
+        config) echo "Configuration files" ;;
+        configs) echo "Configuration files" ;;
+        scripts) echo "Build/utility scripts" ;;
+        bin) echo "Executable scripts" ;;
+        cmd) echo "Command implementations (Go)" ;;
+        pkg) echo "Package code (Go)" ;;
+        internal) echo "Internal packages (Go)" ;;
+        utils) echo "Utility functions" ;;
+        helpers) echo "Helper functions" ;;
+        services) echo "Service layer" ;;
+        middleware) echo "Middleware" ;;
+        migrations) echo "Database migrations" ;;
+        db) echo "Database related" ;;
+        database) echo "Database related" ;;
+        prisma) echo "Prisma schema/migrations" ;;
+        drizzle) echo "Drizzle schema" ;;
+        types) echo "Type definitions" ;;
+        interfaces) echo "Interface definitions" ;;
+        hooks) echo "React hooks" ;;
+        context) echo "React context" ;;
+        store) echo "State management" ;;
+        redux) echo "Redux store" ;;
+        actions) echo "Actions (Redux/Flux)" ;;
+        reducers) echo "Reducers (Redux)" ;;
+        features) echo "Feature modules" ;;
+        modules) echo "Modules" ;;
+        packages) echo "Monorepo packages" ;;
+        apps) echo "Monorepo applications" ;;
+        examples) echo "Example code" ;;
+        demo) echo "Demo code" ;;
+        fixtures) echo "Test fixtures" ;;
+        mocks) echo "Mock data/functions" ;;
+        .github) echo "GitHub workflows/config" ;;
+        .vscode) echo "VS Code settings" ;;
+        deploy) echo "Deployment configs" ;;
+        k8s) echo "Kubernetes configs" ;;
+        docker) echo "Docker configs" ;;
+        terraform) echo "Terraform configs" ;;
+        ansible) echo "Ansible configs" ;;
+        vendor) echo "Vendored dependencies" ;;
+        node_modules) echo "npm dependencies" ;;
+        venv) echo "Python virtual env" ;;
+        env) echo "Environment files" ;;
+        build) echo "Build output" ;;
+        dist) echo "Distribution output" ;;
+        out) echo "Output directory" ;;
+        target) echo "Build target (Rust/Java)" ;;
+        coverage) echo "Test coverage reports" ;;
+        logs) echo "Log files" ;;
+        tmp) echo "Temporary files" ;;
+        cache) echo "Cache files" ;;
+        fade) echo "FADE framework files" ;;
+        prds) echo "PRD files" ;;
+        standards) echo "Coding standards" ;;
+        *) echo "" ;;
+    esac
+}
+
+# Describe top-level directories
+describe_directories() {
+    local dir="${1:-.}"
+
+    # List top-level directories
+    for entry in "$dir"/*/; do
+        [[ -d "$entry" ]] || continue
+        local name
+        name=$(basename "$entry")
+
+        # Skip hidden directories except .github
+        if [[ "$name" == .* ]] && [[ "$name" != ".github" ]]; then
+            continue
+        fi
+
+        # Skip common excluded directories
+        case "$name" in
+            node_modules|venv|.git|__pycache__|.next|target|dist|build|out|coverage)
+                continue
+                ;;
+        esac
+
+        local desc
+        desc=$(get_dir_description "$name")
+        if [[ -n "$desc" ]]; then
+            echo "$name/ - $desc"
+        else
+            echo "$name/"
+        fi
+    done
+}
+
+cmd_map() {
+    echo -e "${CYAN}FADE Codebase Map${NC}"
+    echo ""
+
+    # =========================================================================
+    # LANGUAGE DETECTION
+    # =========================================================================
+    echo -e "${YELLOW}## Languages${NC}"
+    echo ""
+
+    local lang_output
+    lang_output=$(detect_languages ".")
+
+    if [[ -z "$lang_output" ]]; then
+        echo "No source files detected."
+    else
+        echo "Primary languages by file count:"
+        echo ""
+        echo '```'
+        echo "$lang_output" | while read -r count ext; do
+            local lang_name
+            lang_name=$(extension_to_language "$ext")
+            printf "%6d  %-20s (%s)\n" "$count" "$lang_name" ".$ext"
+        done
+        echo '```'
+    fi
+    echo ""
+
+    # =========================================================================
+    # FRAMEWORK DETECTION
+    # =========================================================================
+    echo -e "${YELLOW}## Frameworks & Libraries${NC}"
+    echo ""
+
+    local frameworks
+    frameworks=$(detect_framework ".")
+
+    if [[ -z "$frameworks" ]]; then
+        echo "No frameworks detected from manifest files."
+    else
+        echo "Detected frameworks:"
+        echo ""
+        echo "$frameworks" | while read -r fw; do
+            echo "- $fw"
+        done
+    fi
+    echo ""
+
+    # =========================================================================
+    # ENTRY POINTS
+    # =========================================================================
+    echo -e "${YELLOW}## Entry Points${NC}"
+    echo ""
+
+    local entries
+    entries=$(detect_entry_points ".")
+
+    if [[ -z "$entries" ]]; then
+        echo "No standard entry points detected."
+    else
+        echo "Detected entry points:"
+        echo ""
+        echo "$entries" | while read -r entry; do
+            echo "- \`$entry\`"
+        done
+    fi
+    echo ""
+
+    # =========================================================================
+    # DIRECTORY STRUCTURE
+    # =========================================================================
+    echo -e "${YELLOW}## Directory Structure${NC}"
+    echo ""
+
+    local dirs
+    dirs=$(describe_directories ".")
+
+    if [[ -z "$dirs" ]]; then
+        echo "No directories found."
+    else
+        echo "Top-level directories:"
+        echo ""
+        echo '```'
+        echo "$dirs"
+        echo '```'
+    fi
+    echo ""
+
+    # =========================================================================
+    # FADE.MD READY OUTPUT
+    # =========================================================================
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo -e "${CYAN}Copy the following into your FADE.md:${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    echo '```markdown'
+    echo "## Project Overview"
+    echo ""
+
+    # Language summary
+    local top_lang
+    top_lang=$(echo "$lang_output" | head -1 | awk '{print $2}')
+    if [[ -n "$top_lang" ]]; then
+        local primary_lang
+        primary_lang=$(extension_to_language "$top_lang")
+        echo "**Tech Stack:**"
+        echo "- Language: $primary_lang"
+
+        if [[ -n "$frameworks" ]]; then
+            local framework_list
+            framework_list=$(echo "$frameworks" | head -3 | tr '\n' ', ' | sed 's/,$//' | sed 's/,/, /g')
+            echo "- Framework: $framework_list"
+        else
+            echo "- Framework:"
+        fi
+        echo "- Database:"
+        echo ""
+    fi
+
+    # Architecture hint from directories
+    if [[ -n "$dirs" ]]; then
+        echo "### Directory Structure"
+        echo ""
+        echo '```'
+        echo "$dirs"
+        echo '```'
+    fi
+
+    echo '```'
+    echo ""
+
+    echo -e "${GREEN}✓ Map complete${NC}"
+    echo ""
+    echo "Review the output above and paste relevant sections into FADE.md."
+    echo "Run 'fade map --init' to generate a draft FADE.md automatically (FEAT-008 US-004)."
+}
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -4329,6 +4879,9 @@ case "${1:-}" in
         ;;
     export)
         cmd_export
+        ;;
+    map)
+        cmd_map
         ;;
     migrate)
         shift
