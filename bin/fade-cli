@@ -3996,6 +3996,157 @@ RUNSH_EOF
 }
 
 # ============================================================================
+# EXPORT COMMAND
+# ============================================================================
+
+cmd_export() {
+    local output_file="fade-export.txt"
+
+    echo -e "${CYAN}FADE Export${NC}"
+    echo ""
+
+    # Check if this is a FADE project
+    if [[ ! -f "FADE.md" ]] && [[ ! -d "fade" ]]; then
+        echo -e "${RED}Error: Not a FADE project (no FADE.md or fade/ folder found)${NC}"
+        exit 1
+    fi
+
+    {
+        echo "# FADE Project Export"
+        echo "# Generated: $(date '+%Y-%m-%d %H:%M:%S')"
+        echo ""
+
+        # Version info
+        echo "## Versions"
+        echo ""
+        echo "- FADE CLI: v$FADE_VERSION"
+
+        # Get prompt.md version
+        local prompt_path=""
+        if [[ -f "fade/prompt.md" ]]; then
+            prompt_path="fade/prompt.md"
+        elif [[ -f "prompt.md" ]]; then
+            prompt_path="prompt.md"
+        fi
+        if [[ -n "$prompt_path" ]]; then
+            local prompt_version
+            prompt_version=$(get_artifact_version "$prompt_path")
+            echo "- prompt.md: v${prompt_version:-unknown}"
+        fi
+        echo ""
+
+        # Folder structure
+        echo "## Folder Structure"
+        echo ""
+        echo '```'
+        if command -v tree &>/dev/null; then
+            tree -I 'node_modules|.git|__pycache__|*.pyc|.DS_Store' --dirsfirst -L 3 2>/dev/null || find . -type f -not -path '*/\.*' -not -path '*/node_modules/*' | head -50 | sort
+        else
+            find . -type f -not -path '*/\.*' -not -path '*/node_modules/*' -not -name '.DS_Store' 2>/dev/null | head -50 | sort
+        fi
+        echo '```'
+        echo ""
+
+        # FADE.md
+        if [[ -f "FADE.md" ]]; then
+            echo "## FADE.md"
+            echo ""
+            echo '```markdown'
+            cat "FADE.md"
+            echo '```'
+            echo ""
+        fi
+
+        # Standards
+        local standards_path=""
+        if [[ -d "fade/standards" ]]; then
+            standards_path="fade/standards"
+        elif [[ -d "standards" ]]; then
+            standards_path="standards"
+        fi
+
+        if [[ -n "$standards_path" ]] && [[ -d "$standards_path" ]]; then
+            local standards_files
+            standards_files=$(find "$standards_path" -name "*.md" -type f 2>/dev/null | sort)
+            if [[ -n "$standards_files" ]]; then
+                echo "## Standards"
+                echo ""
+                for std_file in $standards_files; do
+                    echo "### $(basename "$std_file")"
+                    echo ""
+                    echo '```markdown'
+                    cat "$std_file"
+                    echo '```'
+                    echo ""
+                done
+            fi
+        fi
+
+        # PRD Queue
+        local prds_path=""
+        if [[ -d "fade/prds" ]]; then
+            prds_path="fade/prds"
+        elif [[ -d "prds" ]]; then
+            prds_path="prds"
+        fi
+
+        if [[ -n "$prds_path" ]] && [[ -d "$prds_path" ]]; then
+            local prd_files
+            prd_files=$(find "$prds_path" -name "*.json" -type f 2>/dev/null | sort)
+            if [[ -n "$prd_files" ]]; then
+                echo "## PRD Queue"
+                echo ""
+                for prd_file in $prd_files; do
+                    echo "### $(basename "$prd_file")"
+                    echo ""
+                    echo '```json'
+                    cat "$prd_file"
+                    echo '```'
+                    echo ""
+                done
+            else
+                echo "## PRD Queue"
+                echo ""
+                echo "_No PRDs in queue_"
+                echo ""
+            fi
+        fi
+
+        # PRD Archive (filenames only)
+        local archive_path=""
+        if [[ -d "fade/prd-archive" ]]; then
+            archive_path="fade/prd-archive"
+        elif [[ -d "prd-archive" ]]; then
+            archive_path="prd-archive"
+        fi
+
+        if [[ -n "$archive_path" ]] && [[ -d "$archive_path" ]]; then
+            local archive_files
+            archive_files=$(find "$archive_path" -name "*.json" -type f 2>/dev/null | sort)
+            if [[ -n "$archive_files" ]]; then
+                echo "## Completed PRDs (Archive)"
+                echo ""
+                for arch_file in $archive_files; do
+                    echo "- $(basename "$arch_file")"
+                done
+                echo ""
+            fi
+        fi
+
+    } > "$output_file"
+
+    local size
+    size=$(wc -c < "$output_file" | tr -d ' ')
+    local lines
+    lines=$(wc -l < "$output_file" | tr -d ' ')
+
+    echo -e "${GREEN}✓ Exported to ${BOLD}$output_file${NC}"
+    echo -e "  Size: $size bytes, $lines lines"
+    echo ""
+    echo "Copy contents to Claude web for PRD dialogue."
+}
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -4022,6 +4173,9 @@ case "${1:-}" in
     update)
         shift
         cmd_update "$@"
+        ;;
+    export)
+        cmd_export
         ;;
     migrate)
         shift
