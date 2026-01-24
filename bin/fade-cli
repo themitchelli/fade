@@ -2568,6 +2568,7 @@ STANDARDS_EOF
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
+    local model="${FADE_MODEL:-}"
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -2579,6 +2580,10 @@ cmd_run() {
             --quiet|-q)
                 quiet_mode=true
                 shift
+                ;;
+            --model)
+                model="$2"
+                shift 2
                 ;;
             *)
                 shift
@@ -2614,10 +2619,13 @@ cmd_run() {
     echo -e "${GREEN}Starting in $mode mode...${NC}"
     echo ""
 
-    # Set Claude command based on yolo mode
+    # Set Claude command based on yolo mode and model
     local claude_cmd="claude"
     if [[ "$yolo_mode" == true ]]; then
         claude_cmd="claude --dangerously-skip-permissions"
+    fi
+    if [[ -n "$model" ]]; then
+        claude_cmd="$claude_cmd --model $model"
     fi
 
     if [[ "$mode" == "STOP" ]]; then
@@ -2804,6 +2812,7 @@ cmd_yolo() {
 cmd_quick() {
     local yolo_mode=false
     local task_description=""
+    local model="${FADE_MODEL:-}"
 
     # Parse flags and task description
     while [[ $# -gt 0 ]]; do
@@ -2811,6 +2820,10 @@ cmd_quick() {
             --yolo)
                 yolo_mode=true
                 shift
+                ;;
+            --model)
+                model="$2"
+                shift 2
                 ;;
             *)
                 # Everything else is the task description
@@ -3004,10 +3017,13 @@ Start working on the task now. Keep it simple and focused.
     echo -e "Task: ${GREEN}$task_description${NC}"
     echo ""
 
-    # Set Claude command based on yolo mode
+    # Set Claude command based on yolo mode and model
     local claude_cmd="claude"
     if [[ "$yolo_mode" == true ]]; then
         claude_cmd="claude --dangerously-skip-permissions"
+    fi
+    if [[ -n "$model" ]]; then
+        claude_cmd="$claude_cmd --model $model"
     fi
 
     # Execute Claude with context - single execution, no loop
@@ -3021,6 +3037,7 @@ Start working on the task now. Keep it simple and focused.
 cmd_discover() {
     local feature_name=""
     local generate_prd=false
+    local model="${FADE_MODEL:-}"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -3029,10 +3046,14 @@ cmd_discover() {
                 generate_prd=true
                 shift
                 ;;
+            --model)
+                model="$2"
+                shift 2
+                ;;
             -*)
                 echo -e "${RED}Error: Unknown option '$1'${NC}"
                 echo ""
-                echo "Usage: fade discover [--prd] \"<feature name>\""
+                echo "Usage: fade discover [--prd] [--model <model>] \"<feature name>\""
                 exit 1
                 ;;
             *)
@@ -3041,7 +3062,7 @@ cmd_discover() {
                 else
                     echo -e "${RED}Error: Unexpected argument '$1'${NC}"
                     echo ""
-                    echo "Usage: fade discover [--prd] \"<feature name>\""
+                    echo "Usage: fade discover [--prd] [--model <model>] \"<feature name>\""
                     exit 1
                 fi
                 shift
@@ -3053,15 +3074,16 @@ cmd_discover() {
     if [[ -z "$feature_name" ]]; then
         echo -e "${RED}Error: Feature name required.${NC}"
         echo ""
-        echo "Usage: fade discover [--prd] \"<feature name>\""
+        echo "Usage: fade discover [--prd] [--model <model>] \"<feature name>\""
         echo ""
         echo "Options:"
-        echo "  --prd    Generate PRD JSON draft after discovery session"
+        echo "  --prd           Generate PRD JSON draft after discovery session"
+        echo "  --model <name>  Use specific Claude model (opus, sonnet, haiku)"
         echo ""
         echo "Examples:"
         echo "  fade discover \"user authentication\""
         echo "  fade discover --prd \"API rate limiting\""
-        echo "  fade discover \"dark mode toggle\" --prd"
+        echo "  fade discover --model sonnet \"dark mode toggle\""
         exit 1
     fi
 
@@ -3510,7 +3532,11 @@ What are they trying to accomplish? What's the context?
 
     # Launch interactive Claude session with write permissions
     # --dangerously-skip-permissions allows Claude to write the discovery file
-    exec claude --dangerously-skip-permissions "$context"
+    local claude_cmd="claude --dangerously-skip-permissions"
+    if [[ -n "$model" ]]; then
+        claude_cmd="$claude_cmd --model $model"
+    fi
+    exec $claude_cmd "$context"
 }
 
 cmd_new() {
@@ -3882,6 +3908,7 @@ ${YELLOW}Discover Options:${NC}
                   - PRD marked as draft (draft: true) for human review
                   - Output: fade/prds/FEAT-NNN-{slug}.json
                   - PRD references discovery doc via discoveryDoc field
+  --model <name>  Use specific Claude model (opus, sonnet, haiku)
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"
@@ -3895,11 +3922,13 @@ ${YELLOW}Quick Command:${NC}
   Works in both FADE-initialized and non-FADE projects.
 
 ${YELLOW}Quick Options:${NC}
-  --yolo        Skip permission prompts (use --dangerously-skip-permissions)
+  --yolo          Skip permission prompts (use --dangerously-skip-permissions)
+  --model <name>  Use specific Claude model (opus, sonnet, haiku)
 
 ${YELLOW}Run Options:${NC}
-  --yolo        Skip prompts, use ALL mode with --dangerously-skip-permissions
-  --quiet, -q   Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+  --yolo          Skip prompts, use ALL mode with --dangerously-skip-permissions
+  --quiet, -q     Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+  --model <name>  Use specific Claude model (opus, sonnet, haiku)
 
 ${YELLOW}Migrate Options:${NC}
   --dry-run     Show what would be moved without making changes
@@ -3932,6 +3961,11 @@ ${YELLOW}Map Exclusions:${NC}
 
 ${YELLOW}Version Options:${NC}
   --all, -a     Show CLI version plus all detected artifact versions
+
+${YELLOW}Environment Variables:${NC}
+  FADE_MODEL    Default Claude model for all commands (opus, sonnet, haiku)
+                Can be overridden with --model flag
+                Example: export FADE_MODEL=sonnet
 
 ${YELLOW}Execution Modes:${NC}
   STOP          Complete one story, then pause for human review
@@ -3972,8 +4006,11 @@ ${YELLOW}Examples:${NC}
   fade discover --prd "API rate limiting" # Explore and generate draft PRD
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
+  fade quick --model sonnet "update docs" # Quick task with Sonnet model
   fade run                               # See queue, pick mode, start working
+  fade run --model sonnet                # Run with Sonnet to save tokens
   fade yolo                              # 🤘 Full auto mode, no prompts
+  fade yolo --model sonnet               # 🤘 Full auto with Sonnet
   fade yolo --quiet                      # 🤘 Full auto mode, minimal output
   fade run --yolo --quiet                # Same as above
   fade status                            # Check work queue
