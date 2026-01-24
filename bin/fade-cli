@@ -787,8 +787,24 @@ display_version_warnings() {
 # Display version banner at start of fade run/yolo
 # Shows CLI version, prompt.md version, and any warnings
 # Concise: 2-3 lines when all versions match
+display_fade_logo() {
+    echo -e "${CYAN}"
+    cat << 'LOGO'
+    ███████╗ █████╗ ██████╗ ███████╗
+    ██╔════╝██╔══██╗██╔══██╗██╔════╝
+    █████╗  ███████║██║  ██║█████╗
+    ██╔══╝  ██╔══██║██║  ██║██╔══╝
+    ██║     ██║  ██║██████╔╝███████╗
+    ╚═╝     ╚═╝  ╚═╝╚═════╝ ╚══════╝
+LOGO
+    echo -e "${NC}"
+    echo -e "    ${CYAN}Framework for Agentic Development${NC}"
+    echo ""
+}
+
 display_version_banner() {
     local yolo_mode="${1:-false}"
+    local model="${2:-}"
     local prompt_path=""
     local prompt_version=""
 
@@ -814,6 +830,11 @@ display_version_banner() {
         fi
     elif [[ -n "$prompt_path" ]]; then
         version_line+=" ${CYAN}│${NC} ${YELLOW}prompt.md (no version)${NC}"
+    fi
+
+    # Add model info if specified
+    if [[ -n "$model" ]]; then
+        version_line+=" ${CYAN}│${NC} model: ${GREEN}${model}${NC}"
     fi
 
     # Add YOLO indicator if in yolo mode
@@ -1326,6 +1347,48 @@ generate_tests_for_completed_prds() {
 }
 
 # Get story title from PRD by story ID
+get_next_incomplete_story() {
+    local prd_file="$1"
+
+    if [[ ! -f "$prd_file" ]]; then
+        return
+    fi
+
+    # Use awk to find the first story with passes: false
+    # Returns format: "US-001|Story Title"
+    awk '
+        BEGIN { in_story=0; found_id=0; found_title=0; found_passes=0; story_id=""; story_title="" }
+        /"userStories"/ { in_stories=1; next }
+        in_stories && /{/ { in_story=1; found_id=0; found_title=0; found_passes=0; story_id=""; story_title=""; next }
+        in_story && /"id"[[:space:]]*:/ {
+            gsub(/.*"id"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            story_id=$0
+            found_id=1
+        }
+        in_story && /"title"[[:space:]]*:/ {
+            gsub(/.*"title"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            story_title=$0
+            found_title=1
+        }
+        in_story && /"passes"[[:space:]]*:[[:space:]]*false/ {
+            found_passes=1
+            if (found_id && found_title) {
+                print story_id "|" story_title
+                exit
+            }
+        }
+        in_story && /}/ {
+            if (found_id && found_title && found_passes) {
+                print story_id "|" story_title
+                exit
+            }
+            in_story=0
+        }
+    ' "$prd_file"
+}
+
 get_story_title() {
     local prd_file="$1"
     local story_id="$2"
@@ -1859,6 +1922,7 @@ display_iteration_summary() {
     local iteration="$1"
     local story_id="$2"
     local learned_before_file="$3"
+    local iteration_start_time="${4:-}"
 
     # Find the PRD containing this story ID (not just the next active PRD)
     local story_prd=$(find_prd_by_story_id "$story_id")
@@ -1879,9 +1943,14 @@ display_iteration_summary() {
     local complete=$(echo "$progress_info" | cut -d' ' -f1)
     local total=$(echo "$progress_info" | cut -d' ' -f2)
 
+    local iteration_end_time=$(date '+%Y-%m-%d %H:%M:%S')
     echo ""
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
     echo -e "${CYAN}                    Iteration $iteration Complete                     ${NC}"
+    if [[ -n "$iteration_start_time" ]]; then
+        echo -e "${CYAN}                    Started: $iteration_start_time                    ${NC}"
+        echo -e "${CYAN}                    Completed: $iteration_end_time                    ${NC}"
+    fi
     echo -e "${CYAN}═══════════════════════════════════════════════════════════════${NC}"
     echo ""
     echo -e "${GREEN}✓ USER STORY PASSED: $story_id${NC}"
@@ -2591,8 +2660,11 @@ cmd_run() {
         esac
     done
 
+    # Display FADE logo
+    display_fade_logo
+
     # Display version banner (CLI version, prompt.md version, any warnings)
-    display_version_banner "$yolo_mode"
+    display_version_banner "$yolo_mode" "$model"
     echo ""
 
     # Check for FADE files
@@ -2637,8 +2709,28 @@ cmd_run() {
         local iteration=1
 
         while true; do
+            local iteration_start_time=$(date '+%Y-%m-%d %H:%M:%S')
+
+            # Get the next story that will be worked on
+            local active_prd=$(get_active_prd)
+            local next_story_info=""
+            local next_story_id=""
+            local next_story_title=""
+
+            if [[ -n "$active_prd" ]]; then
+                next_story_info=$(get_next_incomplete_story "$active_prd")
+                if [[ -n "$next_story_info" ]]; then
+                    next_story_id=$(echo "$next_story_info" | cut -d'|' -f1)
+                    next_story_title=$(echo "$next_story_info" | cut -d'|' -f2)
+                fi
+            fi
+
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
-            echo -e "${CYAN}Iteration $iteration - Building fresh context...${NC}"
+            echo -e "${CYAN}Iteration $iteration - ${iteration_start_time}${NC}"
+            if [[ -n "$next_story_id" ]]; then
+                echo -e "${YELLOW}Next Story: ${next_story_id} - ${next_story_title}${NC}"
+            fi
+            echo -e "${CYAN}Building fresh context...${NC}"
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo ""
 
@@ -2749,7 +2841,7 @@ cmd_run() {
 
                 # Display iteration summary (unless --quiet flag is set)
                 if [[ "$quiet_mode" != true ]]; then
-                    display_iteration_summary "$iteration" "$story_id" "$learned_before_file"
+                    display_iteration_summary "$iteration" "$story_id" "$learned_before_file" "$iteration_start_time"
                 fi
 
                 # Run regression tests (if run.sh exists and is executable)

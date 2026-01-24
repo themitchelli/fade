@@ -172,6 +172,9 @@ Starts a Claude Code session with FADE context:
 
 ```bash
 fade run
+fade run --model sonnet    # Use specific Claude model
+fade run --yolo            # Skip prompts, use ALL mode
+fade run --model opus --yolo --quiet  # Combine options
 ```
 
 Shows your work queue, then prompts for execution mode:
@@ -180,6 +183,32 @@ Shows your work queue, then prompts for execution mode:
 |------|-------------|
 | **STOP** (or S) | Complete one story, then pause for review |
 | **ALL** (or A) | Process all stories with fresh context between each |
+
+**Model Selection:**
+
+You can choose which Claude model to use for execution:
+
+```bash
+# Use command-line flag
+fade run --model opus
+fade run --model sonnet
+fade run --model haiku
+
+# Or set environment variable as default
+export FADE_MODEL=sonnet
+fade run  # Uses sonnet
+
+# Command-line flag overrides environment variable
+export FADE_MODEL=haiku
+fade run --model opus  # Uses opus, not haiku
+```
+
+Available models:
+- **opus** - Most capable, highest cost (Claude Opus 4.5)
+- **sonnet** - Balanced performance and cost (Claude Sonnet 4.5)
+- **haiku** - Fastest, lowest cost (Claude Haiku 4)
+
+The model flag works with all commands: `run`, `yolo`, `quick`, and `discover`.
 
 ### `fade yolo` 🤘
 
