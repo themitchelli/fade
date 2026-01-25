@@ -3045,6 +3045,154 @@ STANDARDS_EOF
     echo "  3. Run 'fade run' to start working"
 }
 
+# Export current session status to JSON for dashboard monitoring
+# Parameters:
+#   $1 = repo_name (e.g., "fade", "livecalc")
+#   $2 = current_prd (path to active PRD file, or empty if none)
+#   $3 = current_story_id (e.g., "US-001", or empty if none)
+#   $4 = iteration_count
+#   $5 = session_start_time (ISO 8601 format)
+#   $6 = model (haiku/sonnet/opus)
+#   $7 = mode (STOP/ALL/YOLO)
+#   $8 = session_status (running/blocked/complete)
+#   $9 = blocked_reason (only if session_status=blocked, otherwise empty)
+export_session_status() {
+    local repo_name="$1"
+    local current_prd="$2"
+    local current_story_id="$3"
+    local iteration_count="$4"
+    local session_start_time="$5"
+    local model="$6"
+    local mode="$7"
+    local session_status="$8"
+    local blocked_reason="$9"
+
+    # Determine status.json location (contained vs legacy structure)
+    local status_file
+    if [[ -d "fade" ]]; then
+        status_file="fade/status.json"
+    else
+        status_file="status.json"
+    fi
+
+    # Extract current PRD info if provided
+    local prd_id=""
+    local prd_name=""
+    local current_story_title=""
+    if [[ -n "$current_prd" ]] && [[ -f "$current_prd" ]]; then
+        prd_id=$(get_prd_id "$current_prd")
+        prd_name=$(get_prd_name "$current_prd")
+
+        # Extract current story title
+        if [[ -n "$current_story_id" ]]; then
+            current_story_title=$(get_story_title "$current_prd" "$current_story_id")
+        fi
+    fi
+
+    # Build work queue array (list of pending PRDs with story counts)
+    local work_queue_json="["
+    local first_prd=true
+
+    # Check prd.json first (priority injection)
+    local prd_json_path=""
+    if [[ -f "fade/prd.json" ]]; then
+        prd_json_path="fade/prd.json"
+    elif [[ -f "prd.json" ]]; then
+        prd_json_path="prd.json"
+    fi
+
+    if [[ -n "$prd_json_path" ]]; then
+        local incomplete=$(count_incomplete_stories "$prd_json_path")
+        local total=$(grep -c '"id"[[:space:]]*:[[:space:]]*"US-' "$prd_json_path" 2>/dev/null) || total=0
+        if [[ $incomplete -gt 0 ]]; then
+            local prd_name_queue=$(get_prd_name "$prd_json_path")
+            local prd_id_queue=$(get_prd_id "$prd_json_path")
+            work_queue_json="$work_queue_json{\"id\":\"$prd_id_queue\",\"name\":\"$prd_name_queue\",\"pending\":$incomplete,\"total\":$total}"
+            first_prd=false
+        fi
+    fi
+
+    # Check prds/ folder for other PRDs with incomplete work
+    local prds_dir=""
+    if [[ -d "fade/prds" ]]; then
+        prds_dir="fade/prds"
+    elif [[ -d "prds" ]]; then
+        prds_dir="prds"
+    fi
+
+    if [[ -n "$prds_dir" ]]; then
+        for prd_file in "$prds_dir"/*.json; do
+            if [[ -f "$prd_file" ]]; then
+                local incomplete=$(count_incomplete_stories "$prd_file")
+                local total=$(grep -c '"id"[[:space:]]*:[[:space:]]*"US-' "$prd_file" 2>/dev/null) || total=0
+                if [[ $incomplete -gt 0 ]]; then
+                    local prd_name_queue=$(get_prd_name "$prd_file")
+                    local prd_id_queue=$(get_prd_id "$prd_file")
+                    if [[ "$first_prd" != true ]]; then
+                        work_queue_json="$work_queue_json,"
+                    fi
+                    work_queue_json="$work_queue_json{\"id\":\"$prd_id_queue\",\"name\":\"$prd_name_queue\",\"pending\":$incomplete,\"total\":$total}"
+                    first_prd=false
+                fi
+            fi
+        done
+    fi
+
+    work_queue_json="$work_queue_json]"
+
+    # Count completed stories this session (rough estimate based on iteration count - 1)
+    # More accurate would require parsing progress.md, but this is good enough for monitoring
+    local completed_this_session=$((iteration_count > 0 ? iteration_count - 1 : 0))
+
+    # Build blocked details if applicable
+    local blocked_details=""
+    if [[ "$session_status" == "blocked" ]] && [[ -n "$blocked_reason" ]]; then
+        # Escape quotes in blocked reason for JSON
+        blocked_reason=$(echo "$blocked_reason" | sed 's/"/\\"/g')
+        blocked_details=",\"blockedReason\":\"$blocked_reason\""
+    fi
+
+    # Build completion timestamp if complete
+    local completion_timestamp=""
+    if [[ "$session_status" == "complete" ]]; then
+        completion_timestamp=",\"completionTime\":\"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\""
+    fi
+
+    # Atomic write: write to temp file, then rename (prevents partial reads)
+    local temp_file="${status_file}.tmp.$$"
+
+    cat > "$temp_file" <<EOF
+{
+  "repoName": "$repo_name",
+  "currentPRD": {
+    "id": "$prd_id",
+    "name": "$prd_name"
+  },
+  "currentStory": {
+    "id": "$current_story_id",
+    "title": "$current_story_title"
+  },
+  "iteration": $iteration_count,
+  "sessionStartTime": "$session_start_time",
+  "model": "$model",
+  "mode": "$mode",
+  "status": "$session_status",
+  "workQueue": $work_queue_json,
+  "completedThisSession": $completed_this_session,
+  "lastUpdate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"$blocked_details$completion_timestamp
+}
+EOF
+
+    # Rename temp file to final location (atomic operation)
+    mv "$temp_file" "$status_file" 2>/dev/null || {
+        # If mv fails, try to clean up temp file
+        rm -f "$temp_file"
+        return 1
+    }
+
+    return 0
+}
+
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
@@ -3119,6 +3267,11 @@ cmd_run() {
         # ALL mode: loop until complete or blocked
         local iteration=1
 
+        # Session tracking for status export
+        local session_start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        local repo_name=$(basename "$(pwd)")
+        local last_status_export_time=0
+
         while true; do
             local iteration_start_time=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -3158,6 +3311,13 @@ cmd_run() {
 
             local context=$(build_context)
 
+            # Export session status periodically (every 60 seconds)
+            local current_time=$(date +%s)
+            if [[ $((current_time - last_status_export_time)) -ge 60 ]]; then
+                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$model" "$mode" "running" "" &
+                last_status_export_time=$current_time
+            fi
+
             # Run Claude and capture output
             local output_file=$(mktemp)
 
@@ -3171,6 +3331,10 @@ cmd_run() {
             # Check for signals in output
             if echo "$output" | grep -qx "ALL_COMPLETE"; then
                 rm -f "$learned_before_file"
+
+                # Export final status
+                export_session_status "$repo_name" "$active_prd" "" "$iteration" "$session_start_time" "$model" "$mode" "complete" ""
+
                 echo ""
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${GREEN}🎉 ALL WORK COMPLETE!${NC}"
@@ -3235,6 +3399,13 @@ cmd_run() {
 
             if echo "$output" | grep -q "BLOCKED"; then
                 rm -f "$learned_before_file"
+
+                # Extract blocked reason from output (format: BLOCKED: reason)
+                local blocked_reason=$(echo "$output" | grep -o 'BLOCKED:[[:space:]].*' | head -1 | sed 's/BLOCKED:[[:space:]]*//')
+
+                # Export final status with blocked reason
+                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$model" "$mode" "blocked" "$blocked_reason"
+
                 echo ""
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
@@ -3265,6 +3436,10 @@ cmd_run() {
                 fi
                 if ! run_regression_tests "$prd_id" "$story_id"; then
                     rm -f "$learned_before_file"
+
+                    # Export blocked status with test failure reason
+                    export_session_status "$repo_name" "$active_prd" "$story_id" "$iteration" "$session_start_time" "$model" "$mode" "blocked" "Regression tests failed - see fade/tests/failed.log"
+
                     echo ""
                     echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                     echo -e "${RED}⛔ ITERATION BLOCKED - Regression tests failed${NC}"

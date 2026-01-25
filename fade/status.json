@@ -1,0 +1,19 @@
+{
+  "repoName": "fade",
+  "currentPRD": {
+    "id": "FEAT-013",
+    "name": "Multi-Repo Web Dashboard"
+  },
+  "currentStory": {
+    "id": "US-001",
+    "title": "Session status export to JSON"
+  },
+  "iteration": 1,
+  "sessionStartTime": "2026-01-25T16:00:00Z",
+  "model": "sonnet",
+  "mode": "ALL",
+  "status": "running",
+  "workQueue": [{"id":"ENH-014","name":"Complexity-Based Model Selection","pending":6,"total":6},{"id":"FEAT-013","name":"Multi-Repo Web Dashboard","pending":7,"total":7}],
+  "completedThisSession": 0,
+  "lastUpdate": "2026-01-25T09:11:19Z"
+}

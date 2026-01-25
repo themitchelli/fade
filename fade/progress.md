@@ -1627,3 +1627,28 @@ For blocked stories, use:
 
 **Spike Outcome:** Sub-agent isolation not needed. FADE's file-based state and checkpoint pattern achieves same isolation benefits without complexity. Avoided ~20 hours of unnecessary implementation work.
 
+
+## 2026-01-25 09:15 - US-001: Session status export to JSON (FEAT-013) - COMPLETE
+
+- Created export_session_status() function in bin/fade-cli to export current session state to JSON
+- Function accepts 9 parameters: repo_name, current_prd, current_story_id, iteration_count, session_start_time, model, mode, session_status, blocked_reason
+- Determines status.json location: fade/status.json (contained) or status.json (legacy)
+- Extracts PRD info: id, name, current story title using existing helper functions
+- Builds work queue array with all pending PRDs (checks prd.json priority, then prds/ folder)
+- Each queue item includes: id, name, pending count, total story count
+- Counts completed stories this session (iteration_count - 1)
+- Handles blocked status with blockedReason field (escapes quotes for JSON)
+- Handles complete status with completionTime field (ISO 8601 format)
+- Implements atomic write pattern: writes to temp file, then renames to prevent partial reads
+- JSON includes all required fields: repoName, currentPRD, currentStory, iteration, sessionStartTime, model, mode, status, workQueue, completedThisSession, lastUpdate
+- Integrated into cmd_run() ALL mode loop with session tracking variables
+- Session tracking: session_start_time (ISO 8601), repo_name (basename of pwd), last_status_export_time
+- Background export every 60 seconds during iteration loop (runs in background to avoid blocking)
+- Exports final status on ALL_COMPLETE signal with status="complete" and completionTime
+- Exports final status on BLOCKED signal with status="blocked" and blockedReason extracted from output
+- Exports final status on test failure blocking with status="blocked" and detailed reason
+- Fixed variable naming conflict: renamed 'status' to 'session_status' (status is bash read-only)
+- Tested function manually: generates valid JSON with all fields populated correctly
+- Verified file size: 566 bytes (well under 1KB limit)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual function test verified JSON structure and file size
