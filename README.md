@@ -186,29 +186,29 @@ Shows your work queue, then prompts for execution mode:
 
 **Model Selection:**
 
-You can choose which Claude model to use for execution:
+FADE defaults to **Sonnet** for balanced performance and cost. You can override per-command or set a different default:
 
 ```bash
-# Use command-line flag
-fade run --model opus
-fade run --model sonnet
-fade run --model haiku
+# Use command-line flag to override default
+fade run --model opus      # Use Opus for complex tasks
+fade run --model haiku     # Use Haiku for simple tasks
+fade run                   # Uses Sonnet (default)
 
-# Or set environment variable as default
-export FADE_MODEL=sonnet
-fade run  # Uses sonnet
+# Set environment variable to change default
+export FADE_MODEL=opus
+fade run  # Now defaults to Opus
 
 # Command-line flag overrides environment variable
 export FADE_MODEL=haiku
-fade run --model opus  # Uses opus, not haiku
+fade run --model opus  # Uses Opus, not Haiku
 ```
 
-Available models:
-- **opus** - Most capable, highest cost (Claude Opus 4.5)
-- **sonnet** - Balanced performance and cost (Claude Sonnet 4.5)
-- **haiku** - Fastest, lowest cost (Claude Haiku 4)
+**Available models:**
+- **sonnet** (default) - Balanced performance and cost (Claude Sonnet 4.5)
+- **opus** - Most capable, highest cost (Claude Opus 4.5) - use for complex architecture, novel problems
+- **haiku** - Fastest, lowest cost (Claude Haiku 4) - use for docs, simple fixes, pattern-based changes
 
-The model flag works with all commands: `run`, `yolo`, `quick`, and `discover`.
+The `--model` flag works with all commands: `run`, `yolo`, `quick`, and `discover`.
 
 ### `fade yolo` 🤘
 

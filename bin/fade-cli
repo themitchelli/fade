@@ -2637,7 +2637,7 @@ STANDARDS_EOF
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
-    local model="${FADE_MODEL:-}"
+    local model="${FADE_MODEL:-sonnet}"
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -2904,7 +2904,7 @@ cmd_yolo() {
 cmd_quick() {
     local yolo_mode=false
     local task_description=""
-    local model="${FADE_MODEL:-}"
+    local model="${FADE_MODEL:-sonnet}"
 
     # Parse flags and task description
     while [[ $# -gt 0 ]]; do
@@ -3129,7 +3129,7 @@ Start working on the task now. Keep it simple and focused.
 cmd_discover() {
     local feature_name=""
     local generate_prd=false
-    local model="${FADE_MODEL:-}"
+    local model="${FADE_MODEL:-sonnet}"
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -4055,9 +4055,10 @@ ${YELLOW}Version Options:${NC}
   --all, -a     Show CLI version plus all detected artifact versions
 
 ${YELLOW}Environment Variables:${NC}
-  FADE_MODEL    Default Claude model for all commands (opus, sonnet, haiku)
+  FADE_MODEL    Default Claude model for all commands (default: sonnet)
+                Options: opus, sonnet, haiku
                 Can be overridden with --model flag
-                Example: export FADE_MODEL=sonnet
+                Example: export FADE_MODEL=opus
 
 ${YELLOW}Execution Modes:${NC}
   STOP          Complete one story, then pause for human review
