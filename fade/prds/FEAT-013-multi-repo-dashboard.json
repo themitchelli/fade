@@ -47,7 +47,7 @@
         "Validate paths on startup, warn if repo not found"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

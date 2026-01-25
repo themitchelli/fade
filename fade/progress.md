@@ -1652,3 +1652,33 @@ For blocked stories, use:
 - Verified file size: 566 bytes (well under 1KB limit)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual function test verified JSON structure and file size
+
+## 2026-01-25 17:00 - US-002: Dashboard configuration and discovery (FEAT-013) - COMPLETE
+
+- Added cmd_dashboard() function to bin/fade-cli with --add, --list, and --discover commands
+- Created configuration management at ~/.fade-dashboard/config.json
+- Implemented dashboard_add_repo() to add repositories with path validation and FADE repo detection
+- Auto-detects display names from FADE.md first heading, falls back to directory name
+- Validates paths exist and contain FADE.md or fade/ folder before adding
+- Detects duplicate repos and warns user without re-adding
+- Implemented dashboard_list_repos() to display configured repos with path validation status
+- Shows green checkmark for valid paths, red X with warning for missing paths
+- Implemented dashboard_auto_discover() to scan parent directory for FADE repos
+- Auto-discover prompts user to add each discovered repo interactively
+- Resolves paths to absolute paths to prevent relative path issues
+- JSON configuration includes: repos array (path, name), port (8080), refreshInterval (30s)
+- Implements atomic write pattern for config updates (temp file + rename)
+- Added dashboard command to main case statement
+- Added comprehensive help documentation with Dashboard Command and Dashboard Options sections
+- Added examples to help text showing all dashboard operations
+- Files changed: bin/fade-cli, fade/prds/FEAT-013-multi-repo-dashboard.json
+- Tests: bash -n syntax check passed, manual testing verified all AC:
+  - Config created at ~/.fade-dashboard/config.json ✓
+  - Config includes repos, port, refreshInterval ✓
+  - fade dashboard --add works with validation ✓
+  - fade dashboard --list displays configured repos ✓
+  - fade dashboard --discover scans parent directory ✓
+  - Auto-detect display names from FADE.md ✓
+  - Validate paths and warn if not found ✓
+  - Prevent duplicate repo additions ✓
+

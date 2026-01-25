@@ -4435,6 +4435,335 @@ PRDEOF
     echo "  2. Run 'fade run' to start working"
 }
 
+# ============================================================================
+# DASHBOARD COMMAND
+# ============================================================================
+
+# Get dashboard config directory
+get_dashboard_config_dir() {
+    echo "${HOME}/.fade-dashboard"
+}
+
+# Get dashboard config file path
+get_dashboard_config_file() {
+    local config_dir
+    config_dir=$(get_dashboard_config_dir)
+    echo "${config_dir}/config.json"
+}
+
+# Initialize dashboard config directory
+init_dashboard_config() {
+    local config_dir
+    config_dir=$(get_dashboard_config_dir)
+
+    if [[ ! -d "$config_dir" ]]; then
+        mkdir -p "$config_dir"
+    fi
+}
+
+# Read dashboard config (returns JSON or empty object if not exists)
+read_dashboard_config() {
+    local config_file
+    config_file=$(get_dashboard_config_file)
+
+    if [[ -f "$config_file" ]]; then
+        cat "$config_file"
+    else
+        echo '{"repos":[],"port":8080,"refreshInterval":30}'
+    fi
+}
+
+# Write dashboard config (accepts JSON string)
+write_dashboard_config() {
+    local json="$1"
+    local config_file
+    config_file=$(get_dashboard_config_file)
+
+    init_dashboard_config
+
+    # Atomic write
+    local temp_file="${config_file}.tmp.$$"
+    echo "$json" > "$temp_file"
+    mv "$temp_file" "$config_file"
+}
+
+# Check if path is a FADE repo
+is_fade_repo() {
+    local repo_path="$1"
+
+    if [[ ! -d "$repo_path" ]]; then
+        return 1
+    fi
+
+    # Check for FADE.md or fade/ directory
+    if [[ -f "$repo_path/FADE.md" ]] || [[ -d "$repo_path/fade" ]]; then
+        return 0
+    fi
+
+    return 1
+}
+
+# Get repo display name from path
+get_repo_display_name() {
+    local repo_path="$1"
+
+    # Try to extract name from FADE.md first line (after # )
+    if [[ -f "$repo_path/FADE.md" ]]; then
+        local first_heading
+        first_heading=$(grep -m 1 "^# " "$repo_path/FADE.md" 2>/dev/null | sed 's/^# //')
+        if [[ -n "$first_heading" ]] && [[ "$first_heading" != "Project Name" ]]; then
+            echo "$first_heading"
+            return
+        fi
+    fi
+
+    # Fallback to directory name
+    basename "$repo_path"
+}
+
+# Add repo to dashboard config
+dashboard_add_repo() {
+    local repo_path="$1"
+    local display_name="$2"
+
+    # Resolve to absolute path
+    repo_path=$(cd "$repo_path" 2>/dev/null && pwd) || {
+        echo -e "${RED}Error: Path does not exist: $1${NC}" >&2
+        return 1
+    }
+
+    # Validate it's a FADE repo
+    if ! is_fade_repo "$repo_path"; then
+        echo -e "${RED}Error: Not a FADE repository (no FADE.md or fade/ found): $repo_path${NC}" >&2
+        return 1
+    fi
+
+    # Auto-detect display name if not provided
+    if [[ -z "$display_name" ]]; then
+        display_name=$(get_repo_display_name "$repo_path")
+    fi
+
+    # Read current config
+    local config
+    config=$(read_dashboard_config)
+
+    # Check if repo already exists
+    if echo "$config" | grep -q "\"path\":\"$repo_path\""; then
+        echo -e "${YELLOW}Repository already configured: $repo_path${NC}" >&2
+        return 0
+    fi
+
+    # Add repo to config (simple JSON manipulation using jq-like bash)
+    # Extract current repos array, add new repo, rebuild config
+    local new_repo="{\"path\":\"$repo_path\",\"name\":\"$display_name\"}"
+
+    # Simple JSON append (works without jq)
+    local repos_json
+    repos_json=$(echo "$config" | grep -o '"repos":\[.*\]' | sed 's/"repos":\[//' | sed 's/\]$//')
+
+    if [[ -z "$repos_json" ]] || [[ "$repos_json" == "null" ]]; then
+        # Empty repos array
+        config="{\"repos\":[$new_repo],\"port\":8080,\"refreshInterval\":30}"
+    else
+        # Append to existing repos
+        config="{\"repos\":[$repos_json,$new_repo],\"port\":8080,\"refreshInterval\":30}"
+    fi
+
+    # Write updated config
+    write_dashboard_config "$config"
+
+    echo -e "${GREEN}Added repository: $display_name${NC}"
+    echo "  Path: $repo_path"
+}
+
+# List configured repos
+dashboard_list_repos() {
+    local config
+    config=$(read_dashboard_config)
+
+    # Extract repos count
+    local repos_count
+    repos_count=$(echo "$config" | grep -o '"path"' | wc -l | tr -d ' ')
+
+    if [[ "$repos_count" -eq 0 ]]; then
+        echo -e "${YELLOW}No repositories configured${NC}"
+        echo ""
+        echo "Add repositories with: fade dashboard --add /path/to/repo"
+        return
+    fi
+
+    echo -e "${CYAN}Configured Repositories:${NC}"
+    echo ""
+
+    # Parse and display repos (without jq dependency)
+    # Extract each repo entry and display
+    local i=1
+    while true; do
+        local repo_path
+        local repo_name
+
+        # Extract path for repo $i
+        repo_path=$(echo "$config" | grep -o "\"path\":\"[^\"]*\"" | sed -n "${i}p" | sed 's/"path":"//' | sed 's/"$//')
+
+        if [[ -z "$repo_path" ]]; then
+            break
+        fi
+
+        # Extract name for repo $i
+        repo_name=$(echo "$config" | grep -o "\"name\":\"[^\"]*\"" | sed -n "${i}p" | sed 's/"name":"//' | sed 's/"$//')
+
+        # Validate path still exists
+        if [[ -d "$repo_path" ]]; then
+            echo -e "${GREEN}✓${NC} $repo_name"
+            echo "  Path: $repo_path"
+        else
+            echo -e "${RED}✗${NC} $repo_name ${YELLOW}(path not found)${NC}"
+            echo "  Path: $repo_path"
+        fi
+        echo ""
+
+        i=$((i + 1))
+    done
+}
+
+# Auto-discover FADE repos in parent directory
+dashboard_auto_discover() {
+    local current_dir
+    current_dir=$(pwd)
+    local parent_dir
+    parent_dir=$(dirname "$current_dir")
+
+    echo -e "${CYAN}Scanning for FADE repositories in: $parent_dir${NC}"
+    echo ""
+
+    local found_count=0
+    local config
+    config=$(read_dashboard_config)
+
+    # Find directories with FADE.md or fade/ folder
+    while IFS= read -r repo_dir; do
+        # Resolve to absolute path
+        repo_dir=$(cd "$repo_dir" 2>/dev/null && pwd) || continue
+
+        # Skip current directory
+        if [[ "$repo_dir" == "$current_dir" ]]; then
+            continue
+        fi
+
+        # Check if already configured
+        if echo "$config" | grep -q "\"path\":\"$repo_dir\""; then
+            continue
+        fi
+
+        local display_name
+        display_name=$(get_repo_display_name "$repo_dir")
+
+        echo -e "${GREEN}Found:${NC} $display_name"
+        echo "  Path: $repo_dir"
+
+        # Prompt to add
+        read -p "Add to dashboard? [y/N] " -n 1 -r
+        echo ""
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            dashboard_add_repo "$repo_dir" "$display_name"
+            # Reload config after adding
+            config=$(read_dashboard_config)
+            found_count=$((found_count + 1))
+        fi
+
+        echo ""
+    done < <(find "$parent_dir" -maxdepth 1 -type d -exec sh -c 'test -f "$1/FADE.md" || test -d "$1/fade"' _ {} \; -print 2>/dev/null)
+
+    if [[ $found_count -eq 0 ]]; then
+        echo "No new FADE repositories found."
+    else
+        echo -e "${GREEN}Added $found_count repositor$([ $found_count -eq 1 ] && echo "y" || echo "ies")${NC}"
+    fi
+}
+
+cmd_dashboard() {
+    local action=""
+    local repo_path=""
+    local repo_name=""
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --add)
+                action="add"
+                shift
+                if [[ $# -gt 0 ]] && [[ ! "$1" =~ ^-- ]]; then
+                    repo_path="$1"
+                    shift
+                else
+                    echo -e "${RED}Error: --add requires a path argument${NC}"
+                    echo ""
+                    echo "Usage: fade dashboard --add /path/to/repo [--name \"Display Name\"]"
+                    exit 1
+                fi
+                ;;
+            --name)
+                shift
+                if [[ $# -gt 0 ]]; then
+                    repo_name="$1"
+                    shift
+                else
+                    echo -e "${RED}Error: --name requires a value${NC}"
+                    exit 1
+                fi
+                ;;
+            --list)
+                action="list"
+                shift
+                ;;
+            --discover)
+                action="discover"
+                shift
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown option '$1'${NC}"
+                echo ""
+                echo "Usage: fade dashboard [--add <path>] [--list] [--discover]"
+                exit 1
+                ;;
+            *)
+                # Default action: start server (to be implemented in US-003)
+                echo -e "${YELLOW}Dashboard server not implemented yet (US-003)${NC}"
+                echo ""
+                echo "Available commands:"
+                echo "  fade dashboard --add /path/to/repo     Add repository to dashboard"
+                echo "  fade dashboard --list                  List configured repositories"
+                echo "  fade dashboard --discover              Auto-discover repositories"
+                exit 1
+                ;;
+        esac
+    done
+
+    # Execute action
+    case "$action" in
+        add)
+            dashboard_add_repo "$repo_path" "$repo_name"
+            ;;
+        list)
+            dashboard_list_repos
+            ;;
+        discover)
+            dashboard_auto_discover
+            ;;
+        "")
+            # No action specified - default to server (US-003)
+            echo -e "${YELLOW}Dashboard server not implemented yet (US-003)${NC}"
+            echo ""
+            echo "Available commands:"
+            echo "  fade dashboard --add /path/to/repo     Add repository to dashboard"
+            echo "  fade dashboard --list                  List configured repositories"
+            echo "  fade dashboard --discover              Auto-discover repositories"
+            exit 1
+            ;;
+    esac
+}
+
 cmd_status() {
     local format="pretty"
 
@@ -4549,6 +4878,7 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   quick         Run a quick task without PRD (fade quick "<task>")
+  dashboard     Configure and list repositories for multi-repo monitoring
   status        Show current work queue
   export        Export FADE context to a single file for Claude web
   migrate       Move legacy FADE files into contained fade/ structure
@@ -4607,6 +4937,25 @@ ${YELLOW}Quick Command:${NC}
 ${YELLOW}Quick Options:${NC}
   --yolo          Skip permission prompts (use --dangerously-skip-permissions)
   --model <name>  Use specific Claude model (opus, sonnet, haiku)
+
+${YELLOW}Dashboard Command:${NC}
+  fade dashboard --add /path/to/repo [--name "Display Name"]
+  fade dashboard --list
+  fade dashboard --discover
+
+  Configure repositories for multi-repo monitoring dashboard.
+  - Stores configuration in ~/.fade-dashboard/config.json
+  - Auto-detects display names from FADE.md
+  - Validates paths and checks for FADE repos
+
+${YELLOW}Dashboard Options:${NC}
+  --add <path>    Add a FADE repository to dashboard configuration
+                  - Path must exist and contain FADE.md or fade/ folder
+                  - Auto-detects display name from FADE.md
+  --name <name>   Set custom display name when adding repo (optional)
+  --list          List all configured repositories
+  --discover      Auto-discover FADE repos in parent directory
+                  - Prompts to add each discovered repo
 
 ${YELLOW}Run Options:${NC}
   --yolo          Skip prompts, use ALL mode with --dangerously-skip-permissions
@@ -4691,6 +5040,10 @@ ${YELLOW}Examples:${NC}
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade quick --model sonnet "update docs" # Quick task with Sonnet model
+  fade dashboard --add ~/projects/fade   # Add repository to dashboard
+  fade dashboard --add ~/projects/myapp --name "My App"  # Add with custom name
+  fade dashboard --list                  # Show configured repositories
+  fade dashboard --discover              # Auto-discover FADE repos in parent dir
   fade run                               # See queue, pick mode, start working
   fade run --model sonnet                # Run with Sonnet to save tokens
   fade yolo                              # 🤘 Full auto mode, no prompts
@@ -9236,6 +9589,10 @@ case "${1:-}" in
     discover)
         shift
         cmd_discover "$@"
+        ;;
+    dashboard)
+        shift
+        cmd_dashboard "$@"
         ;;
     status)
         shift
