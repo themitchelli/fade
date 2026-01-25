@@ -8,6 +8,9 @@ class FadeDashboard {
         this.refreshInterval = 30000; // 30 seconds
         this.refreshTimer = null;
         this.selectedRepo = null;
+        this.currentFilter = 'all';
+        this.currentSort = 'name';
+        this.reposData = {};
 
         // Bind methods
         this.init = this.init.bind(this);
@@ -18,6 +21,8 @@ class FadeDashboard {
         this.openModal = this.openModal.bind(this);
         this.closeModal = this.closeModal.bind(this);
         this.handleRefresh = this.handleRefresh.bind(this);
+        this.handleFilter = this.handleFilter.bind(this);
+        this.handleSort = this.handleSort.bind(this);
     }
 
     init() {
@@ -30,11 +35,39 @@ class FadeDashboard {
             }
         });
 
+        // Filter buttons
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', this.handleFilter);
+        });
+
+        // Sort select
+        document.getElementById('sort-select').addEventListener('change', this.handleSort);
+
         // Initial load
         this.refresh();
 
         // Start auto-refresh
         this.startAutoRefresh();
+    }
+
+    handleFilter(e) {
+        const filter = e.target.dataset.filter;
+        this.currentFilter = filter;
+
+        // Update active state
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        e.target.classList.add('active');
+
+        // Re-render with current data
+        this.renderRepoCards(this.reposData);
+    }
+
+    handleSort(e) {
+        this.currentSort = e.target.value;
+        // Re-render with current data
+        this.renderRepoCards(this.reposData);
     }
 
     startAutoRefresh() {
@@ -109,6 +142,9 @@ class FadeDashboard {
     }
 
     renderRepoCards(repos) {
+        // Store repos data for filtering/sorting
+        this.reposData = repos;
+
         const grid = document.getElementById('repo-grid');
 
         if (Object.keys(repos).length === 0) {
@@ -121,10 +157,62 @@ class FadeDashboard {
             return;
         }
 
+        // Convert to array for filtering and sorting
+        let repoArray = Object.entries(repos).map(([name, data]) => ({
+            name: name,
+            data: data
+        }));
+
+        // Apply filter
+        if (this.currentFilter !== 'all') {
+            repoArray = repoArray.filter(repo => {
+                return repo.data.status === this.currentFilter;
+            });
+        }
+
+        // Apply sort
+        repoArray.sort((a, b) => {
+            switch (this.currentSort) {
+                case 'activity':
+                    // Sort by last update (most recent first)
+                    const dateA = a.data.lastUpdate ? new Date(a.data.lastUpdate) : new Date(0);
+                    const dateB = b.data.lastUpdate ? new Date(b.data.lastUpdate) : new Date(0);
+                    return dateB - dateA;
+
+                case 'workload':
+                    // Sort by pending stories (most first)
+                    const workloadA = a.data.workQueue ? a.data.workQueue.reduce((sum, prd) => sum + (prd.pendingCount || 0), 0) : 0;
+                    const workloadB = b.data.workQueue ? b.data.workQueue.reduce((sum, prd) => sum + (prd.pendingCount || 0), 0) : 0;
+                    return workloadB - workloadA;
+
+                case 'status':
+                    // Sort by status (running, blocked, complete, idle)
+                    const statusOrder = { 'running': 0, 'blocked': 1, 'complete': 2, 'idle': 3 };
+                    const orderA = statusOrder[a.data.status] !== undefined ? statusOrder[a.data.status] : 999;
+                    const orderB = statusOrder[b.data.status] !== undefined ? statusOrder[b.data.status] : 999;
+                    return orderA - orderB;
+
+                case 'name':
+                default:
+                    // Sort alphabetically by name
+                    return a.name.localeCompare(b.name);
+            }
+        });
+
+        // Render filtered and sorted cards
         grid.innerHTML = '';
 
-        for (const [repoName, repoData] of Object.entries(repos)) {
-            const card = this.createRepoCard(repoName, repoData);
+        if (repoArray.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <p>No repositories match the selected filter</p>
+                </div>
+            `;
+            return;
+        }
+
+        for (const repo of repoArray) {
+            const card = this.createRepoCard(repo.name, repo.data);
             grid.appendChild(card);
         }
     }
@@ -293,6 +381,68 @@ class FadeDashboard {
 
         html += `</div>`;
         html += `</div>`;
+
+        // Test results
+        if (repoData.testResults && Object.keys(repoData.testResults).length > 0) {
+            const tests = repoData.testResults;
+            const hasTests = tests.totalTests > 0;
+
+            html += `<div class="work-queue">`;
+            html += `<h3>Regression Tests</h3>`;
+            html += `<div class="queue-item">`;
+
+            if (hasTests) {
+                const passedPercent = tests.totalTests > 0 ? ((tests.passed / tests.totalTests) * 100).toFixed(0) : 0;
+                const statusColor = tests.failed === 0 ? 'var(--color-success)' : 'var(--color-error)';
+
+                html += `<div class="queue-item-stats" style="color: ${statusColor}">`;
+                html += `✓ ${tests.passed} passed, ✗ ${tests.failed} failed (${passedPercent}% pass rate)`;
+                html += `</div>`;
+                html += `<div class="queue-item-stats">Total tests: ${tests.totalTests}</div>`;
+
+                if (tests.lastRun) {
+                    const lastRun = new Date(tests.lastRun);
+                    html += `<div class="queue-item-stats">Last run: ${lastRun.toLocaleString()}</div>`;
+                }
+            } else {
+                html += `<div class="queue-item-stats">No tests found</div>`;
+            }
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // Archive list
+        if (repoData.archive && repoData.archive.length > 0) {
+            html += `<div class="work-queue">`;
+            html += `<h3>Completed PRDs (${repoData.archive.length})</h3>`;
+
+            // Limit to last 10 archives
+            const archiveList = repoData.archive.slice(0, 10);
+
+            for (const archive of archiveList) {
+                html += `<div class="queue-item">`;
+                html += `<div class="queue-item-name">${this.escapeHtml(archive.name)}</div>`;
+                html += `<div class="queue-item-stats">`;
+                html += `ID: ${this.escapeHtml(archive.id)}`;
+
+                if (archive.completedAt) {
+                    const completed = new Date(archive.completedAt);
+                    html += ` | Completed: ${completed.toLocaleDateString()}`;
+                }
+
+                html += `</div>`;
+                html += `</div>`;
+            }
+
+            if (repoData.archive.length > 10) {
+                html += `<div class="queue-item">`;
+                html += `<div class="queue-item-stats">... and ${repoData.archive.length - 10} more</div>`;
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+        }
 
         return html;
     }

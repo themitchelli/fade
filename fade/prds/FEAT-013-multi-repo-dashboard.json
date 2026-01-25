@@ -86,7 +86,7 @@
         "Click archive entry → view completion summary from progress.md"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

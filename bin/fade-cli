@@ -3083,6 +3083,103 @@ STANDARDS_EOF
 #   $7 = mode (STOP/ALL/YOLO)
 #   $8 = session_status (running/blocked/complete)
 #   $9 = blocked_reason (only if session_status=blocked, otherwise empty)
+# get_archive_list() - Get list of archived PRDs with completion dates
+# Returns JSON array of archive entries
+get_archive_list() {
+    local archive_dir=""
+    if [[ -d "fade/prd-archive" ]]; then
+        archive_dir="fade/prd-archive"
+    elif [[ -d "prd-archive" ]]; then
+        archive_dir="prd-archive"
+    fi
+
+    if [[ -z "$archive_dir" ]] || [[ ! -d "$archive_dir" ]]; then
+        echo "[]"
+        return 0
+    fi
+
+    local archive_json="["
+    local first_item=true
+
+    # Find all .json files in archive, sorted by modification time (newest first)
+    for prd_file in "$archive_dir"/*.json; do
+        if [[ -f "$prd_file" ]] && [[ "$(basename "$prd_file")" != ".gitkeep" ]]; then
+            local prd_id=$(get_prd_id "$prd_file")
+            local prd_name=$(get_prd_name "$prd_file")
+
+            # Get completion date from file modification time
+            local completion_date=""
+            if [[ "$(uname)" == "Darwin" ]]; then
+                completion_date=$(stat -f "%Sm" -t "%Y-%m-%dT%H:%M:%SZ" "$prd_file" 2>/dev/null)
+            else
+                completion_date=$(stat -c "%y" "$prd_file" 2>/dev/null | sed 's/ /T/' | sed 's/\..*/Z/')
+            fi
+
+            if [[ "$first_item" != true ]]; then
+                archive_json="$archive_json,"
+            fi
+            archive_json="$archive_json{\"id\":\"$prd_id\",\"name\":\"$prd_name\",\"completedAt\":\"$completion_date\"}"
+            first_item=false
+        fi
+    done
+
+    archive_json="$archive_json]"
+    echo "$archive_json"
+}
+
+# get_test_results() - Get regression test results
+# Returns JSON object with test statistics
+get_test_results() {
+    local tests_dir=""
+    if [[ -d "fade/tests" ]]; then
+        tests_dir="fade/tests"
+    elif [[ -d "tests" ]]; then
+        tests_dir="tests"
+    fi
+
+    if [[ -z "$tests_dir" ]] || [[ ! -d "$tests_dir" ]]; then
+        echo "{}"
+        return 0
+    fi
+
+    # Check if run.sh exists
+    local run_script="$tests_dir/run.sh"
+    if [[ ! -x "$run_script" ]]; then
+        echo "{}"
+        return 0
+    fi
+
+    # Count total tests
+    local total_tests=$(find "$tests_dir" -name "test_*.sh" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+    # Check for failed.log to determine status
+    local failed_log="$tests_dir/failed.log"
+    local failed_count=0
+    local last_run=""
+
+    if [[ -f "$failed_log" ]]; then
+        # Count failures in failed.log
+        failed_count=$(grep -c "^\[FAILURE\]" "$failed_log" 2>/dev/null || echo "0")
+
+        # Get last run timestamp from failed.log
+        last_run=$(grep "^\[RUN_TIMESTAMP\]" "$failed_log" 2>/dev/null | tail -1 | sed 's/^\[RUN_TIMESTAMP\] //')
+    else
+        # No failed.log means all tests passed
+        failed_count=0
+
+        # Get last run from run.sh modification time
+        if [[ "$(uname)" == "Darwin" ]]; then
+            last_run=$(stat -f "%Sm" -t "%Y-%m-%dT%H:%M:%SZ" "$run_script" 2>/dev/null)
+        else
+            last_run=$(stat -c "%y" "$run_script" 2>/dev/null | sed 's/ /T/' | sed 's/\..*/Z/')
+        fi
+    fi
+
+    local passed_count=$((total_tests - failed_count))
+
+    echo "{\"totalTests\":$total_tests,\"passed\":$passed_count,\"failed\":$failed_count,\"lastRun\":\"$last_run\"}"
+}
+
 export_session_status() {
     local repo_name="$1"
     local current_prd="$2"
@@ -3171,6 +3268,10 @@ export_session_status() {
     # More accurate would require parsing progress.md, but this is good enough for monitoring
     local completed_this_session=$((iteration_count > 0 ? iteration_count - 1 : 0))
 
+    # Get archive list and test results
+    local archive_list=$(get_archive_list)
+    local test_results=$(get_test_results)
+
     # Build blocked details if applicable
     local blocked_details=""
     if [[ "$session_status" == "blocked" ]] && [[ -n "$blocked_reason" ]]; then
@@ -3206,6 +3307,8 @@ export_session_status() {
   "status": "$session_status",
   "workQueue": $work_queue_json,
   "completedThisSession": $completed_this_session,
+  "archive": $archive_list,
+  "testResults": $test_results,
   "lastUpdate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"$blocked_details$completion_timestamp
 }
 EOF

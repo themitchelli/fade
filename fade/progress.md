@@ -1718,3 +1718,32 @@ For blocked stories, use:
   - Validate paths and warn if not found ✓
   - Prevent duplicate repo additions ✓
 
+
+## 2026-01-25 09:31 - US-004: Work queue and archive visualization (FEAT-013) - COMPLETE
+
+- Enhanced export_session_status() to include archive list with completion dates
+- Added get_archive_list() helper function to scan prd-archive/ and extract PRD metadata
+- Added get_test_results() helper function to count tests and check failed.log status
+- Updated status.json schema to include "archive" array and "testResults" object
+- Enhanced dashboard modal to display:
+  - Regression test results with pass/fail counts, pass rate percentage, last run time
+  - Archive list showing completed PRDs with IDs and completion dates (limited to last 10)
+  - Color-coded test status (green for all passed, red for failures)
+- Added filter controls to dashboard UI: All, Active, Blocked, Idle
+- Added sort controls to dashboard UI: Name, Recent Activity, Workload, Status
+- Implemented filtering logic in renderRepoCards() to show only repos matching selected filter
+- Implemented sorting logic supporting 4 sort modes:
+  - Name: Alphabetical
+  - Activity: Most recent lastUpdate first
+  - Workload: Most pending stories first
+  - Status: running → blocked → complete → idle
+- Added CSS styling for filter buttons (.filter-btn, .filter-btn.active) and sort dropdown
+- Filter buttons have visual active state (blue background when selected)
+- Empty state messages when no repos match filter
+- All filtering and sorting works client-side without additional API calls
+- Archive list shows completion dates from file modification timestamps
+- Test results detect both contained (fade/tests/) and legacy (tests/) structures
+- BSD/macOS compatibility for stat commands using conditional formatting
+- Files changed: bin/fade-cli (get_archive_list, get_test_results, export_session_status), fade/templates/dashboard/index.html, fade/templates/dashboard/styles.css, fade/templates/dashboard/app.js
+- Tests: bash -n syntax check passed, get_archive_list tested with 26 archives, get_test_results tested with 125 tests
+

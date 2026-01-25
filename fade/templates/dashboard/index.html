@@ -37,6 +37,26 @@
             </div>
         </section>
 
+        <!-- Filter and Sort Controls -->
+        <section class="controls">
+            <div class="filter-controls">
+                <label>Filter:</label>
+                <button class="filter-btn active" data-filter="all">All</button>
+                <button class="filter-btn" data-filter="running">Active</button>
+                <button class="filter-btn" data-filter="blocked">Blocked</button>
+                <button class="filter-btn" data-filter="idle">Idle</button>
+            </div>
+            <div class="sort-controls">
+                <label>Sort by:</label>
+                <select id="sort-select">
+                    <option value="name">Name</option>
+                    <option value="activity">Recent Activity</option>
+                    <option value="workload">Workload</option>
+                    <option value="status">Status</option>
+                </select>
+            </div>
+        </section>
+
         <!-- Repository Cards -->
         <section class="repo-grid" id="repo-grid">
             <!-- Repo cards will be dynamically inserted here -->
