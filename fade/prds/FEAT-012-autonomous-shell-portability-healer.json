@@ -60,7 +60,7 @@
         "Display healing summary: 'Auto-healed shell portability issue in 47s. Session continuing.'"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

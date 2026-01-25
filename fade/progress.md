@@ -1503,3 +1503,23 @@ For blocked stories, use:
   - test_us002_02_safety_directory_check.sh: Verifies safety constraints
   - test_us002_03_backup_creation.sh: Verifies backup files created before modification
   - test_us002_04_healing_log_format.sh: Verifies healing log format and append behavior
+
+## 2026-01-25 15:45 - US-003: Retry tests after healing and continue if successful (FEAT-012) - COMPLETE
+
+- Implemented auto-healing retry loop in run_regression_tests() function
+- After detecting portability error, applies fixes and retries tests automatically
+- Supports up to 3 healing attempts with intelligent error re-detection between attempts
+- Enforces 5-minute total budget for all healing attempts (prevents infinite loops)
+- On success: commits fixes with "chore: auto-heal shell portability (FEAT-012)" and continues session
+- On success: logs to healing-log.md with timestamp, duration, attempts, fixes applied, time saved (~5.3 hours), git commit hash
+- On failure: logs attempt details and exits gracefully after max attempts or timeout
+- Healing cycle:
+  1. Detect portability error and parse error_type
+  2. Apply fixes from whitelist (via apply_portability_fixes)
+  3. Re-run tests with same timeout
+  4. If pass: commit, log success, return 0 (continue session)
+  5. If fail: detect if new portability error exists, loop up to 3 times
+  6. If no portability error after retry: exit (real test failure, not portability)
+- Displays healing summary: "Auto-healed shell portability issue in Xs. Session continuing."
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

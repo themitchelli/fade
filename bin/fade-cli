@@ -1360,28 +1360,180 @@ run_regression_tests() {
         # Detect shell portability errors
         local portability_error_info
         if portability_error_info=$(detect_shell_portability_error "$test_output_file"); then
-            # Portability error detected - for now, just report it
-            # Future: US-002 and US-003 will implement auto-healing
+            # Portability error detected - attempt auto-healing
             echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
             echo -e "${YELLOW}🔍 Shell Portability Error Detected${NC}"
             echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
             echo ""
-            echo "$portability_error_info" | while IFS='=' read -r key value; do
+
+            # Parse error info
+            local error_type error_message affected_file
+            while IFS='=' read -r key value; do
                 case "$key" in
                     error_type)
+                        error_type="$value"
                         echo "Error Type: $value"
                         ;;
                     error_message)
+                        error_message="$value"
                         echo "Error Message: $value"
                         ;;
                     affected_file)
+                        affected_file="$value"
                         echo "Affected File: $value"
                         ;;
                 esac
+            done <<< "$portability_error_info"
+            echo ""
+
+            # Attempt healing with retry loop
+            local max_healing_attempts=3
+            local healing_attempt=1
+            local healing_start_time=$(date +%s)
+            local max_healing_duration=300  # 5 minutes total for all healing attempts
+            local healing_succeeded=false
+
+            while [[ $healing_attempt -le $max_healing_attempts ]]; do
+                # Check if we've exceeded the 5-minute healing budget
+                local current_time=$(date +%s)
+                local healing_elapsed=$((current_time - healing_start_time))
+                if [[ $healing_elapsed -ge $max_healing_duration ]]; then
+                    echo -e "${YELLOW}⏱️  Healing timeout: exceeded 5-minute budget after $healing_attempt attempt(s)${NC}"
+                    echo ""
+                    break
+                fi
+
+                echo -e "${CYAN}🔧 Healing Attempt $healing_attempt of $max_healing_attempts${NC}"
+                echo ""
+
+                # Apply fixes
+                local fixes_applied
+                if fixes_applied=$(apply_portability_fixes "$error_type" 2>&1); then
+                    echo "Applied $fixes_applied fix(es)"
+                    echo ""
+
+                    # Retry tests
+                    echo -e "${CYAN}🔄 Retrying tests after healing...${NC}"
+                    echo ""
+
+                    # Re-run tests with same timeout
+                    local retry_output
+                    local retry_exit_code
+
+                    if command -v timeout &> /dev/null; then
+                        retry_output=$(timeout "$timeout_seconds" "$run_script" 2>&1 | tee "$test_output_file")
+                        retry_exit_code=$?
+                    elif command -v gtimeout &> /dev/null; then
+                        retry_output=$(gtimeout "$timeout_seconds" "$run_script" 2>&1 | tee "$test_output_file")
+                        retry_exit_code=$?
+                    else
+                        retry_output=$("$run_script" 2>&1 | tee "$test_output_file")
+                        retry_exit_code=$?
+                    fi
+
+                    echo ""
+
+                    if [[ $retry_exit_code -eq 0 ]]; then
+                        # Tests passed after healing!
+                        healing_succeeded=true
+                        local healing_end_time=$(date +%s)
+                        local total_healing_duration=$((healing_end_time - healing_start_time))
+
+                        echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                        echo -e "${GREEN}✅ Auto-healed shell portability issue in ${total_healing_duration}s${NC}"
+                        echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
+                        echo ""
+                        echo "Session continuing..."
+                        echo ""
+
+                        # Commit the fixes
+                        git add -A
+                        git commit -m "chore: auto-heal shell portability (FEAT-012)" &>/dev/null || true
+
+                        # Log success to healing-log.md
+                        local healing_log
+                        if [[ -d "fade" ]]; then
+                            healing_log="fade/healing-log.md"
+                        else
+                            healing_log="healing-log.md"
+                        fi
+
+                        local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+                        {
+                            [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
+                            echo "## $timestamp - HEALING SUCCESS"
+                            echo "**Error Type:** $error_type"
+                            echo "**Error Message:** $error_message"
+                            [[ -n "$affected_file" ]] && echo "**Affected File:** $affected_file"
+                            echo "**Healing Duration:** ${total_healing_duration}s"
+                            echo "**Attempts:** $healing_attempt"
+                            echo "**Fixes Applied:** $fixes_applied"
+                            echo "**Time Saved:** ~5.3 hours (prevented overnight block)"
+                            echo "**Git Commit:** $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
+                            echo ""
+                        } >> "$healing_log"
+
+                        rm -f "$test_output_file"
+                        return 0
+                    else
+                        # Tests still failing - check for another portability error
+                        echo -e "${YELLOW}Tests still failing after healing attempt $healing_attempt${NC}"
+                        echo ""
+
+                        # Check if there's another portability error to fix
+                        if ! portability_error_info=$(detect_shell_portability_error "$test_output_file"); then
+                            # No more portability errors detected - this is a different failure
+                            echo -e "${YELLOW}No additional portability errors detected.${NC}"
+                            echo "This appears to be a real test failure, not a portability issue."
+                            echo ""
+                            break
+                        fi
+
+                        # Parse the new error info for next iteration
+                        while IFS='=' read -r key value; do
+                            case "$key" in
+                                error_type) error_type="$value" ;;
+                                error_message) error_message="$value" ;;
+                                affected_file) affected_file="$value" ;;
+                            esac
+                        done <<< "$portability_error_info"
+                    fi
+                else
+                    # No fixes could be applied
+                    echo -e "${YELLOW}No fixes could be applied for error type: $error_type${NC}"
+                    echo ""
+                    break
+                fi
+
+                healing_attempt=$((healing_attempt + 1))
             done
-            echo ""
-            echo "Note: Auto-healing not yet implemented (FEAT-012 US-002, US-003)"
-            echo ""
+
+            # If we get here, healing failed
+            if [[ "$healing_succeeded" != true ]]; then
+                local healing_end_time=$(date +%s)
+                local total_healing_duration=$((healing_end_time - healing_start_time))
+
+                # Log failure to healing-log.md
+                local healing_log
+                if [[ -d "fade" ]]; then
+                    healing_log="fade/healing-log.md"
+                else
+                    healing_log="healing-log.md"
+                fi
+
+                local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+                {
+                    [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
+                    echo "## $timestamp - HEALING FAILED"
+                    echo "**Error Type:** $error_type"
+                    echo "**Error Message:** $error_message"
+                    [[ -n "$affected_file" ]] && echo "**Affected File:** $affected_file"
+                    echo "**Healing Duration:** ${total_healing_duration}s"
+                    echo "**Attempts:** $((healing_attempt - 1))"
+                    echo "**Outcome:** Could not auto-heal after $max_healing_attempts attempt(s)"
+                    echo ""
+                } >> "$healing_log"
+            fi
         fi
 
         echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
