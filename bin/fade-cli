@@ -2019,6 +2019,85 @@ generate_slug() {
     echo "$slug"
 }
 
+# Analyze PRD complexity based on heuristic rules
+# Usage: analyze_complexity <prd_name> <prd_description> <ac_count> <estimated_effort> <dependencies_count>
+# Returns: simple, medium, or complex
+# Also outputs reasoning to stderr for logging
+analyze_complexity() {
+    local prd_name="$1"
+    local prd_description="$2"
+    local ac_count="${3:-0}"
+    local estimated_effort="${4:-}"
+    local dependencies_count="${5:-0}"
+
+    local score=0
+    local reasons=()
+
+    # Combine name and description for keyword analysis
+    local text="$prd_name $prd_description"
+    local text_lower=$(echo "$text" | tr '[:upper:]' '[:lower:]')
+
+    # Rule 1: Acceptance criteria count
+    if [[ $ac_count -gt 15 ]]; then
+        score=$((score + 2))
+        reasons+=("$ac_count ACs (>15 = complex)")
+    elif [[ $ac_count -lt 5 && $ac_count -gt 0 ]]; then
+        score=$((score - 1))
+        reasons+=("$ac_count ACs (<5 = simple)")
+    fi
+
+    # Rule 2: Complex keywords
+    if echo "$text_lower" | grep -qE 'architecture|refactor|integrate|migration|migrate|multi-service|distributed|scalability|infrastructure'; then
+        score=$((score + 2))
+        reasons+=("contains complex keywords (architecture/refactor/integrate/migrate)")
+    fi
+
+    # Rule 3: Simple keywords
+    if echo "$text_lower" | grep -qE 'typo|fix typo|update docs|add test|add logging|simple fix|small change|trivial'; then
+        score=$((score - 2))
+        reasons+=("contains simple keywords (typo/fix/update docs/add test)")
+    fi
+
+    # Rule 4: Estimated effort
+    if [[ -n "$estimated_effort" ]]; then
+        if echo "$estimated_effort" | grep -qE '>.*1.*week|multiple weeks|months|2\+.*weeks|3\+.*weeks'; then
+            score=$((score + 2))
+            reasons+=("estimated effort >1 week")
+        elif echo "$estimated_effort" | grep -qE '<.*4.*hours|1-2 hours|quick|minutes'; then
+            score=$((score - 1))
+            reasons+=("estimated effort <4 hours")
+        fi
+    fi
+
+    # Rule 5: Dependencies
+    if [[ $dependencies_count -gt 2 ]]; then
+        score=$((score + 1))
+        reasons+=("$dependencies_count dependencies (>2)")
+    fi
+
+    # Determine final complexity based on score
+    local complexity
+    if [[ $score -ge 3 ]]; then
+        complexity="complex"
+    elif [[ $score -le -2 ]]; then
+        complexity="simple"
+    else
+        complexity="medium"
+    fi
+
+    # Output reasoning to stderr for logging
+    if [[ ${#reasons[@]} -gt 0 ]]; then
+        echo "Complexity analysis: $complexity (score: $score)" >&2
+        for reason in "${reasons[@]}"; do
+            echo "  - $reason" >&2
+        done
+    else
+        echo "Complexity analysis: $complexity (score: $score, no strong signals)" >&2
+    fi
+
+    echo "$complexity"
+}
+
 # Get PRD ID from JSON file
 get_prd_id() {
     local prd_file="$1"
@@ -4523,7 +4602,25 @@ cmd_new() {
             exit 1
         fi
     else
-        # No --complexity flag, prompt user interactively
+        # No --complexity flag, use heuristic analyzer to suggest
+        # For now we only have name, so pass empty description and defaults
+        local suggested_complexity
+        suggested_complexity=$(analyze_complexity "$prd_name" "" 0 "" 0 2>&1)
+
+        # Extract just the complexity value (last line of output)
+        local suggestion=$(echo "$suggested_complexity" | tail -1)
+
+        # Extract reasoning (all but last line) - use sed for BSD/macOS compatibility
+        local reasoning=$(echo "$suggested_complexity" | sed '$d')
+
+        # Display suggestion with reasoning
+        echo ""
+        if [[ -n "$reasoning" ]]; then
+            echo -e "${CYAN}Suggested complexity:${NC} ${BOLD}$suggestion${NC}"
+            echo "$reasoning"
+        else
+            echo -e "${CYAN}Suggested complexity:${NC} ${BOLD}$suggestion${NC} (based on PRD name)"
+        fi
         echo ""
         echo -e "${YELLOW}Complexity?${NC} [simple/Medium/complex]"
         echo ""
@@ -4532,12 +4629,12 @@ cmd_new() {
         echo "  complex - Architecture changes, refactors, integrations (> 1 week)"
         echo ""
 
-        read -p "Enter complexity (or press Enter for medium): " complexity_input
+        read -p "Enter complexity (or press Enter for $suggestion): " complexity_input
 
         # Normalize to lowercase
         complexity_input=$(echo "$complexity_input" | tr '[:upper:]' '[:lower:]')
 
-        # Default to medium if empty or invalid
+        # Default to suggestion if empty, otherwise validate input
         case "$complexity_input" in
             simple|s)
                 complexity="simple"
@@ -4545,12 +4642,16 @@ cmd_new() {
             complex|c)
                 complexity="complex"
                 ;;
-            medium|m|"")
+            medium|m)
                 complexity="medium"
                 ;;
+            "")
+                # User pressed Enter - accept suggestion
+                complexity="$suggestion"
+                ;;
             *)
-                echo -e "${YELLOW}Invalid input, defaulting to: medium${NC}"
-                complexity="medium"
+                echo -e "${YELLOW}Invalid input, using suggested: $suggestion${NC}"
+                complexity="$suggestion"
                 ;;
         esac
     fi
@@ -4618,6 +4719,34 @@ PRDEOF
 
     # Write PRD file
     echo "$prd_content" > "$prd_path"
+
+    # Log heuristic reasoning to learned.md if analyzer was used
+    if [[ -z "$complexity_flag" && -n "$reasoning" ]]; then
+        # Determine learned.md location (prefer fade/ if exists)
+        local learned_path=""
+        if [[ -f "fade/learned.md" ]]; then
+            learned_path="fade/learned.md"
+        elif [[ -f "learned.md" ]]; then
+            learned_path="learned.md"
+        fi
+
+        # Only log if learned.md exists
+        if [[ -n "$learned_path" ]]; then
+            {
+                echo ""
+                echo "## $(date '+%Y-%m-%d') - Complexity Heuristic: $prd_id"
+                echo ""
+                echo "**PRD:** $prd_name"
+                echo ""
+                echo "**Analysis:**"
+                echo "$reasoning"
+                echo ""
+                echo "**Result:** $complexity"
+                echo ""
+                echo "**Note:** This classification was suggested by heuristic analysis and accepted by user. Review for accuracy to improve future suggestions."
+            } >> "$learned_path"
+        fi
+    fi
 
     echo -e "${GREEN}Created PRD:${NC} $prd_path"
     echo ""

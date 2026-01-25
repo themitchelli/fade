@@ -22,6 +22,26 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-25 17:30 - US-002: Heuristic complexity analyzer (ENH-014) - COMPLETE
+
+- Created analyze_complexity() function in bin/fade-cli with scoring algorithm
+- Implemented 5 heuristic rules:
+  - AC count: >15 = complex (+2), <5 = simple (-1)
+  - Complex keywords: architecture/refactor/integrate/migrate (+2)
+  - Simple keywords: typo/fix/update docs/add test (-2)
+  - Estimated effort: >1 week = complex (+2), <4 hours = simple (-1)
+  - Dependencies: >2 = complex (+1)
+- Score interpretation: ≥3 = complex, ≤-2 = simple, else medium
+- Updated cmd_new() to call analyze_complexity when --complexity flag not provided
+- Displays suggestion with reasoning before prompting user
+- Prompt defaults to suggestion if user presses Enter
+- User can override suggestion by typing different value
+- Logs heuristic reasoning to learned.md for future review and tuning
+- Reasoning only logged when analyzer used (not when --complexity flag provided)
+- Fixed BSD/macOS compatibility by using sed '$d' instead of head -n -1
+- Files changed: bin/fade-cli
+- Tests: Manual testing with simple/medium/complex PRD names, validation tested
+
 ## 2026-01-25 09:26 - US-003: Dashboard server and web UI (FEAT-013) - COMPLETE
 
 - Created fade/lib/dashboard-server.py Python HTTP server (stdlib only, no external dependencies)

@@ -43,7 +43,7 @@
         "Log heuristic reasoning to learned.md for review"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
