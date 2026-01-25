@@ -1612,3 +1612,18 @@ For blocked stories, use:
 - Tests: Data analysis scripts verified against actual PRD archive
 
 **Key Finding:** FADE does not experience context rot. Sessions use only 16-19% of context window with 100% completion rate. No need for isolated sub-agents.
+
+## 2026-01-25 16:45 - SPIKE-001: Context Isolation via Sub-Agents - COMPLETE
+
+- Completed research spike investigating context rot in FADE sessions
+- Created comprehensive spike output document: docs/spike-context-isolation.md
+- Marked US-002 through US-005 as skipped (not needed based on research findings)
+- Key finding: FADE's checkpoint-and-restart pattern already prevents context rot
+- Measured context usage: 16-19% of 200k window across 25 PRDs (104 stories)
+- Measured completion rate: 100% success regardless of PRD size (2-9 stories)
+- Recommendation: DO NOT IMPLEMENT context isolation - existing architecture is optimal
+- Files changed: fade/prds/SPIKE-001-context-isolation.json, fade/progress.md
+- Tests: N/A (research spike, no implementation)
+
+**Spike Outcome:** Sub-agent isolation not needed. FADE's file-based state and checkpoint pattern achieves same isolation benefits without complexity. Avoided ~20 hours of unnecessary implementation work.
+
