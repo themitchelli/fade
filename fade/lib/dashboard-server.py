@@ -123,6 +123,12 @@ class DashboardData:
         total_completed = 0
         active_count = 0
         blocked_count = 0
+        sessions_today = 0
+        sessions_this_week = 0
+        sessions_this_month = 0
+        total_stories = 0
+        healing_events = 0
+        model_usage = {"haiku": 0, "sonnet": 0, "opus": 0}
 
         for repo_data in self.repo_statuses.values():
             if repo_data.get("status") == "running":
@@ -136,12 +142,43 @@ class DashboardData:
 
             total_completed += repo_data.get("completedThisSession", 0)
 
+            # Aggregate analytics data
+            analytics = repo_data.get("analytics", {})
+            if analytics:
+                aggregate = analytics.get("aggregate", {})
+                sessions_today += aggregate.get("today", 0)
+                sessions_this_week += aggregate.get("thisWeek", 0)
+                sessions_this_month += aggregate.get("thisMonth", 0)
+                total_stories += aggregate.get("totalStories", 0)
+                healing_events += aggregate.get("healingEvents", 0)
+
+                # Aggregate model usage
+                repo_model_usage = aggregate.get("modelUsage", {})
+                for model, count in repo_model_usage.items():
+                    if model in model_usage:
+                        model_usage[model] += count
+
+        # Calculate model usage percentages
+        total_model_usage = sum(model_usage.values())
+        model_usage_pct = {}
+        if total_model_usage > 0:
+            for model, count in model_usage.items():
+                if count > 0:
+                    model_usage_pct[model] = round((count / total_model_usage) * 100, 1)
+
         return {
             "totalPending": total_pending,
             "totalCompleted": total_completed,
             "activeRepos": active_count,
             "blockedRepos": blocked_count,
             "totalRepos": len(self.config.get("repos", [])),
+            "sessionsToday": sessions_today,
+            "sessionsThisWeek": sessions_this_week,
+            "sessionsThisMonth": sessions_this_month,
+            "totalStories": total_stories,
+            "modelUsage": model_usage,
+            "modelUsagePct": model_usage_pct,
+            "healingEvents": healing_events,
             "lastRefresh": self.last_refresh
         }
 

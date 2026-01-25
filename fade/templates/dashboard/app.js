@@ -34,6 +34,7 @@ class FadeDashboard {
     init() {
         // Set up event listeners
         document.getElementById('refresh-btn').addEventListener('click', this.handleRefresh);
+        document.getElementById('export-btn').addEventListener('click', this.handleExport.bind(this));
         document.getElementById('modal-close').addEventListener('click', this.closeModal);
         document.getElementById('modal-overlay').addEventListener('click', (e) => {
             if (e.target.id === 'modal-overlay') {
@@ -114,6 +115,33 @@ class FadeDashboard {
         }, 1000);
     }
 
+    async handleExport() {
+        try {
+            const response = await fetch('/api/aggregate');
+            const data = await response.json();
+
+            // Add timestamp to export
+            const exportData = {
+                exportedAt: new Date().toISOString(),
+                ...data
+            };
+
+            // Create downloadable JSON file
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `fade-stats-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to export stats:', error);
+            alert('Failed to export statistics');
+        }
+    }
+
     async refresh() {
         await Promise.all([
             this.fetchStatus(),
@@ -150,6 +178,10 @@ class FadeDashboard {
         document.getElementById('blocked-repos').textContent = stats.blockedRepos;
         document.getElementById('pending-stories').textContent = stats.totalPending;
         document.getElementById('completed-stories').textContent = stats.totalCompleted;
+        document.getElementById('sessions-today').textContent = stats.sessionsToday || 0;
+        document.getElementById('sessions-week').textContent = stats.sessionsThisWeek || 0;
+        document.getElementById('sessions-month').textContent = stats.sessionsThisMonth || 0;
+        document.getElementById('healing-events').textContent = stats.healingEvents || 0;
     }
 
     updateLastRefresh(timestamp) {
@@ -360,9 +392,11 @@ class FadeDashboard {
         });
         document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
 
-        // Load docs if switching to docs tab
+        // Load content for specific tabs
         if (targetTab === 'docs' && this.selectedRepo) {
             this.loadDocs(this.selectedRepo.name);
+        } else if (targetTab === 'analytics' && this.selectedRepo) {
+            this.renderAnalytics(this.selectedRepo.data);
         }
     }
 
@@ -607,6 +641,128 @@ class FadeDashboard {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    renderAnalytics(repoData) {
+        const analyticsTab = document.getElementById('tab-analytics');
+        const analytics = repoData.analytics || {};
+        const sessions = analytics.sessions || [];
+        const aggregate = analytics.aggregate || {};
+
+        let html = '';
+
+        // Aggregate statistics section
+        html += `<div class="analytics-section">`;
+        html += `<h3>Repository Statistics</h3>`;
+        html += `<div class="analytics-stats">`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">Sessions Today</div>`;
+        html += `<div class="stat-value">${aggregate.today || 0}</div>`;
+        html += `</div>`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">This Week</div>`;
+        html += `<div class="stat-value">${aggregate.thisWeek || 0}</div>`;
+        html += `</div>`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">This Month</div>`;
+        html += `<div class="stat-value">${aggregate.thisMonth || 0}</div>`;
+        html += `</div>`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">Total Stories</div>`;
+        html += `<div class="stat-value">${aggregate.totalStories || 0}</div>`;
+        html += `</div>`;
+        html += `<div class="stat-item">`;
+        html += `<div class="stat-label">Healing Events</div>`;
+        html += `<div class="stat-value success">${aggregate.healingEvents || 0}</div>`;
+        html += `</div>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        // Model usage breakdown
+        const modelUsage = aggregate.modelUsage || {};
+        const totalModelUsage = (modelUsage.haiku || 0) + (modelUsage.sonnet || 0) + (modelUsage.opus || 0);
+
+        if (totalModelUsage > 0) {
+            html += `<div class="analytics-section">`;
+            html += `<h3>Model Usage</h3>`;
+            html += `<div class="model-usage">`;
+
+            for (const [model, count] of Object.entries(modelUsage)) {
+                if (count > 0) {
+                    const percentage = ((count / totalModelUsage) * 100).toFixed(1);
+                    html += `<div class="model-usage-item">`;
+                    html += `<div class="model-usage-header">`;
+                    html += `<span class="model-name">${model.charAt(0).toUpperCase() + model.slice(1)}</span>`;
+                    html += `<span class="model-percentage">${percentage}%</span>`;
+                    html += `</div>`;
+                    html += `<div class="model-usage-bar">`;
+                    html += `<div class="model-usage-fill model-${model}" style="width: ${percentage}%"></div>`;
+                    html += `</div>`;
+                    html += `<div class="model-usage-count">${count} sessions</div>`;
+                    html += `</div>`;
+                }
+            }
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // Session timeline (last 10 sessions)
+        if (sessions.length > 0) {
+            html += `<div class="analytics-section">`;
+            html += `<h3>Recent Sessions (Last 10)</h3>`;
+            html += `<div class="session-timeline">`;
+
+            for (const session of sessions) {
+                const outcomeClass = session.outcome === 'COMPLETE' ? 'success' : 'blocked';
+                html += `<div class="session-timeline-item">`;
+                html += `<div class="session-timeline-date">${session.date} ${session.time}</div>`;
+                html += `<div class="session-timeline-story">`;
+                html += `<span class="session-story-id">${this.escapeHtml(session.storyId)}</span>`;
+                html += `<span class="session-story-title">${this.escapeHtml(session.title)}</span>`;
+                html += `</div>`;
+                html += `<div class="session-timeline-outcome ${outcomeClass}">${session.outcome}</div>`;
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            html += `</div>`;
+        } else {
+            html += `<div class="analytics-section">`;
+            html += `<h3>Recent Sessions</h3>`;
+            html += `<div class="empty-state">No session history available</div>`;
+            html += `</div>`;
+        }
+
+        // Simple ASCII-style completion chart (sparkline)
+        if (aggregate.totalStories > 0) {
+            html += `<div class="analytics-section">`;
+            html += `<h3>Activity Summary</h3>`;
+            html += `<div class="activity-chart">`;
+            html += `<div class="chart-bar">`;
+            html += `<span class="chart-label">Stories Completed</span>`;
+            html += `<div class="chart-bar-container">`;
+            html += `<div class="chart-bar-fill" style="width: 100%"></div>`;
+            html += `</div>`;
+            html += `<span class="chart-value">${aggregate.totalStories || 0}</span>`;
+            html += `</div>`;
+
+            if (aggregate.healingEvents > 0) {
+                const healingPct = Math.min(100, (aggregate.healingEvents / aggregate.totalStories) * 100);
+                html += `<div class="chart-bar">`;
+                html += `<span class="chart-label">Auto-Healed Issues</span>`;
+                html += `<div class="chart-bar-container">`;
+                html += `<div class="chart-bar-fill success" style="width: ${healingPct}%"></div>`;
+                html += `</div>`;
+                html += `<span class="chart-value">${aggregate.healingEvents || 0}</span>`;
+                html += `</div>`;
+            }
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        analyticsTab.innerHTML = html;
     }
 
     renderMarkdown(markdown) {

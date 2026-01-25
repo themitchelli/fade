@@ -120,7 +120,7 @@
         "Export button: Download aggregate stats as JSON for external analysis"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",

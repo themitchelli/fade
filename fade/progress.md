@@ -1885,3 +1885,24 @@ For blocked stories, use:
 - Files changed: README.md, bin/fade-cli, fade/docs/architecture.md (new), fade/standards/prd-template.md (new), FADE.md
 - Tests: bash -n syntax check passed
 
+
+## 2026-01-25 18:45 - US-006: Session history and analytics (FEAT-013) - COMPLETE
+
+- Added get_session_analytics() function to parse progress.md and extract session history
+- Function parses progress.md entries to extract last 10 sessions with dates, story IDs, titles, and outcomes
+- Calculates aggregate statistics: sessions today/this week/this month, total stories, healing events
+- Parses model usage from progress.md "## Model Usage:" entries (haiku/sonnet/opus counts)
+- Updated export_session_status() to include analytics data in status.json
+- Enhanced DashboardData.get_aggregate_stats() in dashboard-server.py to aggregate analytics across all repos
+- Aggregate stats now include: sessionsToday, sessionsThisWeek, sessionsThisMonth, totalStories, modelUsage, modelUsagePct, healingEvents
+- Added "Analytics" tab to dashboard modal with session history, model usage breakdown, and activity charts
+- Dashboard aggregate view expanded to show 8 stat cards: Active Repos, Blocked Repos, Pending Stories, Completed Today, Sessions Today, This Week, This Month, Healing Events
+- Added renderAnalytics() method in app.js to display analytics data with visual charts and timeline
+- Analytics display includes: repository statistics, model usage breakdown with percentage bars, session timeline (last 10 sessions), activity summary with simple bar charts
+- Model usage shows color-coded bars: haiku (green), sonnet (blue), opus (yellow)
+- Session timeline shows story ID, title, and outcome (COMPLETE/BLOCKED) for each session
+- Added export button in dashboard header to download aggregate stats as JSON file
+- Export includes timestamp and all aggregate statistics (sessions, stories, model usage, healing events)
+- Mobile-responsive design for analytics tab with grid layout adjustments
+- Files changed: bin/fade-cli, fade/lib/dashboard-server.py, fade/templates/dashboard/index.html, fade/templates/dashboard/app.js, fade/templates/dashboard/styles.css
+- Tests: bash -n syntax check passed, Python syntax check passed

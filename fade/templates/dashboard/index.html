@@ -13,7 +13,10 @@
             <h1>FADE Dashboard</h1>
             <div class="header-info">
                 <span id="last-refresh">Last refresh: --</span>
-                <button id="refresh-btn" class="btn-refresh">Refresh Now</button>
+                <div class="header-actions">
+                    <button id="export-btn" class="btn-export">Export Stats</button>
+                    <button id="refresh-btn" class="btn-refresh">Refresh Now</button>
+                </div>
             </div>
         </header>
 
@@ -34,6 +37,22 @@
             <div class="stat-card">
                 <div class="stat-label">Completed Today</div>
                 <div class="stat-value success" id="completed-stories">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Sessions Today</div>
+                <div class="stat-value" id="sessions-today">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This Week</div>
+                <div class="stat-value" id="sessions-week">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">This Month</div>
+                <div class="stat-value" id="sessions-month">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Healing Events</div>
+                <div class="stat-value success" id="healing-events">--</div>
             </div>
         </section>
 
@@ -71,12 +90,17 @@
                 </div>
                 <div class="modal-tabs">
                     <button class="tab-btn active" data-tab="status">Status</button>
+                    <button class="tab-btn" data-tab="analytics">Analytics</button>
                     <button class="tab-btn" data-tab="docs">Docs</button>
                 </div>
                 <div class="modal-body" id="modal-body">
                     <!-- Status tab content -->
                     <div id="tab-status" class="tab-content active">
                         <!-- Expanded view content will be inserted here -->
+                    </div>
+                    <!-- Analytics tab content -->
+                    <div id="tab-analytics" class="tab-content hidden">
+                        <!-- Analytics content will be inserted here -->
                     </div>
                     <!-- Docs tab content -->
                     <div id="tab-docs" class="tab-content hidden">

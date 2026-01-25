@@ -3431,6 +3431,132 @@ get_test_results() {
     echo "{\"totalTests\":$total_tests,\"passed\":$passed_count,\"failed\":$failed_count,\"lastRun\":\"$last_run\"}"
 }
 
+# Parse progress.md to extract session analytics
+# Returns JSON with session history and aggregate statistics
+get_session_analytics() {
+    # Determine progress.md path
+    local progress_path=""
+    if [[ -f "fade/progress.md" ]]; then
+        progress_path="fade/progress.md"
+    elif [[ -f "progress.md" ]]; then
+        progress_path="progress.md"
+    else
+        echo "{\"sessions\":[],\"aggregate\":{\"today\":0,\"thisWeek\":0,\"thisMonth\":0,\"totalStories\":0,\"modelUsage\":{},\"healingEvents\":0}}"
+        return
+    fi
+
+    # Get current date components for time-based filtering
+    local today=$(date +"%Y-%m-%d")
+    local week_start=$(date -v-7d +"%Y-%m-%d" 2>/dev/null || date -d "7 days ago" +"%Y-%m-%d" 2>/dev/null || echo "$today")
+    local month_start=$(date -v-30d +"%Y-%m-%d" 2>/dev/null || date -d "30 days ago" +"%Y-%m-%d" 2>/dev/null || echo "$today")
+
+    # Parse progress.md entries to extract session information
+    # Each entry format: ## YYYY-MM-DD HH:MM - US-XXX: Story Title - COMPLETE/BLOCKED
+    local sessions_json="["
+    local first_session=true
+    local sessions_today=0
+    local sessions_this_week=0
+    local sessions_this_month=0
+    local total_stories=0
+    local healing_events=0
+
+    # Extract last 10 sessions from progress.md
+    local session_count=0
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^##\ ([0-9]{4}-[0-9]{2}-[0-9]{2})\ ([0-9]{2}:[0-9]{2})\ -\ (US-[0-9]+|QUICK):\ (.+)\ -\ (COMPLETE|BLOCKED) ]]; then
+            local session_date="${BASH_REMATCH[1]}"
+            local session_time="${BASH_REMATCH[2]}"
+            local story_id="${BASH_REMATCH[3]}"
+            local story_title="${BASH_REMATCH[4]}"
+            local outcome="${BASH_REMATCH[5]}"
+
+            # Count stories by time period
+            if [[ "$session_date" == "$today" ]]; then
+                sessions_today=$((sessions_today + 1))
+                sessions_this_week=$((sessions_this_week + 1))
+                sessions_this_month=$((sessions_this_month + 1))
+            elif [[ "$session_date" > "$week_start" ]] || [[ "$session_date" == "$week_start" ]]; then
+                sessions_this_week=$((sessions_this_week + 1))
+                sessions_this_month=$((sessions_this_month + 1))
+            elif [[ "$session_date" > "$month_start" ]] || [[ "$session_date" == "$month_start" ]]; then
+                sessions_this_month=$((sessions_this_month + 1))
+            fi
+
+            total_stories=$((total_stories + 1))
+
+            # Build session entry for last 10 sessions
+            if [[ $session_count -lt 10 ]]; then
+                if [[ "$first_session" != true ]]; then
+                    sessions_json="$sessions_json,"
+                fi
+                # Escape quotes in title
+                story_title=$(echo "$story_title" | sed 's/"/\\"/g')
+                sessions_json="$sessions_json{\"date\":\"$session_date\",\"time\":\"$session_time\",\"storyId\":\"$story_id\",\"title\":\"$story_title\",\"outcome\":\"$outcome\"}"
+                first_session=false
+                session_count=$((session_count + 1))
+            fi
+        fi
+    done < <(grep "^## [0-9]" "$progress_path" | tail -50)  # Last 50 entries to ensure we get 10 sessions
+
+    sessions_json="$sessions_json]"
+
+    # Parse model usage from progress.md if available
+    # Look for "## Model Usage:" entries
+    local model_usage_json="{"
+    local haiku_count=0
+    local sonnet_count=0
+    local opus_count=0
+    local first_model=true
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ "## Model Usage: "(haiku|sonnet|opus) ]]; then
+            local model_name="${BASH_REMATCH[1]}"
+            case "$model_name" in
+                haiku) haiku_count=$((haiku_count + 1)) ;;
+                sonnet) sonnet_count=$((sonnet_count + 1)) ;;
+                opus) opus_count=$((opus_count + 1)) ;;
+            esac
+        fi
+    done < "$progress_path"
+
+    # Build model usage JSON
+    if [[ $haiku_count -gt 0 ]] || [[ $sonnet_count -gt 0 ]] || [[ $opus_count -gt 0 ]]; then
+        if [[ $haiku_count -gt 0 ]]; then
+            model_usage_json="$model_usage_json\"haiku\":$haiku_count"
+            first_model=false
+        fi
+        if [[ $sonnet_count -gt 0 ]]; then
+            if [[ "$first_model" != true ]]; then
+                model_usage_json="$model_usage_json,"
+            fi
+            model_usage_json="$model_usage_json\"sonnet\":$sonnet_count"
+            first_model=false
+        fi
+        if [[ $opus_count -gt 0 ]]; then
+            if [[ "$first_model" != true ]]; then
+                model_usage_json="$model_usage_json,"
+            fi
+            model_usage_json="$model_usage_json\"opus\":$opus_count"
+        fi
+    fi
+    model_usage_json="$model_usage_json}"
+
+    # Count healing events from healing-log.md if it exists
+    local healing_log=""
+    if [[ -f "fade/healing-log.md" ]]; then
+        healing_log="fade/healing-log.md"
+    elif [[ -f "healing-log.md" ]]; then
+        healing_log="healing-log.md"
+    fi
+
+    if [[ -n "$healing_log" ]] && [[ -f "$healing_log" ]]; then
+        healing_events=$(grep -c "^\[INFO\].*HEALING SUCCESS" "$healing_log" 2>/dev/null || echo "0")
+    fi
+
+    # Build final JSON
+    echo "{\"sessions\":$sessions_json,\"aggregate\":{\"today\":$sessions_today,\"thisWeek\":$sessions_this_week,\"thisMonth\":$sessions_this_month,\"totalStories\":$total_stories,\"modelUsage\":$model_usage_json,\"healingEvents\":$healing_events}}"
+}
+
 export_session_status() {
     local repo_name="$1"
     local current_prd="$2"
@@ -3519,9 +3645,10 @@ export_session_status() {
     # More accurate would require parsing progress.md, but this is good enough for monitoring
     local completed_this_session=$((iteration_count > 0 ? iteration_count - 1 : 0))
 
-    # Get archive list and test results
+    # Get archive list, test results, and analytics
     local archive_list=$(get_archive_list)
     local test_results=$(get_test_results)
+    local analytics=$(get_session_analytics)
 
     # Build blocked details if applicable
     local blocked_details=""
@@ -3560,6 +3687,7 @@ export_session_status() {
   "completedThisSession": $completed_this_session,
   "archive": $archive_list,
   "testResults": $test_results,
+  "analytics": $analytics,
   "lastUpdate": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"$blocked_details$completion_timestamp
 }
 EOF
