@@ -5358,6 +5358,183 @@ dashboard_start_server() {
     exec python3 "$server_script" $remote_flag $password_flag $cert_flag $key_flag
 }
 
+cmd_classify() {
+    echo -e "${BOLD}FADE Complexity Classifier${NC}"
+    echo ""
+
+    # Find all PRDs (both active and archived)
+    local prd_files=()
+
+    # Contained structure
+    if [[ -f "fade/prd.json" ]]; then
+        prd_files+=("fade/prd.json")
+    fi
+    if [[ -d "fade/prds" ]]; then
+        for f in fade/prds/*.json; do
+            [[ -f "$f" ]] && prd_files+=("$f")
+        done
+    fi
+    if [[ -d "fade/prd-archive" ]]; then
+        for f in fade/prd-archive/*.json; do
+            [[ -f "$f" ]] && prd_files+=("$f")
+        done
+    fi
+
+    # Legacy structure
+    if [[ -f "prd.json" ]]; then
+        prd_files+=("prd.json")
+    fi
+    if [[ -d "prds" ]]; then
+        for f in prds/*.json; do
+            [[ -f "$f" ]] && prd_files+=("$f")
+        done
+    fi
+    if [[ -d "prd-archive" ]]; then
+        for f in prd-archive/*.json; do
+            [[ -f "$f" ]] && prd_files+=("$f")
+        done
+    fi
+
+    if [[ ${#prd_files[@]} -eq 0 ]]; then
+        echo -e "${YELLOW}No PRD files found${NC}"
+        echo ""
+        echo "Run 'fade new' to create a PRD first."
+        exit 0
+    fi
+
+    # Filter PRDs missing complexity field
+    local prds_to_classify=()
+    for prd_file in "${prd_files[@]}"; do
+        local existing_complexity=$(get_prd_complexity "$prd_file")
+        if [[ -z "$existing_complexity" ]]; then
+            prds_to_classify+=("$prd_file")
+        fi
+    done
+
+    if [[ ${#prds_to_classify[@]} -eq 0 ]]; then
+        echo -e "${GREEN}All PRDs already have complexity classification${NC}"
+        echo ""
+        echo "Total PRDs: ${#prd_files[@]}"
+        exit 0
+    fi
+
+    echo "Found ${#prds_to_classify[@]} PRDs missing complexity classification"
+    echo ""
+
+    # Counters for summary
+    local total_classified=0
+    local count_simple=0
+    local count_medium=0
+    local count_complex=0
+    local count_skipped=0
+
+    # Process each PRD
+    for prd_file in "${prds_to_classify[@]}"; do
+        local prd_id=$(get_prd_id "$prd_file")
+        local prd_name=$(get_prd_name "$prd_file")
+        local prd_description=$(grep -o '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" | head -1 | sed 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        local estimated_effort=$(grep -o '"estimatedEffort"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" | head -1 | sed 's/.*"estimatedEffort"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        local dependencies_count=$(grep -c '"dependsOn"[[:space:]]*:' "$prd_file" 2>/dev/null || echo "0")
+
+        # Count total acceptance criteria across all stories
+        local ac_count=$(grep -c '"acceptanceCriteria"' "$prd_file" 2>/dev/null || echo "0")
+
+        echo -e "${BOLD}PRD: ${prd_id} - ${prd_name}${NC}"
+
+        # Run heuristic analyzer
+        local suggested_complexity
+        local analysis_output
+        analysis_output=$(analyze_complexity "$prd_name" "$prd_description" "$ac_count" "$estimated_effort" "$dependencies_count" 2>&1)
+        suggested_complexity=$(echo "$analysis_output" | tail -1)
+
+        # Display analysis
+        echo "$analysis_output" | grep -v "^$suggested_complexity$"
+        echo ""
+
+        # Prompt user
+        echo -e "Suggested complexity: ${CYAN}${suggested_complexity}${NC}"
+        echo ""
+        read -p "Update PRD with suggested complexity? [y/N] " -n 1 -r
+        echo ""
+
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # Update PRD file with complexity field
+            # Strategy: Add complexity field after "id" field
+            local tmp_file=$(mktemp)
+            awk -v complexity="$suggested_complexity" '
+                /"id"[[:space:]]*:[[:space:]]*"[^"]*"/ {
+                    print
+                    # Add complexity field on next line with proper indentation
+                    if (!complexity_added) {
+                        match($0, /^[[:space:]]*/)
+                        indent = substr($0, RSTART, RLENGTH)
+                        print indent "\"complexity\": \"" complexity "\","
+                        complexity_added = 1
+                    }
+                    next
+                }
+                { print }
+            ' "$prd_file" > "$tmp_file"
+
+            # Replace original file
+            mv "$tmp_file" "$prd_file"
+
+            echo -e "${GREEN}✓ Updated ${prd_file}${NC}"
+            echo ""
+
+            ((total_classified++))
+            case "$suggested_complexity" in
+                simple) ((count_simple++)) ;;
+                medium) ((count_medium++)) ;;
+                complex) ((count_complex++)) ;;
+            esac
+
+            # Log to learned.md
+            local learned_file=""
+            if [[ -f "fade/learned.md" ]]; then
+                learned_file="fade/learned.md"
+            elif [[ -f "learned.md" ]]; then
+                learned_file="learned.md"
+            fi
+
+            if [[ -n "$learned_file" ]]; then
+                {
+                    echo ""
+                    echo "## $(date '+%Y-%m-%d') - Classified ${prd_id} as ${suggested_complexity}"
+                    echo ""
+                    echo "**Source:** fade classify"
+                    echo ""
+                    echo "**PRD:** ${prd_id} - ${prd_name}"
+                    echo ""
+                    echo "**Analysis:**"
+                    echo "$analysis_output" | grep -v "^$suggested_complexity$" | sed 's/^/  /'
+                    echo ""
+                    echo "**Decision:** User accepted ${suggested_complexity} classification"
+                    echo ""
+                } >> "$learned_file"
+            fi
+        else
+            echo -e "${YELLOW}Skipped${NC}"
+            echo ""
+            ((count_skipped++))
+        fi
+    done
+
+    # Display summary
+    echo ""
+    echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
+    echo -e "${BOLD}Classification Summary${NC}"
+    echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+    echo "Total PRDs processed: ${#prds_to_classify[@]}"
+    echo "Classified: $total_classified"
+    echo "  - Simple: $count_simple"
+    echo "  - Medium: $count_medium"
+    echo "  - Complex: $count_complex"
+    echo "Skipped: $count_skipped"
+    echo ""
+}
+
 cmd_dashboard() {
     local action=""
     local repo_path=""
@@ -5583,6 +5760,7 @@ ${YELLOW}Commands:${NC}
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   quick         Run a quick task without PRD (fade quick "<task>")
+  classify      Analyze and classify existing PRDs by complexity
   dashboard     Configure and list repositories for multi-repo monitoring
   status        Show current work queue
   export        Export FADE context to a single file for Claude web
@@ -5642,6 +5820,20 @@ ${YELLOW}Quick Command:${NC}
 ${YELLOW}Quick Options:${NC}
   --yolo          Skip permission prompts (use --dangerously-skip-permissions)
   --model <name>  Use specific Claude model (opus, sonnet, haiku)
+
+${YELLOW}Classify Command:${NC}
+  fade classify
+
+  Analyze existing PRDs and assign complexity classification (simple/medium/complex).
+  - Scans fade/prds/, prds/, fade/prd-archive/, prd-archive/ for PRDs
+  - Uses heuristic analyzer to suggest complexity based on:
+    * Acceptance criteria count
+    * Keywords (architecture, refactor, typo, fix, etc.)
+    * Estimated effort
+    * Dependencies
+  - Prompts for confirmation before updating each PRD
+  - Logs all classifications to learned.md for review
+  - Creates summary report showing counts by complexity
 
 ${YELLOW}Dashboard Command:${NC}
   fade dashboard --add /path/to/repo [--name "Display Name"]
@@ -5753,6 +5945,7 @@ ${YELLOW}Examples:${NC}
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade quick --model sonnet "update docs" # Quick task with Sonnet model
+  fade classify                          # Classify existing PRDs by complexity
   fade dashboard --add ~/projects/fade   # Add repository to dashboard
   fade dashboard --add ~/projects/myapp --name "My App"  # Add with custom name
   fade dashboard --list                  # Show configured repositories
@@ -10306,6 +10499,9 @@ case "${1:-}" in
     discover)
         shift
         cmd_discover "$@"
+        ;;
+    classify)
+        cmd_classify
         ;;
     dashboard)
         shift

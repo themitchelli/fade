@@ -1848,3 +1848,21 @@ For blocked stories, use:
 - Supports both contained (fade/) and legacy (root) structure
 - Files changed: fade/templates/dashboard/index.html, fade/templates/dashboard/styles.css, fade/templates/dashboard/app.js, fade/lib/dashboard-server.py
 - Tests: Python syntax check passed, JavaScript syntax check passed, mobile CSS verified
+
+## 2026-01-25 - US-005: Complexity validation on existing PRDs (ENH-014) - COMPLETE
+
+- Created cmd_classify() function in bin/fade-cli to analyze and classify existing PRDs
+- Scans both active PRDs (fade/prd.json, fade/prds/, prd.json, prds/) and archived PRDs (fade/prd-archive/, prd-archive/)
+- Filters PRDs missing complexity field using get_prd_complexity()
+- For each unclassified PRD, runs analyze_complexity() heuristic analyzer
+- Displays suggested complexity with reasoning (AC count, keywords, estimated effort, dependencies)
+- Prompts user for confirmation: "Update PRD with suggested complexity? [y/N]"
+- On confirmation, updates PRD JSON by inserting "complexity" field after "id" field using awk
+- Logs all classifications to learned.md with full analysis reasoning
+- Creates summary report showing: total processed, classified count, breakdown by simple/medium/complex, skipped count
+- Added classify command to main case statement
+- Added command to help text with detailed description and example
+- Tested with 28 PRDs in fade/prd-archive - correctly identifies unclassified PRDs, suggests complexity, and offers to update
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual testing verified all functionality
+

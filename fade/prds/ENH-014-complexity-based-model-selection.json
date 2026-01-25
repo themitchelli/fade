@@ -92,7 +92,7 @@
         "Log all classifications to learned.md for validation"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
