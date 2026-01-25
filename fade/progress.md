@@ -1828,3 +1828,23 @@ For blocked stories, use:
 - All estimates clearly labeled to avoid confusion with actual API costs
 - Files changed: bin/fade-cli
 - Tests: bash syntax check passed, manual function tests verified cost calculations
+
+## 2026-01-25 09:53 - US-005: Live documentation viewer (FEAT-013) - COMPLETE
+
+- Added "Docs" tab to dashboard modal for viewing documentation files
+- Implemented two new API endpoints in dashboard-server.py:
+  - GET /api/docs/{repoName} - Returns list of available documentation files with metadata
+  - GET /api/doc/{repoName}/{docPath} - Returns document content with progress.md limited to last 50 entries
+- Enhanced HTML with tab navigation system and document viewer modal
+- Added comprehensive CSS styling for tabs, document list, and rendered markdown
+- Implemented simple markdown renderer in JavaScript supporting:
+  - Headers (h1-h6), code blocks, inline code
+  - Bold, italic, links
+  - Lists (ordered/unordered), blockquotes, horizontal rules
+  - Tables with automatic header row detection
+- Added mobile-responsive design for document viewer (font scaling, scrollable tables, readable on small screens)
+- Document list displays FADE.md, progress.md, learned.md, healing-log.md with file size and last modified time
+- Security: Path validation prevents directory traversal attacks
+- Supports both contained (fade/) and legacy (root) structure
+- Files changed: fade/templates/dashboard/index.html, fade/templates/dashboard/styles.css, fade/templates/dashboard/app.js, fade/lib/dashboard-server.py
+- Tests: Python syntax check passed, JavaScript syntax check passed, mobile CSS verified

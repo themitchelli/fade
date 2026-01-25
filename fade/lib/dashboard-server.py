@@ -75,6 +75,13 @@ class DashboardData:
             print(f"ERROR: Invalid config JSON: {e}", file=sys.stderr)
             sys.exit(1)
 
+    def get_repo_path_by_name(self, repo_name: str) -> Optional[str]:
+        """Get repository path by name from config."""
+        for repo in self.config.get("repos", []):
+            if repo["name"] == repo_name:
+                return os.path.expanduser(repo["path"])
+        return None
+
     def refresh_data(self):
         """Refresh status data for all configured repositories."""
         self.last_refresh = datetime.now().isoformat()
@@ -226,6 +233,10 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_status_api()
         elif self.path == "/api/aggregate":
             self._serve_aggregate_api()
+        elif self.path.startswith("/api/docs/"):
+            self._serve_docs_api()
+        elif self.path.startswith("/api/doc/"):
+            self._serve_doc_content_api()
         elif self.path == "/" or self.path == "/index.html":
             self._serve_file("index.html", "text/html")
         elif self.path == "/styles.css":
@@ -258,6 +269,139 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(stats).encode('utf-8'))
+
+    def _serve_docs_api(self):
+        """Serve /api/docs/{repoName} endpoint with list of documentation files."""
+        # Extract repo name from path: /api/docs/{repoName}
+        path_parts = self.path.split('/')
+        if len(path_parts) < 4:
+            self.send_error(400, "Invalid request - repo name required")
+            return
+
+        repo_name = path_parts[3]
+        repo_path = self.dashboard_data.get_repo_path_by_name(repo_name)
+
+        if not repo_path:
+            self.send_error(404, f"Repository not found: {repo_name}")
+            return
+
+        # Define documentation files to look for (in priority order)
+        doc_files = [
+            ("FADE.md", "Project context and standards"),
+            ("fade/progress.md", "Session history (last 50 entries)"),
+            ("progress.md", "Session history (last 50 entries)"),
+            ("fade/learned.md", "Discoveries and learnings"),
+            ("learned.md", "Discoveries and learnings"),
+            ("fade/healing-log.md", "Auto-healing log"),
+            ("healing-log.md", "Auto-healing log")
+        ]
+
+        docs_list = []
+        seen_names = set()  # Track to avoid duplicates (contained vs legacy)
+
+        for doc_file, description in doc_files:
+            full_path = os.path.join(repo_path, doc_file)
+            if os.path.exists(full_path):
+                # Get base name to avoid duplicates
+                base_name = os.path.basename(doc_file)
+                if base_name in seen_names:
+                    continue
+                seen_names.add(base_name)
+
+                try:
+                    stat_info = os.stat(full_path)
+                    file_size = stat_info.st_size
+                    modified_time = datetime.fromtimestamp(stat_info.st_mtime).isoformat()
+
+                    docs_list.append({
+                        "name": base_name,
+                        "path": doc_file,
+                        "description": description,
+                        "size": file_size,
+                        "modified": modified_time
+                    })
+                except OSError:
+                    continue
+
+        response = {
+            "repoName": repo_name,
+            "docs": docs_list
+        }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(response).encode('utf-8'))
+
+    def _serve_doc_content_api(self):
+        """Serve /api/doc/{repoName}/{docPath} endpoint with document content."""
+        # Extract repo name and doc path from URL: /api/doc/{repoName}/{docPath}
+        path_parts = self.path.split('/')
+        if len(path_parts) < 5:
+            self.send_error(400, "Invalid request - repo name and doc path required")
+            return
+
+        repo_name = path_parts[3]
+        doc_path = '/'.join(path_parts[4:])  # Join remaining parts for nested paths
+
+        repo_path = self.dashboard_data.get_repo_path_by_name(repo_name)
+
+        if not repo_path:
+            self.send_error(404, f"Repository not found: {repo_name}")
+            return
+
+        # Security: ensure doc_path doesn't escape repo directory
+        full_doc_path = os.path.normpath(os.path.join(repo_path, doc_path))
+        if not full_doc_path.startswith(os.path.normpath(repo_path)):
+            self.send_error(403, "Access denied")
+            return
+
+        if not os.path.exists(full_doc_path):
+            self.send_error(404, f"Document not found: {doc_path}")
+            return
+
+        try:
+            with open(full_doc_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+
+            # For progress.md, limit to last 50 entries
+            if doc_path.endswith('progress.md'):
+                content = self._limit_progress_entries(content, max_entries=50)
+
+            response = {
+                "name": os.path.basename(doc_path),
+                "path": doc_path,
+                "content": content
+            }
+
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(response).encode('utf-8'))
+        except IOError as e:
+            self.send_error(500, f"Error reading document: {e}")
+
+    def _limit_progress_entries(self, content: str, max_entries: int = 50) -> str:
+        """Limit progress.md to last N entries."""
+        lines = content.split('\n')
+
+        # Find all entry headers (lines starting with ##)
+        entry_indices = []
+        for i, line in enumerate(lines):
+            if line.startswith('## ') and not line.startswith('## YYYY-MM-DD'):
+                entry_indices.append(i)
+
+        # If fewer entries than max, return all
+        if len(entry_indices) <= max_entries:
+            return content
+
+        # Take last max_entries
+        start_index = entry_indices[-(max_entries)]
+        limited_lines = lines[:10] + ['', f'... (showing last {max_entries} entries)', ''] + lines[start_index:]
+
+        return '\n'.join(limited_lines)
 
     def _serve_file(self, filename: str, content_type: str):
         """Serve static files from templates/dashboard/."""

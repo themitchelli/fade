@@ -69,8 +69,34 @@
                     <h2 id="modal-repo-name">Repository Name</h2>
                     <button class="modal-close" id="modal-close">&times;</button>
                 </div>
+                <div class="modal-tabs">
+                    <button class="tab-btn active" data-tab="status">Status</button>
+                    <button class="tab-btn" data-tab="docs">Docs</button>
+                </div>
                 <div class="modal-body" id="modal-body">
-                    <!-- Expanded view content will be inserted here -->
+                    <!-- Status tab content -->
+                    <div id="tab-status" class="tab-content active">
+                        <!-- Expanded view content will be inserted here -->
+                    </div>
+                    <!-- Docs tab content -->
+                    <div id="tab-docs" class="tab-content hidden">
+                        <div id="docs-list">
+                            <!-- Documentation files list will be inserted here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Document Viewer Modal -->
+        <div id="doc-modal-overlay" class="modal-overlay hidden">
+            <div class="modal-content modal-doc-viewer">
+                <div class="modal-header">
+                    <h2 id="doc-modal-title">Document</h2>
+                    <button class="modal-close" id="doc-modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="doc-modal-body">
+                    <!-- Document content will be rendered here -->
                 </div>
             </div>
         </div>

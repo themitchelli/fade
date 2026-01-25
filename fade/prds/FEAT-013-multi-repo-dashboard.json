@@ -103,7 +103,7 @@
         "Mobile view: Docs are scrollable, readable on small screens"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",

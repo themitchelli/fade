@@ -11,6 +11,7 @@ class FadeDashboard {
         this.currentFilter = 'all';
         this.currentSort = 'name';
         this.reposData = {};
+        this.currentTab = 'status';
 
         // Bind methods
         this.init = this.init.bind(this);
@@ -23,6 +24,11 @@ class FadeDashboard {
         this.handleRefresh = this.handleRefresh.bind(this);
         this.handleFilter = this.handleFilter.bind(this);
         this.handleSort = this.handleSort.bind(this);
+        this.handleTabSwitch = this.handleTabSwitch.bind(this);
+        this.loadDocs = this.loadDocs.bind(this);
+        this.openDocViewer = this.openDocViewer.bind(this);
+        this.closeDocViewer = this.closeDocViewer.bind(this);
+        this.renderMarkdown = this.renderMarkdown.bind(this);
     }
 
     init() {
@@ -33,6 +39,19 @@ class FadeDashboard {
             if (e.target.id === 'modal-overlay') {
                 this.closeModal();
             }
+        });
+
+        // Doc viewer modal
+        document.getElementById('doc-modal-close').addEventListener('click', this.closeDocViewer);
+        document.getElementById('doc-modal-overlay').addEventListener('click', (e) => {
+            if (e.target.id === 'doc-modal-overlay') {
+                this.closeDocViewer();
+            }
+        });
+
+        // Tab buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', this.handleTabSwitch);
         });
 
         // Filter buttons
@@ -294,11 +313,27 @@ class FadeDashboard {
 
     openModal(repoName, repoData) {
         this.selectedRepo = { name: repoName, data: repoData };
+        this.currentTab = 'status';
 
         document.getElementById('modal-repo-name').textContent = repoName;
 
-        const modalBody = document.getElementById('modal-body');
-        modalBody.innerHTML = this.renderModalContent(repoData);
+        // Reset tabs to status
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.tab === 'status') {
+                btn.classList.add('active');
+            }
+        });
+
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+            if (content.id === 'tab-status') {
+                content.classList.remove('hidden');
+            }
+        });
+
+        // Render status content
+        document.getElementById('tab-status').innerHTML = this.renderModalContent(repoData);
 
         document.getElementById('modal-overlay').classList.remove('hidden');
     }
@@ -306,6 +341,113 @@ class FadeDashboard {
     closeModal() {
         document.getElementById('modal-overlay').classList.add('hidden');
         this.selectedRepo = null;
+        this.currentTab = 'status';
+    }
+
+    handleTabSwitch(e) {
+        const targetTab = e.target.dataset.tab;
+        this.currentTab = targetTab;
+
+        // Update tab button states
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        e.target.classList.add('active');
+
+        // Show/hide tab content
+        document.querySelectorAll('.tab-content').forEach(content => {
+            content.classList.add('hidden');
+        });
+        document.getElementById(`tab-${targetTab}`).classList.remove('hidden');
+
+        // Load docs if switching to docs tab
+        if (targetTab === 'docs' && this.selectedRepo) {
+            this.loadDocs(this.selectedRepo.name);
+        }
+    }
+
+    async loadDocs(repoName) {
+        const docsList = document.getElementById('docs-list');
+        docsList.innerHTML = '<div class="doc-loading">Loading documentation...</div>';
+
+        try {
+            const response = await fetch(`/api/docs/${encodeURIComponent(repoName)}`);
+            const data = await response.json();
+
+            if (!data.docs || data.docs.length === 0) {
+                docsList.innerHTML = `
+                    <div class="empty-state">
+                        <p>No documentation files found</p>
+                    </div>
+                `;
+                return;
+            }
+
+            docsList.innerHTML = '';
+            docsList.className = 'doc-list';
+
+            for (const doc of data.docs) {
+                const docItem = document.createElement('div');
+                docItem.className = 'doc-item';
+                docItem.addEventListener('click', () => this.openDocViewer(repoName, doc));
+
+                const sizeKB = (doc.size / 1024).toFixed(1);
+                const modifiedDate = new Date(doc.modified).toLocaleString();
+
+                docItem.innerHTML = `
+                    <div class="doc-item-name">
+                        <span class="doc-item-icon">📄</span>
+                        ${this.escapeHtml(doc.name)}
+                    </div>
+                    <div class="doc-item-meta">
+                        <span class="doc-item-size">${sizeKB} KB</span>
+                        <span>Modified: ${modifiedDate}</span>
+                    </div>
+                    <div class="doc-item-meta" style="margin-top: 0.25rem; color: var(--color-text-dim);">
+                        ${this.escapeHtml(doc.description)}
+                    </div>
+                `;
+
+                docsList.appendChild(docItem);
+            }
+        } catch (error) {
+            console.error('Failed to load docs:', error);
+            docsList.innerHTML = `
+                <div class="doc-error">
+                    Failed to load documentation files
+                </div>
+            `;
+        }
+    }
+
+    async openDocViewer(repoName, doc) {
+        document.getElementById('doc-modal-title').textContent = doc.name;
+        const docBody = document.getElementById('doc-modal-body');
+        docBody.innerHTML = '<div class="doc-loading">Loading document...</div>';
+
+        document.getElementById('doc-modal-overlay').classList.remove('hidden');
+
+        try {
+            const response = await fetch(`/api/doc/${encodeURIComponent(repoName)}/${encodeURIComponent(doc.path)}`);
+            const data = await response.json();
+
+            docBody.innerHTML = `
+                <div class="doc-content">
+                    ${this.renderMarkdown(data.content)}
+                </div>
+            `;
+        } catch (error) {
+            console.error('Failed to load document:', error);
+            docBody.innerHTML = `
+                <div class="doc-error">
+                    Failed to load document content
+                </div>
+            `;
+        }
+    }
+
+    closeDocViewer() {
+        document.getElementById('doc-modal-overlay').classList.add('hidden');
     }
 
     renderModalContent(repoData) {
@@ -465,6 +607,86 @@ class FadeDashboard {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    }
+
+    renderMarkdown(markdown) {
+        /**
+         * Simple markdown renderer - converts markdown to HTML
+         * Supports: headings, code blocks, inline code, lists, links, bold, italic, tables
+         */
+        let html = markdown;
+
+        // Escape HTML first to prevent XSS
+        html = this.escapeHtml(html);
+
+        // Code blocks (```...```)
+        html = html.replace(/```([a-z]*)\n([\s\S]*?)```/g, (match, lang, code) => {
+            return `<pre><code>${code.trim()}</code></pre>`;
+        });
+
+        // Inline code (`...`)
+        html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+        // Headers (# ... ######)
+        html = html.replace(/^######\s+(.+)$/gm, '<h6>$1</h6>');
+        html = html.replace(/^#####\s+(.+)$/gm, '<h5>$1</h5>');
+        html = html.replace(/^####\s+(.+)$/gm, '<h4>$1</h4>');
+        html = html.replace(/^###\s+(.+)$/gm, '<h3>$1</h3>');
+        html = html.replace(/^##\s+(.+)$/gm, '<h2>$1</h2>');
+        html = html.replace(/^#\s+(.+)$/gm, '<h1>$1</h1>');
+
+        // Bold (**...**)
+        html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+        // Italic (*...*)
+        html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+        // Links ([text](url))
+        html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+
+        // Unordered lists (- item)
+        html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+        html = html.replace(/(<li>.*<\/li>)/s, (match) => {
+            return '<ul>' + match + '</ul>';
+        });
+
+        // Ordered lists (1. item)
+        html = html.replace(/^\d+\.\s+(.+)$/gm, '<li>$1</li>');
+        // Note: This is simplified - actual ordered lists would need more complex parsing
+
+        // Blockquotes (> text)
+        html = html.replace(/^&gt;\s+(.+)$/gm, '<blockquote>$1</blockquote>');
+
+        // Horizontal rules (---)
+        html = html.replace(/^---$/gm, '<hr>');
+
+        // Paragraphs (double newline)
+        html = html.split('\n\n').map(para => {
+            // Don't wrap if already has block-level tags
+            if (para.match(/^<(h[1-6]|ul|ol|li|blockquote|pre|hr|table)/)) {
+                return para;
+            }
+            return `<p>${para.replace(/\n/g, '<br>')}</p>`;
+        }).join('\n');
+
+        // Tables (simple support)
+        html = html.replace(/\|(.+)\|/g, (match) => {
+            const cells = match.split('|').filter(cell => cell.trim());
+            const cellTags = cells.map(cell => `<td>${cell.trim()}</td>`).join('');
+            return `<tr>${cellTags}</tr>`;
+        });
+        html = html.replace(/(<tr>.*<\/tr>)/s, (match) => {
+            const rows = match.split('</tr>').filter(r => r.trim());
+            if (rows.length === 0) return match;
+
+            // First row is header
+            const headerRow = rows[0].replace(/<td>/g, '<th>').replace(/<\/td>/g, '</th>') + '</tr>';
+            const bodyRows = rows.slice(1).map(r => r + '</tr>').join('');
+
+            return `<table>${headerRow}${bodyRows}</table>`;
+        });
+
+        return html;
     }
 
     showError(message) {
