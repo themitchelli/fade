@@ -22,6 +22,21 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-25 09:20 - US-001: Add complexity field to PRD schema (ENH-014) - COMPLETE
+
+- Added complexity field to PRD JSON schema with values: simple, medium, complex
+- Implemented argument parsing in cmd_new() to support --complexity=VALUE flag
+- Missing complexity defaults to "medium" (preserves current behavior for existing PRDs)
+- Interactive prompt added when --complexity flag not provided: "Complexity? [simple/Medium/complex]"
+- Input validation: rejects invalid complexity values with error message
+- Created get_prd_complexity() helper function to extract complexity from PRD files
+- Updated display_work_queue() to show complexity in both pretty and JSON output
+- Pretty output format: [complexity] [TYPE] filename (e.g., "[simple] [ENH] ENH-014")
+- JSON output includes "complexity" field for both priority and queue items
+- Updated cmd_new output to display selected complexity value
+- Files changed: bin/fade-cli
+- Tests: Manual verification with fade new (--complexity flag, interactive prompt, validation, status display)
+
 ## 2026-01-20 - US-001: Align exit signals between fade script and prompt.md template - COMPLETE
 
 - Added canonical "Exit Signals (Canonical Reference)" section to prompt.md defining STORY_DONE, ALL_COMPLETE, and BLOCKED

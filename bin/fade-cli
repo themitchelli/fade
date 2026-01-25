@@ -680,15 +680,28 @@ get_prd_discovery_doc() {
 get_prd_type() {
     local prd_file="$1"
     local prd_type=""
-    
+
     prd_type=$(grep -o '"type"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
-    
+
     if [[ -z "$prd_type" ]]; then
         local filename=$(basename "$prd_file")
         prd_type=$(echo "$filename" | grep -o '^[A-Z]*' | head -1)
     fi
-    
+
     echo "$prd_type"
+}
+
+# Get complexity from PRD file
+# Returns: simple, medium, complex, or empty string if missing
+# Default behavior: If complexity field is missing, returns empty string (caller should default to "medium")
+get_prd_complexity() {
+    local prd_file="$1"
+    local complexity=""
+
+    # Extract complexity field from JSON (handles both single and double quotes, whitespace variations)
+    complexity=$(grep -o '"complexity"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"complexity"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+
+    echo "$complexity"
 }
 
 # Count incomplete stories in a PRD
@@ -2522,12 +2535,14 @@ display_work_queue() {
     local priority_prd=""
     local priority_name=""
     local priority_type=""
+    local priority_complexity=""
     local priority_incomplete=0
     local priority_complete=0
 
     declare -a queue_prds
     declare -a queue_names
     declare -a queue_types
+    declare -a queue_complexities
     declare -a queue_incomplete
     declare -a queue_complete
 
@@ -2536,6 +2551,8 @@ display_work_queue() {
         priority_prd="fade/prd.json"
         priority_name=$(get_prd_name "fade/prd.json")
         priority_type=$(get_prd_type "fade/prd.json")
+        priority_complexity=$(get_prd_complexity "fade/prd.json")
+        [[ -z "$priority_complexity" ]] && priority_complexity="medium"  # Default to medium if missing
         priority_incomplete=$(count_incomplete_stories "fade/prd.json")
         priority_complete=$(count_complete_stories "fade/prd.json")
     # Fall back to root prd.json (legacy structure)
@@ -2543,6 +2560,8 @@ display_work_queue() {
         priority_prd="prd.json"
         priority_name=$(get_prd_name "prd.json")
         priority_type=$(get_prd_type "prd.json")
+        priority_complexity=$(get_prd_complexity "prd.json")
+        [[ -z "$priority_complexity" ]] && priority_complexity="medium"  # Default to medium if missing
         priority_incomplete=$(count_incomplete_stories "prd.json")
         priority_complete=$(count_complete_stories "prd.json")
     fi
@@ -2552,9 +2571,12 @@ display_work_queue() {
         for prd_file in $(ls fade/prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
             if prd_has_incomplete_stories "$prd_file"; then
+                local complexity=$(get_prd_complexity "$prd_file")
+                [[ -z "$complexity" ]] && complexity="medium"  # Default to medium if missing
                 queue_prds+=("$prd_file")
                 queue_names+=("$(get_prd_name "$prd_file")")
                 queue_types+=("$(get_prd_type "$prd_file")")
+                queue_complexities+=("$complexity")
                 queue_incomplete+=("$(count_incomplete_stories "$prd_file")")
                 queue_complete+=("$(count_complete_stories "$prd_file")")
             fi
@@ -2566,9 +2588,12 @@ display_work_queue() {
         for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
             if prd_has_incomplete_stories "$prd_file"; then
+                local complexity=$(get_prd_complexity "$prd_file")
+                [[ -z "$complexity" ]] && complexity="medium"  # Default to medium if missing
                 queue_prds+=("$prd_file")
                 queue_names+=("$(get_prd_name "$prd_file")")
                 queue_types+=("$(get_prd_type "$prd_file")")
+                queue_complexities+=("$complexity")
                 queue_incomplete+=("$(count_incomplete_stories "$prd_file")")
                 queue_complete+=("$(count_complete_stories "$prd_file")")
             fi
@@ -2635,6 +2660,7 @@ display_work_queue() {
             echo "    \"file\": \"$priority_prd\","
             echo "    \"name\": \"$priority_name\","
             echo "    \"type\": \"$priority_type\","
+            echo "    \"complexity\": \"$priority_complexity\","
             echo "    \"incomplete\": $priority_incomplete,"
             echo "    \"complete\": $priority_complete"
             echo "  },"
@@ -2648,6 +2674,7 @@ display_work_queue() {
             echo "      \"file\": \"${queue_prds[$i]}\","
             echo "      \"name\": \"${queue_names[$i]}\","
             echo "      \"type\": \"${queue_types[$i]}\","
+            echo "      \"complexity\": \"${queue_complexities[$i]}\","
             echo "      \"incomplete\": ${queue_incomplete[$i]},"
             echo "      \"complete\": ${queue_complete[$i]}"
             if [[ $i -eq $((${#queue_prds[@]} - 1)) ]]; then
@@ -2678,7 +2705,7 @@ display_work_queue() {
     # Priority PRD
     if [[ -n "$priority_prd" ]]; then
         echo -e "${RED}⚡ PRIORITY${NC} ${BOLD}(prd.json)${NC}"
-        echo -e "   ${YELLOW}[$priority_type]${NC} $priority_name"
+        echo -e "   ${CYAN}[$priority_complexity]${NC} ${YELLOW}[$priority_type]${NC} $priority_name"
         echo -e "   └─ ${GREEN}$priority_complete done${NC} / ${RED}$priority_incomplete remaining${NC}"
         echo ""
     fi
@@ -2686,10 +2713,10 @@ display_work_queue() {
     # Queue PRDs
     if [[ ${#queue_prds[@]} -gt 0 ]]; then
         echo -e "${BLUE}📋 QUEUE${NC} ${BOLD}(prds/)${NC}"
-        
+
         for i in "${!queue_prds[@]}"; do
             local filename=$(basename "${queue_prds[$i]}")
-            echo -e "   ${YELLOW}[${queue_types[$i]}]${NC} $filename"
+            echo -e "   ${CYAN}[${queue_complexities[$i]}]${NC} ${YELLOW}[${queue_types[$i]}]${NC} $filename"
             echo -e "   │   ${queue_names[$i]}"
             echo -e "   └─ ${GREEN}${queue_complete[$i]} done${NC} / ${RED}${queue_incomplete[$i]} remaining${NC}"
             [[ $i -lt $((${#queue_prds[@]} - 1)) ]] && echo ""
@@ -4223,14 +4250,52 @@ What are they trying to accomplish? What's the context?
 }
 
 cmd_new() {
-    local prd_type="${1:-}"
-    local prd_name="${2:-}"
+    local prd_type=""
+    local prd_name=""
+    local complexity=""
+    local complexity_flag=""
+
+    # Parse arguments (supports --complexity=VALUE or --complexity VALUE)
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --complexity=*)
+                complexity="${1#*=}"
+                complexity_flag=true
+                shift
+                ;;
+            --complexity)
+                if [[ -n "${2:-}" && "${2:0:1}" != "-" ]]; then
+                    complexity="$2"
+                    complexity_flag=true
+                    shift 2
+                else
+                    echo -e "${RED}Error: --complexity requires a value${NC}"
+                    exit 1
+                fi
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown flag '$1'${NC}"
+                exit 1
+                ;;
+            *)
+                if [[ -z "$prd_type" ]]; then
+                    prd_type="$1"
+                elif [[ -z "$prd_name" ]]; then
+                    prd_name="$1"
+                else
+                    echo -e "${RED}Error: Too many arguments${NC}"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
 
     # Validate type
     if [[ -z "$prd_type" ]]; then
         echo -e "${RED}Error: PRD type required.${NC}"
         echo ""
-        echo "Usage: fade new <type> \"<name>\""
+        echo "Usage: fade new <type> \"<name>\" [--complexity=VALUE]"
         echo ""
         echo "Types: feature, bug, toil, enhancement, spike"
         echo ""
@@ -4238,6 +4303,7 @@ cmd_new() {
         echo "  fade new feature \"User authentication\""
         echo "  fade new bug \"Login timeout issue\""
         echo "  fade new spike \"Evaluate caching strategies\""
+        echo "  fade new enhancement \"Dashboard UI\" --complexity=simple"
         exit 1
     fi
 
@@ -4340,6 +4406,52 @@ cmd_new() {
     # Generate PRD ID
     local prd_id="${type_prefix}-${num_formatted}"
 
+    # Handle complexity field
+    # If --complexity flag was provided, validate it
+    if [[ -n "$complexity_flag" ]]; then
+        # Normalize to lowercase
+        complexity=$(echo "$complexity" | tr '[:upper:]' '[:lower:]')
+
+        # Validate complexity value
+        if [[ "$complexity" != "simple" && "$complexity" != "medium" && "$complexity" != "complex" ]]; then
+            echo -e "${RED}Error: Invalid complexity value '$complexity'${NC}"
+            echo ""
+            echo "Valid values: simple, medium, complex"
+            exit 1
+        fi
+    else
+        # No --complexity flag, prompt user interactively
+        echo ""
+        echo -e "${YELLOW}Complexity?${NC} [simple/Medium/complex]"
+        echo ""
+        echo "  simple  - Small fixes, typos, doc updates (< 4 hours)"
+        echo "  medium  - New features, standard work (default)"
+        echo "  complex - Architecture changes, refactors, integrations (> 1 week)"
+        echo ""
+
+        read -p "Enter complexity (or press Enter for medium): " complexity_input
+
+        # Normalize to lowercase
+        complexity_input=$(echo "$complexity_input" | tr '[:upper:]' '[:lower:]')
+
+        # Default to medium if empty or invalid
+        case "$complexity_input" in
+            simple|s)
+                complexity="simple"
+                ;;
+            complex|c)
+                complexity="complex"
+                ;;
+            medium|m|"")
+                complexity="medium"
+                ;;
+            *)
+                echo -e "${YELLOW}Invalid input, defaulting to: medium${NC}"
+                complexity="medium"
+                ;;
+        esac
+    fi
+
     # Create PRD JSON content
     local prd_content=""
     if [[ "$type_full" == "spike" ]]; then
@@ -4352,6 +4464,7 @@ cmd_new() {
   "id": "$prd_id",
   "name": "$prd_name",
   "description": "",
+  "complexity": "$complexity",
   "branchName": "$branch_name",
   "outputArtifact": "docs/spike-${slug}.md",
   "dependsOn": [],
@@ -4381,6 +4494,7 @@ PRDEOF
   "id": "$prd_id",
   "name": "$prd_name",
   "description": "",
+  "complexity": "$complexity",
   "dependsOn": [],
   "userStories": [
     {
@@ -4405,8 +4519,9 @@ PRDEOF
     echo -e "${GREEN}Created PRD:${NC} $prd_path"
     echo ""
     echo -e "${BOLD}$prd_name${NC}"
-    echo -e "  Type: ${YELLOW}[$type_prefix]${NC} $type_full"
-    echo -e "  ID:   $prd_id"
+    echo -e "  Type:       ${YELLOW}[$type_prefix]${NC} $type_full"
+    echo -e "  ID:         $prd_id"
+    echo -e "  Complexity: ${CYAN}$complexity${NC}"
     echo ""
 
     # For spikes, create the feature branch

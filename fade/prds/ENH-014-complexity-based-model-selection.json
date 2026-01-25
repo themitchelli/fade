@@ -25,7 +25,7 @@
         "Display complexity in fade status output: '[simple] ENH-014' vs '[complex] FEAT-012'"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
