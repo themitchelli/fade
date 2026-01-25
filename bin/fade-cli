@@ -724,6 +724,178 @@ count_complete_stories() {
     echo "$count"
 }
 
+# Estimate token usage for a text string (rough approximation: chars / 4)
+estimate_tokens() {
+    local text="$1"
+    local char_count=${#text}
+    echo $((char_count / 4))
+}
+
+# Calculate estimated cost based on model and token usage
+# Pricing (per 1M tokens): opus: $15 input/$75 output, sonnet: $3 input/$15 output, haiku: $0.25 input/$1.25 output
+# Assumes 80% input, 20% output for estimation
+estimate_cost() {
+    local model="$1"
+    local tokens="$2"
+
+    # Convert to millions
+    local tokens_millions=$(awk "BEGIN {printf \"%.6f\", $tokens / 1000000}")
+
+    # Calculate weighted cost (80% input, 20% output)
+    local cost
+    case "$model" in
+        opus)
+            cost=$(awk "BEGIN {printf \"%.2f\", ($tokens_millions * 15 * 0.8) + ($tokens_millions * 75 * 0.2)}")
+            ;;
+        sonnet)
+            cost=$(awk "BEGIN {printf \"%.2f\", ($tokens_millions * 3 * 0.8) + ($tokens_millions * 15 * 0.2)}")
+            ;;
+        haiku)
+            cost=$(awk "BEGIN {printf \"%.2f\", ($tokens_millions * 0.25 * 0.8) + ($tokens_millions * 1.25 * 0.2)}")
+            ;;
+        *)
+            cost="0.00"
+            ;;
+    esac
+
+    echo "$cost"
+}
+
+# Append model usage summary to progress.md
+# Usage: append_model_usage_to_progress <prd_id> <model> <complexity> <duration_minutes> <est_cost>
+append_model_usage_to_progress() {
+    local prd_id="$1"
+    local model="$2"
+    local complexity="$3"
+    local duration_minutes="$4"
+    local est_cost="$5"
+
+    # Determine progress.md location (contained vs legacy)
+    local progress_file
+    if [[ -f "fade/progress.md" ]]; then
+        progress_file="fade/progress.md"
+    elif [[ -f "progress.md" ]]; then
+        progress_file="progress.md"
+    else
+        return  # No progress.md to update
+    fi
+
+    # Append model usage summary
+    cat >> "$progress_file" << EOF
+
+## Model Usage: $model (complexity: $complexity, duration: ${duration_minutes}m, cost est: \$$est_cost)
+
+EOF
+}
+
+# Log model usage to model-usage.md with cost estimates
+# Usage: log_model_usage <prd_file> <model> <complexity> <routing_source> <duration_minutes> <context_size>
+log_model_usage() {
+    local prd_file="$1"
+    local model="$2"
+    local complexity="$3"
+    local routing_source="$4"
+    local duration_minutes="$5"
+    local context_size="$6"
+
+    # Determine model-usage.md location (contained vs legacy)
+    local usage_log
+    if [[ -d "fade" ]]; then
+        usage_log="fade/model-usage.md"
+    else
+        usage_log="model-usage.md"
+    fi
+
+    # Create file with header if it doesn't exist
+    if [[ ! -f "$usage_log" ]]; then
+        cat > "$usage_log" << 'EOF'
+# Model Usage Log
+
+Tracks model selections, complexity routing, and estimated costs.
+
+| Date | PRD | Complexity | Model | Override | Duration | Est. Tokens | Est. Cost |
+|------|-----|------------|-------|----------|----------|-------------|-----------|
+EOF
+    fi
+
+    # Extract PRD name and ID
+    local prd_name=$(get_prd_name "$prd_file" 2>/dev/null || basename "$prd_file" .json)
+    local prd_id=$(get_prd_id "$prd_file" 2>/dev/null || echo "unknown")
+
+    # Estimate tokens from context size
+    local est_tokens=$(estimate_tokens "$context_size")
+
+    # Estimate cost
+    local est_cost=$(estimate_cost "$model" "$est_tokens")
+
+    # Format override source
+    local override_display="no"
+    if [[ "$routing_source" == "--model flag" ]]; then
+        override_display="yes (--model)"
+    elif [[ "$routing_source" == "FADE_MODEL env var" ]]; then
+        override_display="yes (env)"
+    fi
+
+    # Append row
+    local date_str=$(date '+%Y-%m-%d')
+    echo "| $date_str | $prd_id | $complexity | $model | $override_display | ${duration_minutes}m | $est_tokens | \$$est_cost |" >> "$usage_log"
+
+    # Update aggregate stats
+    update_model_usage_stats "$usage_log"
+
+    # Also append summary to progress.md
+    append_model_usage_to_progress "$prd_id" "$model" "$complexity" "$duration_minutes" "$est_cost"
+}
+
+# Update aggregate statistics at the bottom of model-usage.md
+update_model_usage_stats() {
+    local usage_log="$1"
+
+    # Remove existing stats section if present (everything after "## Aggregate Statistics")
+    if grep -q "^## Aggregate Statistics" "$usage_log" 2>/dev/null; then
+        sed -i.bak '/^## Aggregate Statistics/,$d' "$usage_log"
+        rm -f "${usage_log}.bak"
+    fi
+
+    # Calculate statistics from the table
+    local total_sessions=$(grep -c '^|[[:space:]]*[0-9]' "$usage_log" 2>/dev/null || echo 0)
+
+    # Count by model (skip header rows)
+    local haiku_count=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep -c 'haiku' || echo 0)
+    local sonnet_count=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep -c 'sonnet' || echo 0)
+    local opus_count=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep -c 'opus' || echo 0)
+
+    # Sum costs by model (extract cost column and sum by model type)
+    local haiku_cost=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep 'haiku' | awk -F'|' '{gsub(/[$[:space:]]/, "", $9); print $9}' | awk '{sum+=$1} END {printf "%.2f", sum}')
+    local sonnet_cost=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep 'sonnet' | awk -F'|' '{gsub(/[$[:space:]]/, "", $9); print $9}' | awk '{sum+=$1} END {printf "%.2f", sum}')
+    local opus_cost=$(grep '^|[[:space:]]*[0-9]' "$usage_log" | grep 'opus' | awk -F'|' '{gsub(/[$[:space:]]/, "", $9); print $9}' | awk '{sum+=$1} END {printf "%.2f", sum}')
+
+    # Handle empty sums (awk returns empty string for empty input)
+    [[ -z "$haiku_cost" ]] && haiku_cost="0.00"
+    [[ -z "$sonnet_cost" ]] && sonnet_cost="0.00"
+    [[ -z "$opus_cost" ]] && opus_cost="0.00"
+
+    # Total cost
+    local total_cost=$(awk "BEGIN {printf \"%.2f\", $haiku_cost + $sonnet_cost + $opus_cost}")
+
+    # Append stats section
+    cat >> "$usage_log" << EOF
+
+## Aggregate Statistics
+
+**Total Sessions:** $total_sessions
+
+**By Model:**
+- Haiku: $haiku_count sessions (\$$haiku_cost)
+- Sonnet: $sonnet_count sessions (\$$sonnet_cost)
+- Opus: $opus_count sessions (\$$opus_cost)
+
+**Total Estimated Cost:** \$$total_cost
+
+*Note: Costs are estimates based on context size and public Anthropic pricing. Actual API usage may vary.*
+EOF
+}
+
 # Extract version from FADE artifact file (reads first line for <!-- FADE {filename} vX.X.X -->)
 get_artifact_version() {
     local file="$1"
@@ -3521,6 +3693,11 @@ cmd_run() {
         local repo_name=$(basename "$(pwd)")
         local last_status_export_time=0
 
+        # PRD tracking for model usage logging
+        local current_prd_file=""
+        local prd_start_time=""
+        local prd_context_size=""
+
         while true; do
             local iteration_start_time=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -3592,6 +3769,14 @@ cmd_run() {
 
             local context=$(build_context)
 
+            # Track PRD changes for model usage logging
+            if [[ -n "$active_prd" ]] && [[ "$active_prd" != "$current_prd_file" ]]; then
+                # New PRD - record start time and context size
+                current_prd_file="$active_prd"
+                prd_start_time=$(date +%s)
+                prd_context_size="$context"
+            fi
+
             # Build Claude command with selected model for this iteration
             local claude_cmd="claude"
             if [[ "$yolo_mode" == true ]]; then
@@ -3646,6 +3831,23 @@ cmd_run() {
                     echo -e "${GREEN}Generated tests for $tests_generated PRD(s)${NC}"
                 fi
                 echo ""
+
+                # Log model usage for completed PRD
+                if [[ -n "$active_prd" ]] && [[ -n "$prd_start_time" ]]; then
+                    local prd_end_time=$(date +%s)
+                    local duration_seconds=$((prd_end_time - prd_start_time))
+                    local duration_minutes=$((duration_seconds / 60))
+                    local complexity=$(get_prd_complexity "$active_prd")
+                    [[ -z "$complexity" ]] && complexity="medium"
+
+                    # Log to model-usage.md
+                    log_model_usage "$active_prd" "$selected_model" "$complexity" "$routing_source" "$duration_minutes" "$prd_context_size"
+
+                    # Reset PRD tracking for next PRD
+                    current_prd_file=""
+                    prd_start_time=""
+                    prd_context_size=""
+                fi
 
                 # Archive completed PRDs
                 echo -e "${YELLOW}Archiving completed PRDs...${NC}"

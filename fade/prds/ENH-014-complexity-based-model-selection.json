@@ -75,7 +75,7 @@
         "Aggregate stats at bottom: 'Total sessions: 47, Haiku: 12 ($1.80), Sonnet: 32 ($48.00), Opus: 3 ($45.00)'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",

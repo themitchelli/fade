@@ -1811,3 +1811,20 @@ For blocked stories, use:
 - Tests: bash -n syntax check passed, Python syntax check passed
 - All 8 acceptance criteria verified and passing
 
+
+## 2026-01-25 18:30 - US-004: Model selection audit trail (ENH-014) - COMPLETE
+
+- Added estimate_tokens() function to calculate rough token count (chars / 4)
+- Added estimate_cost() function with Anthropic pricing (opus: $15/$75, sonnet: $3/$15, haiku: $0.25/$1.25 per 1M tokens)
+- Cost calculation uses 80% input, 20% output weighting for realistic estimates
+- Added append_model_usage_to_progress() function to append summary to progress.md after PRD completion
+- Added log_model_usage() function to log detailed model selections to model-usage.md
+- Created fade/model-usage.md log with table format: Date, PRD, Complexity, Model, Override, Duration, Est. Tokens, Est. Cost
+- Added update_model_usage_stats() to maintain aggregate statistics at bottom of model-usage.md
+- Aggregate stats show total sessions and breakdown by model with cost sums
+- Modified cmd_run() to track PRD start time, context size, and duration
+- Model usage logged on ALL_COMPLETE signal before archiving PRDs
+- Progress.md receives summary: "## Model Usage: haiku (complexity: simple, duration: 23m, cost est: $0.15)"
+- All estimates clearly labeled to avoid confusion with actual API costs
+- Files changed: bin/fade-cli
+- Tests: bash syntax check passed, manual function tests verified cost calculations
