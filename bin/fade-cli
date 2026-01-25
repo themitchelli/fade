@@ -3019,13 +3019,18 @@ ask_execution_mode() {
 #
 # Source of truth: prompt.md (Exit Signals section defines Claude's behavior)
 #
-# Signal          Format                  Meaning
-# --------------- ----------------------- -------------------------------------
-# STORY_DONE      STORY_DONE: US-XXX      One story completed, more work remains
-# ALL_COMPLETE    ALL_COMPLETE            All stories in queue finished
-# BLOCKED         BLOCKED: [reason]       Cannot proceed, human intervention needed
+# Signal          Format                  Pattern Match
+# --------------- ----------------------- ------------------------------------------
+# ALL_COMPLETE    ALL_COMPLETE            grep -qx "ALL_COMPLETE" (exact line match)
+# STORY_DONE      STORY_DONE: US-XXX      grep -q '^STORY_DONE: ' (line start + colon)
+# BLOCKED         BLOCKED: [reason]       grep -q '^BLOCKED: ' (line start + colon)
 #
-# Detection: Simple string matching via grep (see cmd_run ALL mode loop)
+# CRITICAL: Use strict pattern matching (not 'grep -q "word"') to avoid false
+# positives. For example, "blocked repos" or "outcome (BLOCKED)" should NOT
+# trigger BLOCKED detection.
+#
+# Detection order: ALL_COMPLETE → STORY_DONE → BLOCKED
+# (STORY_DONE before BLOCKED ensures successful completions aren't misclassified)
 #
 # INTERRUPTIONS
 # -------------
@@ -3931,7 +3936,13 @@ cmd_run() {
             local output=$(cat "$output_file")
             rm -f "$output_file"
 
-            # Check for signals in output
+            # Check for signals in output (strict pattern matching to avoid false positives)
+            # Detection order: ALL_COMPLETE, STORY_DONE, BLOCKED
+            # - ALL_COMPLETE: '^ALL_COMPLETE$' (own line, exact match)
+            # - STORY_DONE: '^STORY_DONE: ' (at start of line, colon required)
+            # - BLOCKED: '^BLOCKED: ' (at start of line, colon required)
+            # This prevents matching these words in other contexts (e.g., "blocked repos" in output)
+
             if echo "$output" | grep -qx "ALL_COMPLETE"; then
                 rm -f "$learned_before_file"
 
@@ -4017,25 +4028,11 @@ cmd_run() {
                 break
             fi
 
-            if echo "$output" | grep -q "BLOCKED"; then
-                rm -f "$learned_before_file"
-
-                # Extract blocked reason from output (format: BLOCKED: reason)
-                local blocked_reason=$(echo "$output" | grep -o 'BLOCKED:[[:space:]].*' | head -1 | sed 's/BLOCKED:[[:space:]]*//')
-
-                # Export final status with blocked reason
-                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "$blocked_reason"
-
-                echo ""
-                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
-                echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
-                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
-                break
-            fi
-
-            if echo "$output" | grep -q "STORY_DONE"; then
+            # Check for STORY_DONE signal BEFORE BLOCKED to ensure successful completions
+            # are detected even if output mentions "blocked" elsewhere
+            if echo "$output" | grep -q '^STORY_DONE: '; then
                 # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
-                local story_id=$(echo "$output" | grep -o 'STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
+                local story_id=$(echo "$output" | grep -o '^STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
 
                 # Brief pause for filesystem to settle before reading PRD for display
                 # This ensures we read the updated story status, not stale cached data
@@ -4074,6 +4071,23 @@ cmd_run() {
                 ((iteration++))
                 sleep 1  # Brief pause before next iteration
                 continue
+            fi
+
+            # Check for BLOCKED signal only after STORY_DONE (prevents false positives when output mentions "blocked")
+            if echo "$output" | grep -q '^BLOCKED: '; then
+                rm -f "$learned_before_file"
+
+                # Extract blocked reason from output (format: BLOCKED: reason)
+                local blocked_reason=$(echo "$output" | grep -o '^BLOCKED:[[:space:]].*' | head -1 | sed 's/BLOCKED:[[:space:]]*//')
+
+                # Export final status with blocked reason
+                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "$blocked_reason"
+
+                echo ""
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                break
             fi
 
             # Check for known interruption patterns (before treating as unknown)

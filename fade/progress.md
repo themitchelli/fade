@@ -22,6 +22,25 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-25 22:22 - BUG-007: Signal detection false positive on BLOCKED - COMPLETE
+
+- Fixed signal detection in cmd_run() to use strict pattern matching
+- Changed BLOCKED detection from `grep -q "BLOCKED"` to `grep -q '^BLOCKED: '` to match only signal format
+- Changed STORY_DONE detection from `grep -q "STORY_DONE"` to `grep -q '^STORY_DONE: '` for consistency
+- Reordered signal detection: ALL_COMPLETE → STORY_DONE → BLOCKED (fixes precedence issue)
+- Added comprehensive code comment explaining strict pattern matching rules
+- Updated EXIT SIGNALS comment block with detection patterns and detection order
+- Created 6 regression tests in fade/tests/PRD-BUG-007/:
+  - test_us001_01_no_false_positive_context.sh: Verifies "blocked" in context doesn't trigger BLOCKED
+  - test_us001_02_valid_blocked_signal.sh: Verifies valid BLOCKED signals are detected
+  - test_us002_01_story_done_priority.sh: Verifies STORY_DONE priority over context mentions
+  - test_us003_01_all_complete_pattern.sh: Verifies ALL_COMPLETE exact match pattern
+  - test_us003_02_story_done_pattern.sh: Verifies STORY_DONE strict pattern matching
+  - test_us003_03_blocked_pattern.sh: Verifies BLOCKED strict pattern matching
+- All 6 tests pass, 16 total tests in suite all pass
+- Files changed: bin/fade-cli, fade/tests/PRD-BUG-007/*.sh (6 new test files)
+- Tests: All 6 BUG-007 tests passing, no regressions in existing test suite
+
 ## 2026-01-25 17:30 - US-002: Heuristic complexity analyzer (ENH-014) - COMPLETE
 
 - Created analyze_complexity() function in bin/fade-cli with scoring algorithm
