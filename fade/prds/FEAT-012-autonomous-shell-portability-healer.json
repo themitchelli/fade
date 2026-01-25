@@ -43,7 +43,7 @@
         "Log each fix application to healing-log.md with timestamp, file, pattern, replacement"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

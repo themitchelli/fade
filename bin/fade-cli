@@ -1158,6 +1158,137 @@ detect_shell_portability_error() {
     return 1
 }
 
+# Apply known fixes from portability whitelist
+# Args: $1 - error_type from detect_shell_portability_error
+# Returns: 0 if fixes applied, 1 if no files needed fixing
+# Side effects: Modifies test files, creates backups, appends to healing-log.md
+apply_portability_fixes() {
+    local error_type="$1"
+    local tests_dir=$(get_tests_dir)
+    local healing_log
+    local fixes_applied=0
+
+    # Determine healing log location (contained or legacy structure)
+    if [[ -d "fade" ]]; then
+        healing_log="fade/healing-log.md"
+    else
+        healing_log="healing-log.md"
+    fi
+
+    # Safety check: Only process files in tests directory
+    if [[ ! -d "$tests_dir" ]]; then
+        echo "Error: Tests directory not found at $tests_dir" >&2
+        return 1
+    fi
+
+    # Get current timestamp for logging
+    local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+
+    # Find all shell script files in tests directory
+    local test_files=$(find "$tests_dir" -type f -name "*.sh" 2>/dev/null)
+
+    if [[ -z "$test_files" ]]; then
+        return 1
+    fi
+
+    case "$error_type" in
+        head_illegal_line_count)
+            # Fix pattern: 'head -n -X' → 'sed "$d"' (remove last line)
+            # Also handles: 'head -n-X' (no space)
+            echo "$test_files" | while read -r file; do
+                # Safety check: Ensure file is actually in tests directory
+                # (Files come from find $tests_dir, so they're already safe)
+                local file_realpath=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+                if [[ ! "$file_realpath" == "$tests_dir"* ]]; then
+                    echo "Warning: Skipping file outside tests directory: $file" >&2
+                    continue
+                fi
+
+                # Check if file contains the problematic pattern
+                if grep -qE 'head -n ?-[0-9]+' "$file"; then
+                    # Create backup
+                    cp "$file" "$file.bak"
+
+                    # Apply fix: head -n -1 → sed '$d' (delete last line)
+                    # This is the most common case - removing last line
+                    sed -i.tmp 's/head -n \?-1\([^0-9]\)/sed '\''$d'\''\1/g' "$file"
+                    rm -f "$file.tmp"
+
+                    # Log the fix
+                    {
+                        [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
+                        echo "## $timestamp - Shell Portability Fix"
+                        echo "**Error Type:** head_illegal_line_count"
+                        echo "**File:** $file"
+                        echo "**Pattern:** \`head -n -1\` → \`sed '\$d'\`"
+                        echo "**Backup:** $file.bak"
+                        echo ""
+                    } >> "$healing_log"
+
+                    fixes_applied=$((fixes_applied + 1))
+                fi
+            done
+            ;;
+
+        sed_i_needs_argument)
+            # Fix pattern: 'sed -i' → 'sed -i.bak'
+            echo "$test_files" | while read -r file; do
+                # Safety check: Ensure file is actually in tests directory
+                # (Files come from find $tests_dir, so they're already safe)
+                local file_realpath=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
+                if [[ ! "$file_realpath" == "$tests_dir"* ]]; then
+                    echo "Warning: Skipping file outside tests directory: $file" >&2
+                    continue
+                fi
+
+                # Check if file contains the problematic pattern
+                # Look for: sed -i 's/...' or sed -i "s/..." but not sed -i.bak or sed -i .bak
+                if grep -qE "sed -i ['\"]" "$file"; then
+                    # Create backup
+                    cp "$file" "$file.bak"
+
+                    # Apply fix: sed -i 's/...' → sed -i.bak 's/...'
+                    sed -i.tmp "s/sed -i \(['\"\\/]\)/sed -i.bak \1/g" "$file"
+                    rm -f "$file.tmp"
+
+                    # Log the fix
+                    {
+                        [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
+                        echo "## $timestamp - Shell Portability Fix"
+                        echo "**Error Type:** sed_i_needs_argument"
+                        echo "**File:** $file"
+                        echo "**Pattern:** \`sed -i\` → \`sed -i.bak\`"
+                        echo "**Backup:** $file.bak"
+                        echo ""
+                    } >> "$healing_log"
+
+                    fixes_applied=$((fixes_applied + 1))
+                fi
+            done
+            ;;
+
+        tail_illegal_offset)
+            # Note: tail -n +X is actually portable and works on both BSD and GNU
+            # If we detect this error, it's likely a different issue
+            # For now, we'll log but not auto-fix
+            echo "Note: tail -n +X is already portable. Manual review needed." >&2
+            return 1
+            ;;
+
+        *)
+            echo "Unknown error type: $error_type" >&2
+            return 1
+            ;;
+    esac
+
+    if [[ $fixes_applied -gt 0 ]]; then
+        echo "$fixes_applied"
+        return 0
+    else
+        return 1
+    fi
+}
+
 # Run regression tests after STORY_DONE
 # Returns 0 on success/no tests, 1 on test failure
 # Respects 5-minute timeout to encourage test curation

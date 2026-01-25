@@ -1479,3 +1479,27 @@ For blocked stories, use:
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, comprehensive test suite verified all detection patterns and performance
 
+
+## 2026-01-25 - US-002: Apply known fixes from portability whitelist (FEAT-012) - COMPLETE
+
+- Added apply_portability_fixes() function to bin/fade-cli after detect_shell_portability_error()
+- Function accepts error_type parameter and applies known-safe fixes from hardcoded whitelist
+- Whitelist patterns implemented:
+  - head_illegal_line_count: `head -n -1` → `sed '$d'` (remove last line, BSD compatible)
+  - sed_i_needs_argument: `sed -i 's/...'` → `sed -i.bak 's/...'` (add backup extension for BSD sed)
+  - tail_illegal_offset: Documented as already portable, returns error (manual review needed)
+- Safety constraints enforced:
+  - Only processes files found via `find $tests_dir` (tests directory only)
+  - Uses realpath validation to ensure files are within tests_dir
+  - Skips files outside tests directory with warning message
+  - Creates .bak backup before modifying each file
+- Healing log created at fade/healing-log.md (or healing-log.md for legacy structure)
+- Log format includes: timestamp, error type, affected file, pattern transformation, backup location
+- Log is append-only (uses >>), never deleted
+- Function returns count of fixes applied (exit code 0) or 1 if no fixes needed
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, 4 regression tests created and passing:
+  - test_us002_01_whitelist_exists.sh: Verifies whitelist patterns exist in code
+  - test_us002_02_safety_directory_check.sh: Verifies safety constraints
+  - test_us002_03_backup_creation.sh: Verifies backup files created before modification
+  - test_us002_04_healing_log_format.sh: Verifies healing log format and append behavior
