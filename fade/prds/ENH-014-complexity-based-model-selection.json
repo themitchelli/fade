@@ -60,7 +60,7 @@
         "Log routing decision to progress.md: 'Model selection: haiku (complexity=simple, no override)'"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

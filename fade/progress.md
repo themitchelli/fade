@@ -1767,3 +1767,23 @@ For blocked stories, use:
 - Files changed: bin/fade-cli (get_archive_list, get_test_results, export_session_status), fade/templates/dashboard/index.html, fade/templates/dashboard/styles.css, fade/templates/dashboard/app.js
 - Tests: bash -n syntax check passed, get_archive_list tested with 26 archives, get_test_results tested with 125 tests
 
+## 2026-01-25 17:30 - US-003: Intelligent model routing (ENH-014) - COMPLETE
+
+- Implemented complexity-based model routing in cmd_run() function
+- Added model_override flag to track if --model flag was explicitly provided
+- Moved complexity routing logic before version banner display for early model selection
+- Routing logic implemented with case statement:
+  - complexity='simple' → haiku (unless overridden)
+  - complexity='complex' → opus (unless overridden)
+  - complexity='medium' or missing → sonnet (default)
+- Override precedence correctly implemented: --model flag > FADE_MODEL env var > complexity routing > default (sonnet)
+- Updated version banner to display selected_model instead of initial model value
+- Added routing_source tracking to show why a model was selected
+- Iteration banner displays: "model: ${selected_model} (${routing_source})"
+- Updated Claude command building to use selected_model in both STOP and ALL modes
+- Updated all export_session_status calls to use selected_model instead of model
+- STOP mode also applies complexity routing before execution
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
+- All 8 acceptance criteria verified and passing
+

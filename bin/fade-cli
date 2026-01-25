@@ -3406,6 +3406,7 @@ cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
     local model="${FADE_MODEL:-sonnet}"
+    local model_override=false  # Track if --model flag was used
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -3420,6 +3421,7 @@ cmd_run() {
                 ;;
             --model)
                 model="$2"
+                model_override=true  # User explicitly set model
                 shift 2
                 ;;
             *)
@@ -3431,10 +3433,6 @@ cmd_run() {
     # Display FADE logo
     display_fade_logo
 
-    # Display version banner (CLI version, prompt.md version, any warnings)
-    display_version_banner "$yolo_mode" "$model"
-    echo ""
-
     # Check for FADE files
     if [[ ! -f "FADE.md" ]]; then
         echo -e "${RED}Error: FADE.md not found. Run 'fade init' first.${NC}"
@@ -3445,6 +3443,46 @@ cmd_run() {
     if ! display_work_queue; then
         exit 0
     fi
+
+    # Apply complexity-based routing if --model flag was not used
+    local selected_model="$model"
+    local routing_source="default"
+    if [[ "$model_override" == false ]]; then
+        local active_prd=$(get_active_prd)
+        if [[ -n "$active_prd" ]]; then
+            local complexity=$(get_prd_complexity "$active_prd")
+
+            # Apply routing logic based on complexity
+            case "$complexity" in
+                simple)
+                    selected_model="haiku"
+                    routing_source="complexity=simple"
+                    ;;
+                complex)
+                    selected_model="opus"
+                    routing_source="complexity=complex"
+                    ;;
+                medium|"")
+                    # Medium or missing defaults to sonnet
+                    selected_model="sonnet"
+                    if [[ -n "$complexity" ]]; then
+                        routing_source="complexity=medium"
+                    else
+                        routing_source="complexity=medium (default)"
+                    fi
+                    ;;
+            esac
+        fi
+    elif [[ "$model_override" == true ]]; then
+        routing_source="--model flag"
+    elif [[ -n "${FADE_MODEL:-}" ]]; then
+        routing_source="FADE_MODEL env var"
+    fi
+
+    # Display version banner (CLI version, prompt.md version, any warnings)
+    # Shows selected model based on complexity routing
+    display_version_banner "$yolo_mode" "$selected_model"
+    echo ""
 
     # Determine execution mode
     local mode
@@ -3459,17 +3497,19 @@ cmd_run() {
     echo -e "${GREEN}Starting in $mode mode...${NC}"
     echo ""
 
-    # Set Claude command based on yolo mode and model
+    # Set Claude command based on yolo mode and selected model
     local claude_cmd="claude"
     if [[ "$yolo_mode" == true ]]; then
         claude_cmd="claude --dangerously-skip-permissions"
     fi
-    if [[ -n "$model" ]]; then
-        claude_cmd="$claude_cmd --model $model"
+    if [[ -n "$selected_model" ]]; then
+        claude_cmd="$claude_cmd --model $selected_model"
     fi
 
     if [[ "$mode" == "STOP" ]]; then
         # STOP mode: single execution, hand over terminal completely
+        echo -e "${CYAN}Model: ${selected_model} (${routing_source})${NC}"
+        echo ""
         local context=$(build_context)
         exec $claude_cmd "$context"
     else
@@ -3498,8 +3538,40 @@ cmd_run() {
                 fi
             fi
 
+            # Apply complexity-based routing if --model flag was not used
+            local selected_model="$model"
+            local routing_source="default"
+            if [[ "$model_override" == false ]] && [[ -n "$active_prd" ]]; then
+                local complexity=$(get_prd_complexity "$active_prd")
+
+                # Apply routing logic based on complexity
+                case "$complexity" in
+                    simple)
+                        selected_model="haiku"
+                        routing_source="complexity=simple"
+                        ;;
+                    complex)
+                        selected_model="opus"
+                        routing_source="complexity=complex"
+                        ;;
+                    medium|"")
+                        # Medium or missing defaults to sonnet
+                        selected_model="sonnet"
+                        if [[ -n "$complexity" ]]; then
+                            routing_source="complexity=medium"
+                        else
+                            routing_source="complexity=medium (default)"
+                        fi
+                        ;;
+                esac
+            elif [[ "$model_override" == true ]]; then
+                routing_source="--model flag"
+            elif [[ -n "${FADE_MODEL:-}" ]]; then
+                routing_source="FADE_MODEL env var"
+            fi
+
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
-            echo -e "${CYAN}Iteration $iteration - ${iteration_start_time}${NC}"
+            echo -e "${CYAN}Iteration $iteration - ${iteration_start_time} - model: ${selected_model} (${routing_source})${NC}"
             if [[ -n "$next_story_id" ]]; then
                 echo -e "${YELLOW}Next Story: ${next_story_id} - ${next_story_title}${NC}"
             fi
@@ -3520,10 +3592,19 @@ cmd_run() {
 
             local context=$(build_context)
 
+            # Build Claude command with selected model for this iteration
+            local claude_cmd="claude"
+            if [[ "$yolo_mode" == true ]]; then
+                claude_cmd="claude --dangerously-skip-permissions"
+            fi
+            if [[ -n "$selected_model" ]]; then
+                claude_cmd="$claude_cmd --model $selected_model"
+            fi
+
             # Export session status periodically (every 60 seconds)
             local current_time=$(date +%s)
             if [[ $((current_time - last_status_export_time)) -ge 60 ]]; then
-                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$model" "$mode" "running" "" &
+                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "running" "" &
                 last_status_export_time=$current_time
             fi
 
@@ -3542,7 +3623,7 @@ cmd_run() {
                 rm -f "$learned_before_file"
 
                 # Export final status
-                export_session_status "$repo_name" "$active_prd" "" "$iteration" "$session_start_time" "$model" "$mode" "complete" ""
+                export_session_status "$repo_name" "$active_prd" "" "$iteration" "$session_start_time" "$selected_model" "$mode" "complete" ""
 
                 echo ""
                 echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -3613,7 +3694,7 @@ cmd_run() {
                 local blocked_reason=$(echo "$output" | grep -o 'BLOCKED:[[:space:]].*' | head -1 | sed 's/BLOCKED:[[:space:]]*//')
 
                 # Export final status with blocked reason
-                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$model" "$mode" "blocked" "$blocked_reason"
+                export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "$blocked_reason"
 
                 echo ""
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
@@ -3647,7 +3728,7 @@ cmd_run() {
                     rm -f "$learned_before_file"
 
                     # Export blocked status with test failure reason
-                    export_session_status "$repo_name" "$active_prd" "$story_id" "$iteration" "$session_start_time" "$model" "$mode" "blocked" "Regression tests failed - see fade/tests/failed.log"
+                    export_session_status "$repo_name" "$active_prd" "$story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "Regression tests failed - see fade/tests/failed.log"
 
                     echo ""
                     echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
