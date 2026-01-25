@@ -14,15 +14,15 @@ if ! grep -A 30 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHu
     exit 1
 fi
 
-# Check that safety validation exists (realpath check)
-if ! grep -A 100 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "file_realpath.*tests_dir"; then
+# Check that safety validation exists (realpath check with pwd -P for canonical path)
+if ! grep -A 120 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "file_realpath.*tests_realpath"; then
     echo "FAIL: Function doesn't validate files are within tests_dir using realpath"
     exit 1
 fi
 
-# Check that function skips files outside tests directory
-if ! grep -A 100 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "Skipping file outside tests directory"; then
-    echo "FAIL: Function doesn't skip files outside tests directory"
+# Check that function blocks files outside tests directory with SAFETY ERROR
+if ! grep -A 120 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "SAFETY ERROR.*Blocked healing"; then
+    echo "FAIL: Function doesn't block files outside tests directory with SAFETY ERROR"
     exit 1
 fi
 

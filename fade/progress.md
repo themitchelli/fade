@@ -1554,3 +1554,23 @@ For blocked stories, use:
 - Healing log remains append-only (uses >> operator), never auto-deleted
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-25 08:35 - US-005: Safety constraints enforcement (FEAT-012) - COMPLETE
+
+- Enhanced apply_portability_fixes() function with strict safety constraints
+- Added two-level safety checks: directory containment validation using pwd -P for canonical paths
+- Check 1: Verifies file is within tests directory using realpath comparison
+- Check 2: Explicitly blocks src/, lib/, bin/ directories and paths without 'test'
+- Changed error messages from "Warning" to "SAFETY ERROR" for blocked healing attempts
+- All safety violations logged to stderr with detailed path information
+- Created comprehensive test suite with 6 integration tests:
+  - test_us005_01_block_src_directory.sh: Verifies src/ blocking
+  - test_us005_02_block_lib_directory.sh: Verifies lib/ blocking
+  - test_us005_03_block_bin_directory.sh: Verifies bin/ blocking
+  - test_us005_04_block_non_test_paths.sh: Verifies paths without 'test' are blocked
+  - test_us005_05_allow_test_directory.sh: Verifies legitimate test files are allowed
+  - test_us005_06_backup_files_created.sh: Verifies .bak backup creation
+- Updated existing US-002 tests to match new safety constraint implementation
+- All 10 tests in PRD-FEAT-012 passing
+- Files changed: bin/fade-cli, fade/tests/PRD-FEAT-012/*.sh
+- Tests: All 10 tests passed

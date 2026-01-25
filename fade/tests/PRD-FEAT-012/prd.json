@@ -91,7 +91,7 @@
         "Integration test: Attempt to heal file in src/ directory, verify it's blocked"
       ],
       "priority": 1,
-      "passes": true
+      "passes": false
     },
     {
       "id": "US-006",

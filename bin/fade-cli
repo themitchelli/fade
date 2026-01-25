@@ -1196,11 +1196,27 @@ apply_portability_fixes() {
             # Fix pattern: 'head -n -X' → 'sed "$d"' (remove last line)
             # Also handles: 'head -n-X' (no space)
             echo "$test_files" | while read -r file; do
-                # Safety check: Ensure file is actually in tests directory
-                # (Files come from find $tests_dir, so they're already safe)
-                local file_realpath=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
-                if [[ ! "$file_realpath" == "$tests_dir"* ]]; then
-                    echo "Warning: Skipping file outside tests directory: $file" >&2
+                # SAFETY CONSTRAINT: Enforce strict directory restrictions
+                # Only allow healing in fade/tests/ or tests/ directories
+                # Explicitly block: src/, lib/, bin/, and any file without 'test' in path
+                local file_realpath=$(cd "$(dirname "$file")" && pwd -P)/$(basename "$file")
+                local tests_realpath=$(cd "$tests_dir" && pwd -P)
+
+                # Check 1: File must be within tests directory
+                if [[ ! "$file_realpath" == "$tests_realpath"* ]]; then
+                    echo "SAFETY ERROR: Blocked healing attempt outside tests directory: $file" >&2
+                    echo "  File path: $file_realpath" >&2
+                    echo "  Allowed path: $tests_realpath/*" >&2
+                    continue
+                fi
+
+                # Check 2: Explicitly block production directories
+                if [[ "$file_realpath" == */src/* ]] || \
+                   [[ "$file_realpath" == */lib/* ]] || \
+                   [[ "$file_realpath" == */bin/* ]] || \
+                   [[ ! "$file_realpath" == *test* ]]; then
+                    echo "SAFETY ERROR: Blocked healing attempt in restricted path: $file" >&2
+                    echo "  Restricted patterns: src/, lib/, bin/, or paths without 'test'" >&2
                     continue
                 fi
 
@@ -1233,11 +1249,27 @@ apply_portability_fixes() {
         sed_i_needs_argument)
             # Fix pattern: 'sed -i' → 'sed -i.bak'
             echo "$test_files" | while read -r file; do
-                # Safety check: Ensure file is actually in tests directory
-                # (Files come from find $tests_dir, so they're already safe)
-                local file_realpath=$(cd "$(dirname "$file")" && pwd)/$(basename "$file")
-                if [[ ! "$file_realpath" == "$tests_dir"* ]]; then
-                    echo "Warning: Skipping file outside tests directory: $file" >&2
+                # SAFETY CONSTRAINT: Enforce strict directory restrictions
+                # Only allow healing in fade/tests/ or tests/ directories
+                # Explicitly block: src/, lib/, bin/, and any file without 'test' in path
+                local file_realpath=$(cd "$(dirname "$file")" && pwd -P)/$(basename "$file")
+                local tests_realpath=$(cd "$tests_dir" && pwd -P)
+
+                # Check 1: File must be within tests directory
+                if [[ ! "$file_realpath" == "$tests_realpath"* ]]; then
+                    echo "SAFETY ERROR: Blocked healing attempt outside tests directory: $file" >&2
+                    echo "  File path: $file_realpath" >&2
+                    echo "  Allowed path: $tests_realpath/*" >&2
+                    continue
+                fi
+
+                # Check 2: Explicitly block production directories
+                if [[ "$file_realpath" == */src/* ]] || \
+                   [[ "$file_realpath" == */lib/* ]] || \
+                   [[ "$file_realpath" == */bin/* ]] || \
+                   [[ ! "$file_realpath" == *test* ]]; then
+                    echo "SAFETY ERROR: Blocked healing attempt in restricted path: $file" >&2
+                    echo "  Restricted patterns: src/, lib/, bin/, or paths without 'test'" >&2
                     continue
                 fi
 

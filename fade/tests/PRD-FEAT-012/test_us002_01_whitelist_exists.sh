@@ -32,8 +32,8 @@ if ! grep -A 80 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHu
     exit 1
 fi
 
-# Check for sed_i_needs_argument case
-if ! grep -A 80 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "sed_i_needs_argument)"; then
+# Check for sed_i_needs_argument case (needs more lines since function is longer now)
+if ! grep -A 120 "apply_portability_fixes()" /Users/stevemitchell/Documents/GitHub/fade/bin/fade-cli | grep -q "sed_i_needs_argument)"; then
     echo "FAIL: sed_i_needs_argument case not found"
     exit 1
 fi
