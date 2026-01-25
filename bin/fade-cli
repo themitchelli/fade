@@ -1293,6 +1293,8 @@ apply_portability_fixes() {
 # Returns 0 on success/no tests, 1 on test failure
 # Respects 5-minute timeout to encourage test curation
 run_regression_tests() {
+    local prd_id="${1:-unknown}"     # PRD ID for logging context (optional)
+    local story_id="${2:-unknown}"   # Story ID for logging context (optional)
     local tests_dir=$(get_tests_dir)
     local run_script="$tests_dir/run.sh"
     local timeout_seconds=300  # 5 minutes
@@ -1459,15 +1461,19 @@ run_regression_tests() {
                         fi
 
                         local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+                        local log_date=$(date "+%Y-%m-%d %H:%M")
                         {
                             [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
-                            echo "## $timestamp - HEALING SUCCESS"
+                            echo "## $log_date - [INFO] $prd_id/$story_id"
+                            echo ""
+                            echo "**Status:** HEALING SUCCESS"
                             echo "**Error Type:** $error_type"
                             echo "**Error Message:** $error_message"
                             [[ -n "$affected_file" ]] && echo "**Affected File:** $affected_file"
-                            echo "**Healing Duration:** ${total_healing_duration}s"
-                            echo "**Attempts:** $healing_attempt"
-                            echo "**Fixes Applied:** $fixes_applied"
+                            echo "**Fix Applied:** Applied $fixes_applied portability fix(es)"
+                            echo "**Test Result:** PASS (tests passed after healing)"
+                            echo "**Time to Heal:** ${total_healing_duration}s"
+                            echo "**Healing Attempts:** $healing_attempt"
                             echo "**Time Saved:** ~5.3 hours (prevented overnight block)"
                             echo "**Git Commit:** $(git rev-parse --short HEAD 2>/dev/null || echo 'N/A')"
                             echo ""
@@ -1522,14 +1528,19 @@ run_regression_tests() {
                 fi
 
                 local timestamp=$(date "+%Y-%m-%d %H:%M:%S")
+                local log_date=$(date "+%Y-%m-%d %H:%M")
                 {
                     [[ ! -f "$healing_log" ]] && echo "# Healing Log" && echo ""
-                    echo "## $timestamp - HEALING FAILED"
+                    echo "## $log_date - [ERROR] $prd_id/$story_id"
+                    echo ""
+                    echo "**Status:** HEALING FAILED"
                     echo "**Error Type:** $error_type"
                     echo "**Error Message:** $error_message"
                     [[ -n "$affected_file" ]] && echo "**Affected File:** $affected_file"
-                    echo "**Healing Duration:** ${total_healing_duration}s"
-                    echo "**Attempts:** $((healing_attempt - 1))"
+                    echo "**Fix Applied:** Attempted $((healing_attempt - 1)) healing cycle(s)"
+                    echo "**Test Result:** FAIL (tests still failing after healing)"
+                    echo "**Time to Heal:** ${total_healing_duration}s"
+                    echo "**Healing Attempts:** $((healing_attempt - 1))"
                     echo "**Outcome:** Could not auto-heal after $max_healing_attempts attempt(s)"
                     echo ""
                 } >> "$healing_log"
@@ -3215,7 +3226,12 @@ cmd_run() {
                 # Run regression tests (if run.sh exists and is executable)
                 # Tests pass: iteration continues
                 # Tests fail: iteration blocked until tests pass
-                if ! run_regression_tests; then
+                # Pass PRD ID and story ID for healing log context
+                local prd_id="unknown"
+                if [[ -n "$active_prd" ]]; then
+                    prd_id=$(get_prd_id "$active_prd")
+                fi
+                if ! run_regression_tests "$prd_id" "$story_id"; then
                     rm -f "$learned_before_file"
                     echo ""
                     echo -e "${RED}════════════════════════════════════════════════════════════${NC}"

@@ -1523,3 +1523,34 @@ For blocked stories, use:
 - Displays healing summary: "Auto-healed shell portability issue in Xs. Session continuing."
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-25 08:26 - US-004: Maintain healing audit log (FEAT-012) - COMPLETE
+
+- Enhanced run_regression_tests() function to accept optional prd_id and story_id parameters for logging context
+- Updated healing log format to include SEVERITY levels: [INFO] for success, [ERROR] for failure
+- Updated log header format from '## YYYY-MM-DD HH:MM:SS - HEALING SUCCESS/FAILED' to '## YYYY-MM-DD HH:MM - [SEVERITY] PRD-ID/US-ID'
+- Enhanced success log entries with all required fields:
+  - Status (HEALING SUCCESS)
+  - Error Type (detected error pattern)
+  - Error Message
+  - Affected File (if available)
+  - Fix Applied (number of fixes)
+  - Test Result (PASS - tests passed after healing)
+  - Time to Heal (duration in seconds)
+  - Healing Attempts (number of attempts)
+  - Time Saved (~5.3 hours for overnight blocks)
+  - Git Commit (short hash of healing commit)
+- Enhanced failure log entries with all required fields:
+  - Status (HEALING FAILED)
+  - Error Type
+  - Error Message
+  - Affected File (if available)
+  - Fix Applied (number of attempted healing cycles)
+  - Test Result (FAIL - tests still failing)
+  - Time to Heal (duration in seconds)
+  - Healing Attempts
+  - Outcome (reason for failure)
+- Updated calling site in cmd_run() to extract PRD ID using get_prd_id() and pass both prd_id and story_id to run_regression_tests()
+- Healing log remains append-only (uses >> operator), never auto-deleted
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

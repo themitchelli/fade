@@ -76,7 +76,7 @@
         "Log entry created even if healing fails (for debugging)"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-005",
