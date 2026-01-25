@@ -1,0 +1,96 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-011",
+  "name": "Discovery Phase for PRD Authoring",
+  "description": "Add 'fade discover' command that captures implementation preferences and context before PRD writing. GSD's /gsd:discuss-phase asks about layout, interactions, API structure, and content tone BEFORE planning. This helps write better PRDs by surfacing decisions upfront.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Interactive discovery session",
+      "description": "As a developer planning a feature, I want an interactive discovery session that helps me think through implementation details",
+      "acceptanceCriteria": [
+        "fade discover command launches interactive Claude session",
+        "Session asks about: goals, constraints, tech preferences, edge cases",
+        "Questions are contextual based on project type (from FADE.md)",
+        "Session can be exited early with Ctrl+C",
+        "Documented in fade help"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Discovery output format",
+      "description": "As a developer, I want discovery session output saved in a format useful for PRD writing",
+      "acceptanceCriteria": [
+        "Output saved to fade/discoveries/{slug}.md",
+        "Format includes: Summary, Decisions, Open Questions, Suggested Stories",
+        "Slug derived from feature name provided at start of session",
+        "Output is markdown suitable for reference when writing PRD"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Domain-specific questions",
+      "description": "As a developer, I want discovery to ask relevant questions based on what I'm building",
+      "acceptanceCriteria": [
+        "If building API endpoint: asks about auth, validation, error handling, response format",
+        "If building UI component: asks about layout, interactions, states, accessibility",
+        "If building data feature: asks about schema, validation, migrations, backwards compat",
+        "Question sets defined in standards/ or embedded in prompt"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Generate PRD draft from discovery",
+      "description": "As a developer, I want to optionally generate a PRD draft from my discovery session",
+      "acceptanceCriteria": [
+        "fade discover --prd generates PRD JSON after discovery session",
+        "PRD includes user stories derived from discussed features",
+        "Acceptance criteria derived from decisions made in discovery",
+        "PRD marked as draft for human review before activation",
+        "Output path: fade/prds/FEAT-NNN-{slug}.json"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Codebase-aware discovery",
+      "description": "As a developer, I want discovery to understand my existing code so questions are relevant",
+      "acceptanceCriteria": [
+        "Discovery reads FADE.md for project context",
+        "If fade map was run, discovery references its output",
+        "Questions reference actual patterns in codebase ('I see you use Express, should this endpoint follow the same pattern as /api/users?')",
+        "Flags if proposed feature might conflict with existing code"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Reference discovery in PRD execution",
+      "description": "As a developer executing a PRD, I want Claude to reference the discovery doc for context",
+      "acceptanceCriteria": [
+        "PRD JSON can include 'discoveryDoc' field pointing to discoveries/*.md",
+        "fade run includes referenced discovery doc in context",
+        "Discovery doc provides implementation intent beyond acceptance criteria",
+        "Optional field - PRDs work fine without discovery docs"
+      ],
+      "priority": 6,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "gsdComparison": "GSD's discuss-phase captures preferences before planning. FADE's discovery is similar but outputs to file for async PRD writing.",
+    "sessionMode": "Discovery is interactive by nature - not automated like fade run. Could use claude without --print.",
+    "integrationWithMap": "fade map analyzes code structure. fade discover captures human intent. Together they provide complete context for PRD.",
+    "questionBank": "Consider making question sets extensible via standards/discovery-*.md files"
+  }
+}

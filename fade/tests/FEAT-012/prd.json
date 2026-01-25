@@ -1,0 +1,175 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-012",
+  "name": "Autonomous Shell Portability Healer",
+  "description": "Implements autonomous regression test healing for shell portability issues, enabling FADE to fix BSD/GNU compatibility problems overnight without human intervention.",
+  "dependsOn": [],
+  "context": {
+    "problem": "FADE sessions fail overnight when regression tests hit shell portability issues (BSD vs GNU coreutils). Developer wakes up to blocked session with zero progress from 3am-7am.",
+    "realWorldIncident": "LiveCalc PRD-LC-013 failed at 03:05 with 'head: illegal line count' error. Lost 5.3 hours of potential productivity waiting for manual intervention.",
+    "impact": "Overnight runs blocked by trivial shell syntax issues that have known, safe fixes. Hours wasted on problems that could be auto-resolved in seconds."
+  },
+  "solution": "Add autonomous healing layer that detects shell portability errors in test output, applies known safe fixes from a whitelist, retries tests, and continues the session if successful. All healing events logged for audit.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Detect shell portability errors in test output",
+      "description": "As FADE, I want to detect when regression tests fail due to shell portability issues so I can distinguish fixable errors from real failures.",
+      "acceptanceCriteria": [
+        "Capture test output to temporary file when tests fail",
+        "Pattern match against known portability error signatures",
+        "Detect 'head: illegal line count' errors",
+        "Detect 'tail: illegal offset' errors",
+        "Detect 'sed: -i needs an argument' errors",
+        "Return match info: error type, affected file, line number if available",
+        "Detection completes in < 2 seconds"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Apply known fixes from portability whitelist",
+      "description": "As FADE, I want to apply proven safe fixes from a whitelist so I can heal tests autonomously without risk.",
+      "acceptanceCriteria": [
+        "Maintain whitelist of known-safe fix patterns in fade/standards/shell-portability-fixes.sh",
+        "Fix pattern: 'head -n -X' → 'sed \"${X}d\"' (remove last X lines)",
+        "Fix pattern: 'head -n-X' → 'sed \"${X}d\"'",
+        "Fix pattern: 'tail -n +X' → 'tail -n +X' (already portable, but validate)",
+        "Fix pattern: 'sed -i' → 'sed -i.bak' (add backup extension)",
+        "Apply fixes only to files in fade/tests/ directory",
+        "Create backup of original file before applying fix",
+        "Log each fix application to healing-log.md with timestamp, file, pattern, replacement"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Retry tests after healing and continue if successful",
+      "description": "As FADE, I want to retry tests after applying fixes and continue the session if they pass, so overnight runs don't block on fixable issues.",
+      "acceptanceCriteria": [
+        "Re-run regression tests after applying fixes",
+        "If tests pass: commit fixes with message 'chore: auto-heal shell portability (FEAT-012)'",
+        "If tests pass: append success entry to healing-log.md with time saved estimate",
+        "If tests pass: continue to next user story in current PRD",
+        "If tests fail again: attempt up to 3 total healing cycles",
+        "If tests still fail after 3 attempts: exit gracefully with detailed failure log",
+        "Maximum 5 minutes total for all healing attempts",
+        "Display healing summary: 'Auto-healed shell portability issue in 47s. Session continuing.'"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Maintain healing audit log",
+      "description": "As a FADE user, I want all healing events logged so I can review what was fixed overnight and verify safety.",
+      "acceptanceCriteria": [
+        "Create/append to fade/healing-log.md",
+        "Log format: '## YYYY-MM-DD HH:MM - [SEVERITY] PRD-ID/US-ID'",
+        "Log includes: detected error pattern, affected files, fix applied, test result, time to heal",
+        "Log includes: estimated time saved (assume 5.3 hours for overnight blocks)",
+        "Log includes: git commit hash if fix was committed",
+        "healing-log.md is append-only, never auto-deleted",
+        "Log entry created even if healing fails (for debugging)"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Safety constraints enforcement",
+      "description": "As a FADE user, I want strict safety constraints so autonomous healing can't damage production code.",
+      "acceptanceCriteria": [
+        "Healing only applies to files matching 'fade/tests/**/*'",
+        "Healing explicitly blocks patterns: 'src/', 'lib/', 'bin/', any file without 'test' in path",
+        "Healing only applies patterns from approved whitelist (no dynamic pattern generation)",
+        "Each fix creates .bak backup before modification",
+        "If file path doesn't match allowed patterns, log error and skip healing",
+        "Integration test: Attempt to heal file in src/ directory, verify it's blocked"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Document portability patterns in standards",
+      "description": "As a developer, I want shell portability patterns documented so I can write portable tests from the start.",
+      "acceptanceCriteria": [
+        "Create/update fade/standards/shell-portability.md",
+        "Document 'head -n -X' issue and sed alternative",
+        "Document 'sed -i' differences between BSD/GNU",
+        "Document portable alternatives for common operations",
+        "Include examples of correct usage",
+        "Link from architecture.md in standards reference table"
+      ],
+      "priority": 3,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "implementation": "Pure bash, no Python dependencies",
+    "architecture": "Add healing layer in fade/lib/auto-healer.sh, called from run.sh after test failures",
+    "errorDetection": "Grep patterns against test output captured to /tmp/fade-test-output-$$.log",
+    "fixWhitelist": "Stored in fade/standards/shell-portability-fixes.sh as associative arrays",
+    "safetyModel": "Whitelist-only fixes + directory restrictions + backup files",
+    "timeout": "5 minute maximum for all healing attempts, 15 second timeout per fix application",
+    "noAgentFramework": "Does not require specialized agent framework, uses inline bash logic"
+  },
+  "filesToCreate": [
+    "fade/lib/auto-healer.sh",
+    "fade/standards/shell-portability-fixes.sh",
+    "fade/standards/shell-portability.md",
+    "fade/healing-log.md"
+  ],
+  "filesToModify": [
+    {
+      "file": "fade/lib/run_prd.sh",
+      "changes": "Add healing hook after regression test failures. Capture test output, call auto-healer, retry if healed."
+    },
+    {
+      "file": "fade/docs/architecture.md",
+      "changes": "Add autonomous healing section, document safety constraints and audit logging."
+    }
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Detect shell portability errors with >95% accuracy",
+      "Auto-heal head/tail/sed portability issues",
+      "Retry tests and continue session if healed",
+      "Healing-log.md audit trail",
+      "Safety constraints prevent production code modification",
+      "Integration test: Simulate PRD-LC-013 failure, verify auto-heal in <2 minutes"
+    ],
+    "niceToHave": [
+      "Healing success rate metrics in session summary",
+      "Notification when healing occurs (console only for Phase 1)",
+      "Expandable pattern library for future portability issues"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Auto-healing applies wrong fix, breaks tests further",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Whitelist-only fixes with proven patterns. 3-attempt limit. Backup files. Safety constraints on directory access."
+    },
+    {
+      "risk": "Healing masks real test failures",
+      "likelihood": "low",
+      "impact": "high",
+      "mitigation": "Only heals shell syntax errors, not test logic failures. Detailed audit log. User reviews healing-log.md regularly."
+    }
+  ],
+  "estimatedEffort": "1-2 FADE sessions",
+  "definitionOfDone": [
+    "All 6 user stories have passing acceptance criteria",
+    "Integration test simulates overnight failure and verifies auto-heal",
+    "healing-log.md correctly logs all healing events",
+    "Safety constraints verified: cannot modify files outside fade/tests/",
+    "Documentation updated in architecture.md and shell-portability.md",
+    "No false-positive heals in test suite (zero test intent changes)"
+  ]
+}

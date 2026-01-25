@@ -1596,3 +1596,19 @@ For blocked stories, use:
 - Added shell scripts/bash tests row to prompt.md "When to Read Standards" table
 - Files changed: fade/standards/shell-portability.md (new), FADE.md, fade/prompt.md
 - Tests: Word count verified under limit, bash -n syntax check passed
+
+## 2026-01-25 16:30 - US-001: Research context rot in FADE sessions (SPIKE-001) - COMPLETE
+
+- Measured context sizes across 25 archived PRDs (104 completed user stories)
+- Analyzed session start context: ~31,555 tokens (15.8% of 200k window)
+- Analyzed context growth: 6-story PRD ends at ~35,000 tokens (17.5%)
+- Analyzed largest PRD (9 stories): ~38,000 tokens (19% of window)
+- Found 100% completion rate across all PRD sizes (2-9 stories)
+- Compared story quality across session progression: no degradation observed
+- Identified root cause: checkpoint-and-restart pattern prevents context accumulation
+- Documented findings in docs/spike-context-isolation.md
+- Added learning to learned.md: FADE's checkpoint pattern prevents context rot
+- Files changed: docs/spike-context-isolation.md (created), fade/learned.md
+- Tests: Data analysis scripts verified against actual PRD archive
+
+**Key Finding:** FADE does not experience context rot. Sessions use only 16-19% of context window with 100% completion rate. No need for isolated sub-agents.
