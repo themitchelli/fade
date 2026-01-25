@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FADE Dashboard</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>FADE Dashboard</h1>
+            <div class="header-info">
+                <span id="last-refresh">Last refresh: --</span>
+                <button id="refresh-btn" class="btn-refresh">Refresh Now</button>
+            </div>
+        </header>
+
+        <!-- Aggregate Stats -->
+        <section class="aggregate-stats">
+            <div class="stat-card">
+                <div class="stat-label">Active Repos</div>
+                <div class="stat-value" id="active-repos">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Blocked Repos</div>
+                <div class="stat-value blocked" id="blocked-repos">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pending Stories</div>
+                <div class="stat-value" id="pending-stories">--</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Completed Today</div>
+                <div class="stat-value success" id="completed-stories">--</div>
+            </div>
+        </section>
+
+        <!-- Repository Cards -->
+        <section class="repo-grid" id="repo-grid">
+            <!-- Repo cards will be dynamically inserted here -->
+        </section>
+
+        <!-- Expanded View Modal -->
+        <div id="modal-overlay" class="modal-overlay hidden">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="modal-repo-name">Repository Name</h2>
+                    <button class="modal-close" id="modal-close">&times;</button>
+                </div>
+                <div class="modal-body" id="modal-body">
+                    <!-- Expanded view content will be inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/app.js"></script>
+</body>
+</html>

@@ -4797,6 +4797,47 @@ dashboard_auto_discover() {
     fi
 }
 
+dashboard_start_server() {
+    local config_path="$HOME/.fade-dashboard/config.json"
+
+    # Check if config exists
+    if [[ ! -f "$config_path" ]]; then
+        echo -e "${RED}ERROR: Dashboard not configured${NC}"
+        echo ""
+        echo "Run 'fade dashboard --add /path/to/repo' to add repositories"
+        exit 1
+    fi
+
+    # Check if Python 3 is available
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${RED}ERROR: Python 3 is required to run the dashboard server${NC}"
+        echo ""
+        echo "Please install Python 3 and try again"
+        exit 1
+    fi
+
+    # Find dashboard server script
+    local server_script
+    # Try to find it relative to this script
+    local script_dir
+    script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    server_script="$script_dir/fade/lib/dashboard-server.py"
+
+    if [[ ! -f "$server_script" ]]; then
+        echo -e "${RED}ERROR: Dashboard server script not found${NC}"
+        echo "Expected location: $server_script"
+        exit 1
+    fi
+
+    # Make server script executable
+    chmod +x "$server_script" 2>/dev/null || true
+
+    # Launch server
+    echo -e "${CYAN}Starting FADE Dashboard...${NC}"
+    echo ""
+    exec python3 "$server_script"
+}
+
 cmd_dashboard() {
     local action=""
     local repo_path=""
@@ -4843,13 +4884,10 @@ cmd_dashboard() {
                 exit 1
                 ;;
             *)
-                # Default action: start server (to be implemented in US-003)
-                echo -e "${YELLOW}Dashboard server not implemented yet (US-003)${NC}"
+                # Unknown argument
+                echo -e "${RED}Error: Unknown argument '$1'${NC}"
                 echo ""
-                echo "Available commands:"
-                echo "  fade dashboard --add /path/to/repo     Add repository to dashboard"
-                echo "  fade dashboard --list                  List configured repositories"
-                echo "  fade dashboard --discover              Auto-discover repositories"
+                echo "Usage: fade dashboard [--add <path>] [--list] [--discover]"
                 exit 1
                 ;;
         esac
@@ -4867,14 +4905,8 @@ cmd_dashboard() {
             dashboard_auto_discover
             ;;
         "")
-            # No action specified - default to server (US-003)
-            echo -e "${YELLOW}Dashboard server not implemented yet (US-003)${NC}"
-            echo ""
-            echo "Available commands:"
-            echo "  fade dashboard --add /path/to/repo     Add repository to dashboard"
-            echo "  fade dashboard --list                  List configured repositories"
-            echo "  fade dashboard --discover              Auto-discover repositories"
-            exit 1
+            # No action specified - start dashboard server
+            dashboard_start_server
             ;;
     esac
 }

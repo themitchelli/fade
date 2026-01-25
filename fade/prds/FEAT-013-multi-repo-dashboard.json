@@ -68,7 +68,7 @@
         "Optional: --daemon flag runs server in background, writes PID to ~/.fade-dashboard/server.pid"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-004",

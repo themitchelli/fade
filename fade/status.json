@@ -1,0 +1,32 @@
+{
+  "repoName": "FADE",
+  "currentPRD": {
+    "id": "FEAT-013",
+    "name": "Multi-Repo Web Dashboard"
+  },
+  "currentStory": {
+    "id": "US-003",
+    "title": "Dashboard server and web UI"
+  },
+  "iteration": 1,
+  "sessionStartTime": "2026-01-25T16:00:00Z",
+  "model": "sonnet",
+  "mode": "STOP",
+  "status": "running",
+  "workQueue": [
+    {
+      "id": "FEAT-013",
+      "name": "Multi-Repo Web Dashboard",
+      "pendingCount": 5,
+      "totalStories": 7
+    },
+    {
+      "id": "ENH-014",
+      "name": "Complexity-Based Model Selection",
+      "pendingCount": 5,
+      "totalStories": 6
+    }
+  ],
+  "completedThisSession": 0,
+  "lastUpdate": "2026-01-25T16:05:00Z"
+}
