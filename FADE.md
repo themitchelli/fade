@@ -45,6 +45,7 @@ FADE (Framework for Agentic Development and Engineering) provides session memory
 | [Coding](fade/standards/coding.md) | Naming, formatting, error handling, code organization |
 | [Testing](fade/standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
 | [Documentation](fade/standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
+| [Shell Portability](fade/standards/shell-portability.md) | BSD/GNU compatibility, portable alternatives for head/sed/tail |
 
 ---
 

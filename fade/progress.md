@@ -1574,3 +1574,25 @@ For blocked stories, use:
 - All 10 tests in PRD-FEAT-012 passing
 - Files changed: bin/fade-cli, fade/tests/PRD-FEAT-012/*.sh
 - Tests: All 10 tests passed
+
+## 2026-01-25 08:34 - US-006: Document portability patterns in standards (FEAT-012) - COMPLETE
+
+- Created fade/standards/shell-portability.md with comprehensive portability guidelines
+- Documents 'head -n -X' issue: GNU head supports negative line counts, BSD does not
+- Solution documented: Use `sed '$d'` instead of `head -n -1` for removing last line
+- Documents 'sed -i' differences: BSD sed requires backup extension, GNU makes it optional
+- Solution documented: Always use `sed -i.bak` with cleanup for portability
+- Documents 'tail -n +X' pattern: Already portable across BSD and GNU
+- Includes "Portable Alternatives for Common Operations" section with reference table
+- Covers: Remove last N lines, in-place file editing, line extraction with portable commands
+- Includes "Testing for Portability" section with environment detection
+- Includes "Auto-Healing Whitelist" section documenting FEAT-012 fixes
+- Includes code examples throughout showing good vs bad patterns
+- Quick Reference table summarizing common tasks
+- "When to Read This Standard" section with use cases
+- References to GNU Coreutils Manual, FreeBSD Manual Pages, and Shellcheck
+- File is 936 words, well under 1,100 word limit
+- Added Shell Portability row to FADE.md Standards table
+- Added shell scripts/bash tests row to prompt.md "When to Read Standards" table
+- Files changed: fade/standards/shell-portability.md (new), FADE.md, fade/prompt.md
+- Tests: Word count verified under limit, bash -n syntax check passed

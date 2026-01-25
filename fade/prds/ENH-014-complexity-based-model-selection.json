@@ -1,0 +1,179 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-014",
+  "name": "Complexity-Based Model Selection",
+  "description": "Implements intelligent model selection based on PRD complexity, automatically routing simple work to Haiku, complex work to Opus, and balanced work to Sonnet. Reduces costs by 15-30% while improving success rates on complex tasks.",
+  "dependsOn": [],
+  "context": {
+    "problem": "All PRDs default to Sonnet regardless of complexity. Simple fixes waste expensive tokens on over-powered models, while complex architecture work struggles with cost-optimized models. User runs 40-50 PRDs/day across 5 repos, making this inefficiency multiply across portfolio.",
+    "impact": "Opus costs 5x Sonnet, Sonnet costs 12x Haiku. Mismatched model selection wastes budget on simple tasks and risks failure on complex tasks. No learning feedback loop to improve routing decisions.",
+    "opportunity": "Smart routing could reduce costs 15-30% by using Haiku for simple work, while improving quality on complex work with Opus reasoning."
+  },
+  "solution": "Add complexity classification to PRD schema with heuristic analyzer. Route work based on complexity: simple→Haiku, complex→Opus, medium→Sonnet. Log decisions to enable learning. Allow manual override with --model flag.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add complexity field to PRD schema",
+      "description": "As a FADE user, I want to specify PRD complexity so intelligent routing can select the right model.",
+      "acceptanceCriteria": [
+        "Add optional 'complexity' field to PRD JSON schema (values: 'simple', 'medium', 'complex')",
+        "If missing, defaults to 'medium' (current behavior preserved)",
+        "fade new --complexity=simple creates PRD with complexity field",
+        "fade new without flag prompts: 'Complexity? [simple/Medium/complex]'",
+        "Validate complexity value in PRD schema (reject invalid values)",
+        "Display complexity in fade status output: '[simple] ENH-014' vs '[complex] FEAT-012'"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Heuristic complexity analyzer",
+      "description": "As FADE, I want to suggest complexity based on PRD content so users don't have to classify manually.",
+      "acceptanceCriteria": [
+        "Create analyze_complexity() function in bin/fade-cli",
+        "Heuristic rules: Count acceptance criteria (AC count > 15 = complex, < 5 = simple)",
+        "Heuristic rules: Check for keywords ('architecture', 'refactor', 'integrate', 'migrate' → complex)",
+        "Heuristic rules: Check for keywords ('typo', 'fix', 'update docs', 'add test' → simple)",
+        "Heuristic rules: Check estimatedEffort field ('>1 week' → complex, '<4 hours' → simple)",
+        "Heuristic rules: Check dependsOn array (dependencies > 2 → complex)",
+        "fade new suggests complexity: 'Suggested complexity: complex (15 ACs, contains \"architecture\")'",
+        "User can accept or override suggestion",
+        "Log heuristic reasoning to learned.md for review"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Intelligent model routing",
+      "description": "As FADE, I want to route PRDs to appropriate models based on complexity so costs are optimized and quality improves.",
+      "acceptanceCriteria": [
+        "Update cmd_run() to read complexity field from PRD",
+        "Routing logic: complexity='simple' AND no --model override → use haiku",
+        "Routing logic: complexity='complex' AND no --model override → use opus",
+        "Routing logic: complexity='medium' OR missing → use sonnet (default)",
+        "Routing logic: --model flag always overrides complexity-based routing",
+        "Routing logic: FADE_MODEL env var overrides complexity, but --model flag overrides both",
+        "Display selected model in iteration banner: 'Iteration 1 - model: haiku (complexity: simple)'",
+        "Log routing decision to progress.md: 'Model selection: haiku (complexity=simple, no override)'"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Model selection audit trail",
+      "description": "As a FADE user, I want visibility into model routing decisions so I can review cost/quality tradeoffs.",
+      "acceptanceCriteria": [
+        "Append model selection to progress.md after each PRD: '## Model Usage: haiku (complexity: simple, duration: 23m, cost est: $0.15)'",
+        "Include estimated cost based on model pricing (opus: $15/$75, sonnet: $3/$15, haiku: $0.25/$1.25 per 1M tokens)",
+        "Estimate tokens used based on context size + PRD size (rough: chars / 4)",
+        "Create fade/model-usage.md log tracking all model selections",
+        "Format: '| Date | PRD | Complexity | Model | Override | Duration | Est. Cost |'",
+        "Aggregate stats at bottom: 'Total sessions: 47, Haiku: 12 ($1.80), Sonnet: 32 ($48.00), Opus: 3 ($45.00)'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Complexity validation on existing PRDs",
+      "description": "As a FADE user, I want to validate and classify existing PRDs so I benefit from intelligent routing immediately.",
+      "acceptanceCriteria": [
+        "Create 'fade classify' command to analyze existing PRDs",
+        "Scan fade/prds/ and fade/prd-archive/ for PRDs missing complexity field",
+        "Run heuristic analyzer on each PRD",
+        "Display suggested complexity with reasoning",
+        "Prompt: 'Update PRD with suggested complexity? [y/N]'",
+        "If yes: update PRD JSON file with complexity field",
+        "Create summary report: 'Classified 21 PRDs: 5 simple, 12 medium, 4 complex'",
+        "Log all classifications to learned.md for validation"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Documentation and help updates",
+      "description": "As a developer, I want clear documentation on complexity classification so I write better PRDs.",
+      "acceptanceCriteria": [
+        "Update README.md with complexity guidance section",
+        "Document heuristics: what makes a PRD simple vs complex",
+        "Add examples: 'Simple: typo fix, add logging. Medium: new feature. Complex: architecture refactor, multi-service integration'",
+        "Update 'fade new --help' with complexity flag documentation",
+        "Update fade/docs/architecture.md with model routing decision tree",
+        "Add complexity to PRD template in standards/",
+        "Link from FADE.md to complexity documentation"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "implementation": "Pure bash, extend existing cmd_run() and cmd_new()",
+    "heuristics": "Rule-based analyzer, not ML. Tunable thresholds in config.",
+    "costModel": "Rough estimates based on public Anthropic pricing, tracks trends not exact costs",
+    "backward_compatibility": "Missing complexity field defaults to 'medium' (Sonnet), preserving current behavior",
+    "override_precedence": "--model flag > FADE_MODEL env var > complexity routing > default (sonnet)"
+  },
+  "filesToCreate": [
+    "fade/model-usage.md"
+  ],
+  "filesToModify": [
+    {
+      "file": "bin/fade-cli",
+      "changes": "Add analyze_complexity(), update cmd_run() for routing, update cmd_new() for prompting, add cmd_classify()"
+    },
+    {
+      "file": "README.md",
+      "changes": "Add complexity classification section with examples and guidance"
+    },
+    {
+      "file": "fade/docs/architecture.md",
+      "changes": "Document model routing logic and decision tree"
+    }
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Complexity field in PRD schema (simple/medium/complex)",
+      "Automatic routing: simple→haiku, medium→sonnet, complex→opus",
+      "Manual override preserved (--model flag works)",
+      "Model selection logged to progress.md and model-usage.md",
+      "Heuristic analyzer suggests complexity for new PRDs",
+      "Backward compatible (missing complexity defaults to medium/sonnet)"
+    ],
+    "niceToHave": [
+      "Cost estimates in model-usage.md",
+      "fade classify command to update existing PRDs",
+      "Aggregate cost/quality metrics over time",
+      "Learning feedback: track which complexity assignments led to failures"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Heuristic misclassifies PRDs, routes complex work to Haiku",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Conservative defaults (if uncertain, use sonnet). User can override with --model. Log classifications to learned.md for review and tuning."
+    },
+    {
+      "risk": "Cost estimates are inaccurate, mislead users",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Clearly label as estimates, use for trend analysis not billing. Note: 'Estimates based on context size, not actual API usage.'"
+    }
+  ],
+  "estimatedEffort": "4-6 hours (1 FADE session)",
+  "definitionOfDone": [
+    "All 6 user stories have passing acceptance criteria",
+    "PRD schema accepts complexity field (validates values)",
+    "fade new prompts for complexity with heuristic suggestion",
+    "cmd_run() routes based on complexity (simple→haiku, medium→sonnet, complex→opus)",
+    "Manual override with --model flag works correctly",
+    "Model selection logged to progress.md and model-usage.md",
+    "Documentation updated in README.md and architecture.md",
+    "Backward compatible (existing PRDs without complexity still work)"
+  ]
+}

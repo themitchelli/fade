@@ -63,6 +63,7 @@ Before starting work, check if any standards in `standards/` apply to your task.
 | Writing tests | `standards/testing.md` |
 | Writing documentation | `standards/documentation.md` |
 | System design, new services, infrastructure | `standards/architecture.md` |
+| Shell scripts, bash tests, CI/CD scripts | `standards/shell-portability.md` |
 
 **Specifically:** When working on API endpoints, read `standards/api-security.md` first.
 

@@ -1,0 +1,247 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-013",
+  "name": "Multi-Repo Web Dashboard",
+  "description": "Implements a lightweight web dashboard for monitoring FADE sessions across multiple repositories in real-time. Provides centralized visibility into work queues, active sessions, completed work, regression tests, and key documentation across all FADE projects.",
+  "dependsOn": [],
+  "context": {
+    "problem": "User runs FADE autonomously across 3-5 repositories simultaneously (fade, ai-built-actuarial-model, fade-prd-generator, assumptionsmanager, etc.). No visibility into progress when away from terminal. Must SSH into each repo separately to check status. Overnight YOLO runs are black boxes until completion. No way to monitor from phone/tablet while away.",
+    "realWorldScenario": "User starts FADE YOLO at 01:30, goes to sleep. Wakes at 07:00 and checks progress. Currently must: (1) SSH to each machine, (2) cd to each repo, (3) run 'fade status', (4) read progress.md. Takes 15-20 minutes. Want instant overview from any device.",
+    "impact": "Zero visibility into autonomous work means anxiety about failures, wasted time checking each repo, inability to react to issues remotely. Dashboard would provide peace of mind and faster issue detection."
+  },
+  "solution": "Create lightweight web dashboard that aggregates FADE status across repositories. Each FADE session writes status.json every 60 seconds. Central dashboard server reads these files, displays unified view. Accessible via http://localhost:8080 or remote IP. Auto-refreshes every 30 seconds for pseudo real-time updates.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Session status export to JSON",
+      "description": "As FADE, I want to export current session state to JSON so external tools can monitor progress.",
+      "acceptanceCriteria": [
+        "During FADE run/yolo, write fade/status.json every 60 seconds",
+        "JSON includes: repo name, current PRD, current story, iteration count, start time, model, mode (STOP/ALL/YOLO)",
+        "JSON includes: work queue (list of pending PRDs with story counts)",
+        "JSON includes: completed count (stories done this session)",
+        "JSON includes: last update timestamp (ISO 8601 format)",
+        "JSON includes: session status (running/blocked/complete), if blocked: reason",
+        "If session completes, write final status with completion timestamp",
+        "If session blocks, include error details from failed.log",
+        "JSON is atomic write (tmp file + rename to prevent partial reads)",
+        "Maximum 1KB file size (compress if needed)"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Dashboard configuration and discovery",
+      "description": "As a FADE user, I want to configure which repos the dashboard monitors so I see all my active projects.",
+      "acceptanceCriteria": [
+        "Create ~/.fade-dashboard/config.json for dashboard settings",
+        "Config includes: list of repo paths to monitor",
+        "Config includes: dashboard port (default: 8080), refresh interval (default: 30s)",
+        "Config includes: repo display names (map path to friendly name)",
+        "Example: {'repos': [{'path': '~/Documents/GitHub/fade', 'name': 'FADE Core'}, {'path': '~/Documents/GitHub/livecalc', 'name': 'LiveCalc'}]}",
+        "Command 'fade dashboard --add /path/to/repo' updates config",
+        "Command 'fade dashboard --list' shows configured repos",
+        "Auto-discover: Scan parent directory for other FADE repos (finds FADE.md), suggest adding",
+        "Validate paths on startup, warn if repo not found"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Dashboard server and web UI",
+      "description": "As a FADE user, I want to access a web dashboard so I can monitor all repos from any device.",
+      "acceptanceCriteria": [
+        "Create fade/lib/dashboard-server.py (simple Python HTTP server, no external dependencies)",
+        "Command 'fade dashboard' starts server on http://localhost:8080",
+        "Server reads all status.json files from configured repos every 30s",
+        "Server serves static HTML/CSS/JS from fade/templates/dashboard/",
+        "Dashboard shows: Repo cards with current status (running/blocked/complete)",
+        "Each card shows: Current PRD, current story, progress (X/Y stories), elapsed time, model",
+        "Each card color-coded: green (running), red (blocked), gray (idle), blue (complete)",
+        "Click repo card → expanded view with full queue, recent progress entries",
+        "Auto-refresh every 30s via JavaScript (no manual reload needed)",
+        "Mobile-friendly responsive design (works on phone/tablet)",
+        "Server runs in foreground (Ctrl+C to stop), logs requests to console",
+        "Optional: --daemon flag runs server in background, writes PID to ~/.fade-dashboard/server.pid"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Work queue and archive visualization",
+      "description": "As a FADE user, I want to see work queues and archives across repos so I understand total workload.",
+      "acceptanceCriteria": [
+        "Dashboard aggregate view shows: Total PRDs queued across all repos",
+        "Aggregate view shows: Total stories pending, total stories completed today",
+        "Per-repo expanded view shows: PRD queue with story counts (same as 'fade status')",
+        "Per-repo expanded view shows: Archive list (completed PRDs) with completion dates",
+        "Per-repo expanded view shows: Regression test results (pass/fail counts, last run time)",
+        "Filterable view: Show only blocked repos, show only active repos",
+        "Sortable: By activity (most recent first), by workload (most stories pending)",
+        "Click PRD name → view PRD JSON (syntax highlighted)",
+        "Click archive entry → view completion summary from progress.md"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Live documentation viewer",
+      "description": "As a FADE user, I want to view key documentation files so I can review context without opening editor.",
+      "acceptanceCriteria": [
+        "Per-repo view includes 'Docs' tab",
+        "Docs tab shows: FADE.md, progress.md (last 50 entries), learned.md, healing-log.md",
+        "Markdown files rendered with syntax highlighting and formatting",
+        "Click filename → view full content in modal overlay",
+        "Search within doc: Ctrl+F searches rendered content",
+        "Last modified timestamp shown for each doc",
+        "Link to raw file (opens in editor) for power users",
+        "Mobile view: Docs are scrollable, readable on small screens"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Session history and analytics",
+      "description": "As a FADE user, I want to see historical trends so I understand productivity patterns.",
+      "acceptanceCriteria": [
+        "Dashboard aggregate view shows: Sessions run today, this week, this month",
+        "Aggregate view shows: Total stories completed (across all repos)",
+        "Aggregate view shows: Model usage breakdown (Haiku: 20%, Sonnet: 65%, Opus: 15%)",
+        "Per-repo view shows: Session timeline (last 10 sessions with duration, outcomes)",
+        "Per-repo view shows: Healing events count (auto-fixed issues)",
+        "Chart: Stories completed per day (simple ASCII bar chart or sparkline)",
+        "Chart: Session duration over time (identify trends)",
+        "Export button: Download aggregate stats as JSON for external analysis"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Remote access and security",
+      "description": "As a FADE user, I want secure remote access so I can monitor from anywhere.",
+      "acceptanceCriteria": [
+        "Dashboard server binds to 0.0.0.0 with --remote flag (default: localhost only)",
+        "Display server URL on startup: 'Dashboard running at http://192.168.1.100:8080'",
+        "Optional basic auth: --password flag sets password, prompts on web access",
+        "HTTPS support via --cert and --key flags (self-signed cert OK for local network)",
+        "Warning if --remote used without auth: 'WARNING: Dashboard accessible to network without password'",
+        "Rate limiting: Max 100 requests/minute per IP to prevent abuse",
+        "Access log: Record all connections with IP, timestamp, endpoint",
+        "Graceful shutdown: Ctrl+C writes 'Server stopped' to log, closes connections cleanly"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "implementation": "Python 3 HTTP server (stdlib only, no pip dependencies for portability)",
+    "frontend": "Static HTML/CSS/vanilla JavaScript (no frameworks, fast loading)",
+    "dataFlow": "FADE writes status.json → Dashboard reads files → Browser polls dashboard → JavaScript updates DOM",
+    "realtime": "Pseudo real-time via polling (30s intervals), not WebSockets (simpler, more compatible)",
+    "security": "Basic auth sufficient for local network, HTTPS for internet exposure",
+    "architecture": "Stateless server, all state in files (FADE philosophy)",
+    "performance": "Minimal overhead, status.json write takes <10ms, dashboard serves <50ms response time"
+  },
+  "filesToCreate": [
+    "fade/lib/dashboard-server.py",
+    "fade/lib/export-status.sh",
+    "fade/templates/dashboard/index.html",
+    "fade/templates/dashboard/styles.css",
+    "fade/templates/dashboard/app.js",
+    "~/.fade-dashboard/config.json"
+  ],
+  "filesToModify": [
+    {
+      "file": "bin/fade-cli",
+      "changes": "Add 'fade dashboard' command, integrate status.json export into run loop (every 60s)"
+    },
+    {
+      "file": "fade/lib/run_prd.sh",
+      "changes": "Call export_status_json() after each iteration to write status.json"
+    },
+    {
+      "file": "README.md",
+      "changes": "Add dashboard section with screenshots, setup instructions, remote access guide"
+    }
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "FADE sessions write status.json every 60 seconds",
+      "Dashboard server runs on http://localhost:8080",
+      "Dashboard shows all configured repos with current status",
+      "Auto-refresh every 30s without manual reload",
+      "Mobile-friendly responsive design",
+      "Work queue and archive visualization per repo",
+      "Aggregate view across all repos",
+      "Command 'fade dashboard --add' configures repos"
+    ],
+    "niceToHave": [
+      "Live documentation viewer for FADE.md, progress.md",
+      "Session history and analytics charts",
+      "Remote access with basic auth",
+      "HTTPS support for secure remote monitoring",
+      "Export aggregate stats as JSON"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Dashboard server crashes, user doesn't notice monitoring stopped",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Server writes heartbeat to log. Optional systemd/launchd service for auto-restart."
+    },
+    {
+      "risk": "Unsecured remote access exposes repo contents to network",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Default to localhost only. Require explicit --remote flag. Warn if no auth. Recommend HTTPS for internet."
+    },
+    {
+      "risk": "Frequent status.json writes impact FADE performance",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Write every 60s (not every iteration). Async write in background. Max 1KB file size."
+    }
+  ],
+  "estimatedEffort": "8-12 hours (1-2 FADE sessions)",
+  "definitionOfDone": [
+    "All 7 user stories have passing acceptance criteria",
+    "FADE run/yolo writes status.json every 60 seconds with current state",
+    "Dashboard server starts with 'fade dashboard', accessible at localhost:8080",
+    "Dashboard displays all configured repos with color-coded status cards",
+    "Auto-refresh every 30s via JavaScript",
+    "Work queue, archive, test results visible per repo",
+    "Aggregate stats across all repos shown",
+    "Mobile-responsive design works on phone/tablet",
+    "Documentation updated with dashboard setup and usage guide",
+    "Demo: Start FADE YOLO in 3 repos, open dashboard, see all 3 updating in real-time"
+  ],
+  "demoScenario": {
+    "setup": [
+      "User has 3 repos: fade, livecalc, assumptionsmanager",
+      "Each has FADE initialized and PRDs queued",
+      "User runs: cd fade && fade yolo &",
+      "User runs: cd ../livecalc && fade yolo &",
+      "User runs: cd ../assumptionsmanager && fade yolo &",
+      "User runs: fade dashboard"
+    ],
+    "expected": [
+      "Dashboard opens at http://localhost:8080",
+      "Shows 3 cards: FADE Core (running), LiveCalc (running), AssumptionsManager (running)",
+      "Each card shows current PRD, story, progress, elapsed time",
+      "Cards update every 30s as work progresses",
+      "User clicks 'LiveCalc' card → sees full queue (5 PRDs, 23 stories pending)",
+      "User switches to phone → dashboard still accessible, mobile layout works",
+      "User wakes up at 7am → checks phone → sees 'FADE Core (complete), LiveCalc (blocked), AssumptionsManager (complete)'",
+      "User clicks blocked repo → sees error: 'Test failed: head: illegal line count'",
+      "User decides whether to intervene or let auto-healing handle it"
+    ]
+  }
+}

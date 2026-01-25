@@ -106,7 +106,7 @@
         "Link from architecture.md in standards reference table"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
