@@ -1787,3 +1787,27 @@ For blocked stories, use:
 - Tests: bash -n syntax check passed
 - All 8 acceptance criteria verified and passing
 
+## 2026-01-25 18:00 - US-007: Remote access and security (FEAT-013) - COMPLETE
+
+- Added --remote, --password, --cert, --key flags to cmd_dashboard() in bin/fade-cli
+- Updated dashboard_start_server() to pass flags to Python dashboard server
+- Enhanced dashboard-server.py with comprehensive remote access features:
+  - RateLimiter class: tracks requests per IP, enforces 100 requests/minute limit
+  - Basic authentication: check_auth() validates password via HTTP Basic Auth header
+  - Rate limiting: check_rate_limit() validates IP against rate limiter
+  - Access logging: log_message() writes to ~/.fade-dashboard/access.log with IP, timestamp, endpoint
+  - HTTPS support: SSL context wraps socket when --cert and --key provided
+  - Network binding: binds to 0.0.0.0 when --remote flag used (default: 127.0.0.1)
+  - Local IP detection: _get_local_ip() discovers actual network IP for display
+  - Security warning: displays yellow warning when --remote used without --password
+- Server startup displays appropriate URL based on configuration:
+  - Local only: "Dashboard running at http://localhost:8080"
+  - Remote: "Dashboard running at http://192.168.1.100:8080" + "Also accessible at http://localhost:8080"
+  - HTTPS: Protocol changes to https:// when cert/key provided
+- Graceful shutdown: _signal_handler prints "Server stopped" and closes cleanly on Ctrl+C
+- Updated help text with Dashboard Options section documenting all remote access flags
+- Added examples showing remote access, password auth, and HTTPS usage
+- Files changed: bin/fade-cli, fade/lib/dashboard-server.py
+- Tests: bash -n syntax check passed, Python syntax check passed
+- All 8 acceptance criteria verified and passing
+

@@ -5111,6 +5111,11 @@ dashboard_auto_discover() {
 }
 
 dashboard_start_server() {
+    local remote_flag="${1:-}"
+    local password_flag="${2:-}"
+    local cert_flag="${3:-}"
+    local key_flag="${4:-}"
+
     local config_path="$HOME/.fade-dashboard/config.json"
 
     # Check if config exists
@@ -5145,16 +5150,20 @@ dashboard_start_server() {
     # Make server script executable
     chmod +x "$server_script" 2>/dev/null || true
 
-    # Launch server
+    # Launch server with flags
     echo -e "${CYAN}Starting FADE Dashboard...${NC}"
     echo ""
-    exec python3 "$server_script"
+    exec python3 "$server_script" $remote_flag $password_flag $cert_flag $key_flag
 }
 
 cmd_dashboard() {
     local action=""
     local repo_path=""
     local repo_name=""
+    local remote_flag=""
+    local password_flag=""
+    local cert_flag=""
+    local key_flag=""
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -5190,17 +5199,51 @@ cmd_dashboard() {
                 action="discover"
                 shift
                 ;;
+            --remote)
+                remote_flag="--remote"
+                shift
+                ;;
+            --password)
+                shift
+                if [[ $# -gt 0 ]]; then
+                    password_flag="--password $1"
+                    shift
+                else
+                    echo -e "${RED}Error: --password requires a value${NC}"
+                    exit 1
+                fi
+                ;;
+            --cert)
+                shift
+                if [[ $# -gt 0 ]]; then
+                    cert_flag="--cert $1"
+                    shift
+                else
+                    echo -e "${RED}Error: --cert requires a path to certificate file${NC}"
+                    exit 1
+                fi
+                ;;
+            --key)
+                shift
+                if [[ $# -gt 0 ]]; then
+                    key_flag="--key $1"
+                    shift
+                else
+                    echo -e "${RED}Error: --key requires a path to key file${NC}"
+                    exit 1
+                fi
+                ;;
             -*)
                 echo -e "${RED}Error: Unknown option '$1'${NC}"
                 echo ""
-                echo "Usage: fade dashboard [--add <path>] [--list] [--discover]"
+                echo "Usage: fade dashboard [--add <path>] [--list] [--discover] [--remote] [--password <pass>] [--cert <file>] [--key <file>]"
                 exit 1
                 ;;
             *)
                 # Unknown argument
                 echo -e "${RED}Error: Unknown argument '$1'${NC}"
                 echo ""
-                echo "Usage: fade dashboard [--add <path>] [--list] [--discover]"
+                echo "Usage: fade dashboard [--add <path>] [--list] [--discover] [--remote] [--password <pass>] [--cert <file>] [--key <file>]"
                 exit 1
                 ;;
         esac
@@ -5219,7 +5262,7 @@ cmd_dashboard() {
             ;;
         "")
             # No action specified - start dashboard server
-            dashboard_start_server
+            dashboard_start_server "$remote_flag" "$password_flag" "$cert_flag" "$key_flag"
             ;;
     esac
 }
@@ -5416,6 +5459,14 @@ ${YELLOW}Dashboard Options:${NC}
   --list          List all configured repositories
   --discover      Auto-discover FADE repos in parent directory
                   - Prompts to add each discovered repo
+  --remote        Bind server to 0.0.0.0 for network access (default: localhost only)
+                  - Makes dashboard accessible from other devices on the network
+  --password <pw> Require basic authentication with given password
+                  - Recommended when using --remote for security
+  --cert <file>   Path to SSL certificate file for HTTPS support
+                  - Requires --key flag as well
+  --key <file>    Path to SSL key file for HTTPS support
+                  - Requires --cert flag as well
 
 ${YELLOW}Run Options:${NC}
   --yolo          Skip prompts, use ALL mode with --dangerously-skip-permissions
@@ -5504,6 +5555,10 @@ ${YELLOW}Examples:${NC}
   fade dashboard --add ~/projects/myapp --name "My App"  # Add with custom name
   fade dashboard --list                  # Show configured repositories
   fade dashboard --discover              # Auto-discover FADE repos in parent dir
+  fade dashboard                         # Start dashboard server (localhost only)
+  fade dashboard --remote                # Start server accessible from network
+  fade dashboard --remote --password secret123  # Secure remote access with password
+  fade dashboard --cert cert.pem --key key.pem  # Start with HTTPS support
   fade run                               # See queue, pick mode, start working
   fade run --model sonnet                # Run with Sonnet to save tokens
   fade yolo                              # 🤘 Full auto mode, no prompts

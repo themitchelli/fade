@@ -137,7 +137,7 @@
         "Graceful shutdown: Ctrl+C writes 'Server stopped' to log, closes connections cleanly"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
