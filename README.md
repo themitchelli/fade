@@ -353,6 +353,65 @@ Examples:
 }
 ```
 
+### Complexity Classification
+
+FADE uses intelligent model selection based on PRD complexity to optimize cost and quality. Each PRD can have a complexity field (`simple`, `medium`, `complex`) that determines which Claude model is used.
+
+#### What Makes a PRD Simple vs Complex
+
+| Complexity | Description | Examples | Model Used |
+|------------|-------------|----------|------------|
+| **Simple** | Quick fixes, small changes, well-defined tasks | Typo fix, add logging, update docs, add single test | Haiku |
+| **Medium** | Standard features, moderate scope, clear requirements | New API endpoint, UI component, refactor single module | Sonnet (default) |
+| **Complex** | Architectural changes, multi-system integration, high uncertainty | Architecture refactor, multi-service integration, framework migration, cross-cutting concerns | Opus |
+
+#### Heuristic Rules
+
+FADE's analyze_complexity() function uses these rules:
+
+- **AC count**: > 15 criteria = complex (+2), < 5 = simple (-1)
+- **Complex keywords**: "architecture", "refactor", "integrate", "migrate" → complex (+2)
+- **Simple keywords**: "typo", "fix", "update docs", "add test" → simple (-2)
+- **Estimated effort**: > 1 week = complex (+2), < 4 hours = simple (-1)
+- **Dependencies**: > 2 dependencies = complex (+1)
+
+Score interpretation: ≥ 3 = complex, ≤ -2 = simple, else medium
+
+#### Setting Complexity
+
+When creating a new PRD:
+
+```bash
+# Explicit complexity
+fade new feature "User auth" --complexity=complex
+
+# Interactive prompt (suggests based on heuristics)
+fade new feature "User authentication"
+# → Suggested complexity: complex (contains "authentication", estimated >1 week)
+# → Complexity? [simple/Medium/complex]:
+```
+
+To classify existing PRDs:
+
+```bash
+fade classify
+# Scans all PRDs, suggests complexity, prompts for update
+```
+
+#### Model Override
+
+Complexity-based routing can be overridden:
+
+```bash
+# Force specific model regardless of complexity
+fade run --model opus
+
+# Environment variable override
+FADE_MODEL=haiku fade run
+
+# Override precedence: --model flag > FADE_MODEL env > complexity routing > default (sonnet)
+```
+
 ## Execution Modes
 
 ### STOP Mode

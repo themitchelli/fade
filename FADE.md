@@ -180,6 +180,7 @@ When releasing:
 - FADE dogfoods itself - this repo uses FADE for development
 - The `fade/` folder contains FADE's own context files
 - PRDs drive all feature development
+- **Complexity-based model routing:** See [fade/docs/architecture.md](fade/docs/architecture.md) for decision tree and heuristics. PRDs can specify `complexity` field (simple/medium/complex) to optimize Claude model selection (haiku/sonnet/opus)
 
 ---
 

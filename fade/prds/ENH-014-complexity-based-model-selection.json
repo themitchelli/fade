@@ -108,7 +108,7 @@
         "Link from FADE.md to complexity documentation"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

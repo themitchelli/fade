@@ -1866,3 +1866,22 @@ For blocked stories, use:
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, manual testing verified all functionality
 
+## 2026-01-25 - US-006: Documentation and help updates (ENH-014) - COMPLETE
+
+- Updated README.md with comprehensive Complexity Classification section after PRD Structure
+- Section includes: what makes PRDs simple/medium/complex, heuristic rules, setting complexity, model override
+- Added examples table showing complexity levels with model mapping (simple→haiku, medium→sonnet, complex→opus)
+- Documented all heuristic rules: AC count thresholds, keywords, effort estimates, dependencies
+- Updated fade new help text in bin/fade-cli with --complexity flag documentation
+- Added "New Options" section explaining complexity parameter and heuristic suggestion behavior
+- Created fade/docs/architecture.md with comprehensive model routing decision tree
+- Decision tree includes ASCII art flowchart showing override precedence and routing logic
+- Documented all routing scenarios with examples (simple PRD, complex with override, missing complexity)
+- Created fade/standards/prd-template.md with complete PRD schema documentation
+- Template includes complexity field definition, examples for simple/medium/complex PRDs
+- Template documents when to set complexity, validation checklist, anti-patterns to avoid
+- Updated FADE.md Additional Context section with link to architecture.md and complexity explanation
+- All documentation includes concrete examples: typo fix (simple), API endpoint (medium), multi-service integration (complex)
+- Files changed: README.md, bin/fade-cli, fade/docs/architecture.md (new), fade/standards/prd-template.md (new), FADE.md
+- Tests: bash -n syntax check passed
+

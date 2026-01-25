@@ -5770,7 +5770,7 @@ ${YELLOW}Commands:${NC}
   help          Show this help message
 
 ${YELLOW}New Command:${NC}
-  fade new <type> "<name>"
+  fade new <type> "<name>" [--complexity=VALUE]
 
   Types: feature, bug, toil, enhancement, spike
 
@@ -5778,6 +5778,13 @@ ${YELLOW}New Command:${NC}
   - Uses fade/prds/ for contained structure
   - Falls back to prds/ for legacy structure
   - For spikes, also creates and switches to a feature branch
+
+${YELLOW}New Options:${NC}
+  --complexity=VALUE    Set complexity: simple, medium, complex (optional)
+                        - Determines which Claude model is used (simple=haiku, medium=sonnet, complex=opus)
+                        - If omitted, prompts interactively with heuristic suggestion
+                        - Heuristics analyze AC count, keywords, effort, dependencies
+                        - See 'fade classify' to analyze existing PRDs
 
 ${YELLOW}Discover Command:${NC}
   fade discover [--prd] "<feature name>"
