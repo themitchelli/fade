@@ -1,23 +1,26 @@
 # FADE Project Export
-# Generated: 2026-01-22 08:59:47
+# Generated: 2026-01-23 18:22:14
 
 ## Versions
 
-- FADE CLI: v0.3.0
-- prompt.md: v0.3.0
+- FADE CLI: v0.3.1
+- prompt.md: v0.3.1
 
 ## Folder Structure
 
 ```
 ./bin/fade-cli
-./CLAUDE.md
-./docs/index.html
 ./fade-export.txt
-./FADE.md
+./fade/discoveries/README.md
 ./fade/learned.md
 ./fade/prd-archive/BUG-001-macos-head-compatibility.json
 ./fade/prd-archive/BUG-002-yolo-exit-signal-mismatch.json
 ./fade/prd-archive/BUG-003-prd-completion-integrity.json
+./fade/prd-archive/BUG-004-test-generation-broken.json
+./fade/prd-archive/BUG-005-all-mode-iteration-bugs-prd-mismatch-and-output-ca.json
+./fade/prd-archive/BUG-006-test-generation-output-still-leaking-into-count-va.json
+./fade/prd-archive/CHORE-001-release-031.json
+./fade/prd-archive/ENH-001-architecture-standards-file.json
 ./fade/prd-archive/ENH-006-incremental-checkpointing.json
 ./fade/prd-archive/ENH-006-prd-archive.json
 ./fade/prd-archive/ENH-006-version-tracking.json
@@ -25,27 +28,45 @@
 ./fade/prd-archive/ENH-008-rate-limit-handling.json
 ./fade/prd-archive/ENH-009-regression-testing.json
 ./fade/prd-archive/ENH-009-standards-folder.json
+./fade/prd-archive/ENH-010-idempotent-update.json
+./fade/prd-archive/ENH-011-strategic-context.json
 ./fade/prd-archive/FEAT-006-fade-update.json
 ./fade/prd-archive/FEAT-007-contained-structure.json
-./fade/prds/ENH-010-idempotent-update.json
-./fade/prds/README.md
-./fade/progress.md
-./fade/prompt.md
-./fade/standards/api-security.md
-./fade/standards/coding.md
-./fade/standards/documentation.md
-./fade/standards/git.md
-./fade/standards/testing.md
-./fade/tests/run.sh
-./README.md
-./VERSION
+./fade/prd-archive/FEAT-008-codebase-mapping.json
+./fade/prd-archive/FEAT-009-quick-mode.json
+./fade/tests/BUG-006/prd.json
+./fade/tests/BUG-006/SKIP_us001_01_identify_echo_statements.md
+./fade/tests/BUG-006/SKIP_us001_02_identify_other_functions.md
+./fade/tests/BUG-006/SKIP_us003_01_run_fade_yolo.md
+./fade/tests/BUG-006/test_us001_03_redirect_display_to_stderr.sh
+./fade/tests/BUG-006/test_us001_04_numeric_return_value.sh
+./fade/tests/BUG-006/test_us001_05_comparison_no_syntax_error.sh
+./fade/tests/BUG-006/test_us002_01_validate_numeric.sh
+./fade/tests/BUG-006/test_us002_02_default_to_zero.sh
+./fade/tests/BUG-006/test_us002_03_no_syntax_error_on_leak.sh
+./fade/tests/BUG-006/test_us002_04_flow_completes.sh
+./fade/tests/BUG-006/test_us003_02_no_syntax_error_possible.sh
+./fade/tests/BUG-006/test_us003_03_archive_count_message.sh
+./fade/tests/BUG-006/test_us003_04_no_error_tokens.sh
+./fade/tests/PRD-BUG-006/prd.json
+./fade/tests/PRD-BUG-006/SKIP_us003_02_end_to_end.md
+./fade/tests/PRD-BUG-006/SKIP_us003_03_archive_count.md
+./fade/tests/PRD-BUG-006/SKIP_us003_04_no_error_tokens.md
+./fade/tests/PRD-BUG-006/test_us001_01_stderr_redirect_block.sh
+./fade/tests/PRD-BUG-006/test_us001_02_only_count_to_stdout.sh
+./fade/tests/PRD-BUG-006/test_us002_01_numeric_validation.sh
+./fade/tests/PRD-BUG-006/test_us002_02_default_to_zero.sh
+./fade/tests/PRD-BUG-006/test_us003_01_syntax_valid.sh
+./LICENSE
 ./version-manifest.json
 ```
 
 ## FADE.md
 
 ```markdown
-# Project Name
+<!-- FADE FADE.md v0.3.1 -->
+
+# FADE
 
 <!-- FADE.md - Project context for AI coding agents. This file is READ-ONLY for agents. -->
 
@@ -53,169 +74,143 @@
 
 ## Project Overview
 
-<!--
-Describe what this project does and its purpose. Include:
-- What problem does it solve?
-- Who are the users?
-- What's the current state (MVP, production, legacy)?
--->
-
-Brief description of this project.
+FADE (Framework for Agentic Development and Engineering) provides session memory, context management, and execution orchestration for AI coding agents like Claude Code. It solves the problem of starting every session with zero context by automatically loading project standards, progress history, and learnings from previous sessions.
 
 **Tech Stack:**
-- Language:
-- Framework:
-- Database:
+- Language: Bash (shell script)
+- Framework: None (standalone CLI)
+- Database: None (file-based state)
 
-**Repository:** [link]
+**Repository:** https://github.com/themitchelli/fade
 
 ---
 
 ## Coding Standards
 
-<!--
-Define how code should be written in this project. Link to external style guides
-rather than duplicating them. Include project-specific conventions that differ
-from or extend the standard guides.
--->
-
 ### Style Guides
 
-- **TypeScript:** [Google TypeScript Style Guide](https://google.github.io/styleguide/tsguide.html)
-- **Python:** [PEP 8](https://peps.python.org/pep-0008/)
-- **API Design:** [JSON:API Specification](https://jsonapi.org/)
+- **Bash:** Follow [Google Shell Style Guide](https://google.github.io/styleguide/shellguide.html)
+- **Markdown:** Use standard GitHub-flavored markdown
 
 ### Project Conventions
 
-- Naming: `camelCase` for variables, `PascalCase` for components
-- Tests: Co-locate with source files as `*.test.ts`
+- Naming: `snake_case` for functions, `UPPER_CASE` for constants
+- Tests: Shell scripts in `fade/tests/` with exit code semantics
 - Commits: Conventional commits format (`feat:`, `fix:`, `chore:`)
+- Always run `bash -n bin/fade-cli` to syntax-check before committing
+
+---
+
+## Standards
+
+| Standard | Description |
+|----------|-------------|
+| [API Security](fade/standards/api-security.md) | Authentication, authorization, input validation, secure error handling |
+| [Architecture](fade/standards/architecture.md) | Operational excellence, security, reliability, performance, cost, sustainability |
+| [Git](fade/standards/git.md) | Commit messages, branch naming, FADE-specific conventions |
+| [Coding](fade/standards/coding.md) | Naming, formatting, error handling, code organization |
+| [Testing](fade/standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
+| [Documentation](fade/standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
 
 ---
 
 ## Architecture References
 
-<!--
-Document the high-level architecture and link to detailed design docs.
-Include diagrams, ADRs (Architecture Decision Records), or external references.
-This helps agents understand where new code should go and how components interact.
--->
-
 ### System Overview
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   Client    │────▶│   API       │────▶│  Database   │
-│   (React)   │     │  (Express)  │     │  (Postgres) │
-└─────────────┘     └─────────────┘     └─────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                              fade-cli                                      │
+│                         (bin/fade-cli)                                     │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                            │
+│  Commands:                                                                 │
+│  ├── init       Create FADE structure in a project                        │
+│  ├── new        Create new PRD files                                      │
+│  ├── map        Analyze codebase for FADE.md context                      │
+│  ├── run        Execute Claude Code with FADE context                     │
+│  ├── yolo       Run in autonomous mode (skip permissions)                 │
+│  ├── status     Show work queue                                           │
+│  ├── export     Export context for Claude web                             │
+│  ├── migrate    Move legacy files to contained structure                  │
+│  ├── update     Update CLI and templates                                  │
+│  └── version    Show version info                                         │
+│                                                                            │
+│  Context Files (per project):                                             │
+│  ├── FADE.md        Project context (human-curated)                       │
+│  ├── prompt.md      Execution protocol for Claude                         │
+│  ├── progress.md    Session history (append-only)                         │
+│  ├── learned.md     Discoveries (append-only)                             │
+│  ├── standards/     Coding standards documents                            │
+│  ├── prds/          PRD queue                                             │
+│  └── tests/         Regression tests                                      │
+│                                                                            │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key Documents
 
 | Document | Location | Description |
 |----------|----------|-------------|
-| API Design | `docs/api.md` | REST endpoint specifications |
-| Data Model | `docs/schema.md` | Database schema and relationships |
-| Auth Flow | `docs/auth.md` | Authentication and authorization |
+| CLI Script | `bin/fade-cli` | Main executable (~5000 lines) |
+| Prompt Template | `fade/prompt.md` | Execution protocol embedded in context |
+| Version Manifest | `version-manifest.json` | Version tracking for updates |
 
 ---
 
 ## Off-Limits Modules
 
-<!--
-List modules, files, or directories that agents should NOT modify.
-Common reasons: legacy code pending rewrite, external vendor code,
-security-sensitive modules requiring human review, or code with
-complex implicit dependencies.
--->
-
 | Path | Reason | Contact |
 |------|--------|---------|
-| `src/legacy/` | Legacy code scheduled for rewrite in Q2 | @backend-team |
-| `src/auth/crypto.ts` | Security-critical, requires human review | @security |
-| `vendor/` | Third-party code, do not modify | n/a |
-
-**If you need to modify an off-limits module:** Stop and ask the human for guidance.
+| None currently | - | - |
 
 ---
 
 ## Session Boundaries
 
-<!--
-Define constraints for AI coding sessions. This helps agents understand
-what they can and cannot do, and when to ask for human input.
--->
-
 ### Allowed Actions
 
-- Create, modify, delete files in `src/`, `tests/`, `docs/`
-- Run tests and linters
-- Install dev dependencies
-- Create feature branches
+- Create, modify, delete files in `bin/`, `fade/`, `docs/`
+- Run bash syntax checks (`bash -n bin/fade-cli`)
+- Modify templates embedded in fade-cli
+- Update documentation (README.md, standards/)
 
 ### Requires Human Approval
 
-- Changes to CI/CD configuration (`.github/`, `Dockerfile`)
-- Database migrations
-- Changes to authentication or authorization logic
-- Dependency upgrades (major versions)
-- Deleting more than 5 files in one session
+- Changing the update mechanism (could break user installations)
+- Modifying version numbers (coordinated release)
+- Changes to signal detection logic (could break loop)
 
 ### Never Do
 
 - Push directly to `main` or `master`
-- Modify `.env` files or commit secrets
-- Run destructive database commands in production
-- Disable security features or linters
+- Commit broken syntax (always run `bash -n` first)
+- Remove backwards compatibility for legacy structure
 
 ---
 
 ## System Context
 
-<!--
-Provide awareness of where this work fits in the broader project landscape.
-This helps agents understand sequencing, dependencies, and what else is happening.
--->
-
 ### Current Challenges
 
-<!--
-What problems or constraints is the team currently dealing with?
-Examples: technical debt, scaling issues, team transitions, deadline pressure
--->
-
-- Challenge 1: description
-- Challenge 2: description
+- Test generation relies on Claude Code executing in non-interactive mode
+- Rate limiting can interrupt long PRD executions
 
 ### Transition Plan
 
-<!--
-If the project is undergoing a migration, refactor, or multi-phase initiative,
-document the phases here. Use status indicators:
-  - Link to doc (if detailed plan exists elsewhere)
-  - NOT WRITTEN (planned but not documented)
-  - ✅ COMPLETE (done)
-  - ← CURRENT (active phase)
--->
-
 | Phase | Description | Status |
 |-------|-------------|--------|
-| Phase 1 | Description | ✅ COMPLETE |
-| Phase 2 | Description | ← CURRENT |
-| Phase 3 | Description | NOT WRITTEN |
+| v0.1.x | Basic loop orchestration | ✅ COMPLETE |
+| v0.2.x | Contained structure, archives | ✅ COMPLETE |
+| v0.3.x | Standards, testing, codebase mapping | ✅ COMPLETE |
+| v0.4.x | NPM distribution, quick mode | ← PLANNED |
 
 ### Active Work Items
 
-<!--
-What else is in flight? This helps agents avoid conflicts and understand priorities.
-Include different work types: features, bugs, chores, spikes
-Format: [TYPE] Brief description - Owner/Status
--->
-
-- [FEATURE] Example feature being built - @developer / in progress
-- [BUG] Example bug being investigated - @developer / blocked
-- [CHORE] Example operational task - unassigned
-- [SPIKE] Example research/investigation - @developer / complete
+- [CHORE] Release 0.3.1 documentation update - in progress
+- [FEATURE] Quick mode for ad-hoc tasks - FEAT-009 / queued
+- [FEATURE] NPM distribution - FEAT-010 / queued
+- [FEATURE] Discovery phase - FEAT-011 / queued
 
 ---
 
@@ -223,25 +218,51 @@ Format: [TYPE] Brief description - Owner/Status
 
 ### Local Development
 
-- How to run locally
-- Required environment variables
-- Test commands
+```bash
+# Test changes
+bash -n bin/fade-cli  # Syntax check
 
-### Production/Deployment
+# Link for testing
+sudo ln -sf "$(pwd)/bin/fade-cli" /usr/local/bin/fade
 
-- Deployment process
-- Production environment details
+# Run help to verify
+fade help
+```
+
+### Version Bumping
+
+When releasing:
+1. Update `FADE_VERSION` in `bin/fade-cli`
+2. Update `ARTIFACT_VERSION` in `bin/fade-cli`
+3. Update version in `fade/prompt.md` header
+4. Update `version-manifest.json`
+5. Update `VERSION` file
 
 ---
 
 ## Additional Context
 
-<!--
-Add any other information that helps agents work effectively:
-- Known gotchas or quirks
-- Recent major changes
-- Upcoming planned changes that affect current work
--->
+- FADE dogfoods itself - this repo uses FADE for development
+- The `fade/` folder contains FADE's own context files
+- PRDs drive all feature development
+
+---
+
+## Target Architecture
+
+- Simple shell script (no Node.js, no Python runtime requirements)
+- File-based state (no database, no network storage)
+- Works offline (except for `fade update` which fetches from GitHub)
+
+---
+
+## Fragile Areas
+
+| Area | Why it's fragile |
+|------|------------------|
+| `cmd_run()` loop | Complex signal detection and restart logic |
+| Template strings | Heredocs with placeholders, easy to break quoting |
+| `detect_interruption()` | Pattern matching for various Claude error states |
 ```
 
 ## Standards
@@ -427,6 +448,150 @@ Read this document when:
 - Reviewing API code for security
 - Designing authentication or authorization flows
 - Handling user input or database queries
+```
+
+### architecture.md
+
+```markdown
+# Architecture Standard
+
+Questions to guide architectural decisions. Reference this when designing systems, adding services, or making infrastructure choices.
+
+*Adapted from [AWS Well-Architected Framework](https://aws.amazon.com/architecture/well-architected/). Principles are generic; apply to any project type.*
+
+---
+
+## 1. Operational Excellence
+
+Can you deploy, monitor, and evolve this system confidently?
+
+**Consider:**
+- How will you deploy changes? (CI/CD, rollback strategy)
+- What happens when something fails at 2 AM? (alerts, runbooks)
+- How do you know the system is healthy? (metrics, logs, dashboards)
+- Can the team maintain this in 6 months? (documentation, simplicity)
+
+**Apply:**
+- Automate deployments—no manual steps in production
+- Add health checks and structured logging from the start
+- Design for incremental changes, not big-bang releases
+- Document operational procedures alongside code
+
+---
+
+## 2. Security
+
+Is access controlled and data protected at every layer?
+
+**Consider:**
+- Who can access this system? How is identity verified?
+- What's the blast radius if credentials leak?
+- Is sensitive data encrypted in transit and at rest?
+- How do you detect and respond to security incidents?
+
+**Apply:**
+- Apply least-privilege: grant minimum necessary permissions
+- Never store secrets in code; use environment variables or vaults
+- Encrypt all external communication (HTTPS, TLS)
+- Log access attempts; alert on anomalies
+
+*See also: `standards/api-security.md` for API-specific security.*
+
+---
+
+## 3. Reliability
+
+Will this system recover gracefully when things go wrong?
+
+**Consider:**
+- What happens when a dependency fails? (timeout, retry, fallback)
+- How does the system behave under unexpected load?
+- What's the recovery process for data loss?
+- Are there single points of failure?
+
+**Apply:**
+- Design for failure: timeouts, circuit breakers, graceful degradation
+- Test failure scenarios (dependency down, disk full, OOM)
+- Implement backups and verify restore procedures
+- Avoid single points of failure in critical paths
+
+---
+
+## 4. Performance
+
+Is the system fast enough for users and efficient in resource use?
+
+**Consider:**
+- What are the latency requirements? (P50, P95, P99)
+- Where are the likely bottlenecks? (DB queries, network, compute)
+- How does performance scale with load?
+- Are you caching effectively without creating consistency issues?
+
+**Apply:**
+- Measure before optimizing—profile, don't guess
+- Cache at appropriate layers (CDN, app, DB)
+- Use async/background processing for slow operations
+- Set performance budgets and monitor against them
+
+---
+
+## 5. Cost
+
+Are you spending efficiently, avoiding waste?
+
+**Consider:**
+- What does this cost to run? (compute, storage, bandwidth)
+- Are resources right-sized, or over-provisioned "just in case"?
+- Do you have visibility into cost drivers?
+- What's the cost of not doing this? (opportunity cost)
+
+**Apply:**
+- Start small; scale based on measured need
+- Use autoscaling rather than over-provisioning
+- Review costs regularly; sunset unused resources
+- Consider cost in technology choices (managed vs self-hosted)
+
+---
+
+## 6. Sustainability
+
+Is this system efficient and maintainable long-term?
+
+**Consider:**
+- Are resources utilized efficiently? (CPU, memory, storage)
+- Does the architecture minimize unnecessary computation?
+- Can this system evolve without major rewrites?
+- Is the technical debt manageable?
+
+**Apply:**
+- Right-size resources; shut down idle environments
+- Avoid premature optimization but design for efficiency
+- Keep dependencies minimal and up-to-date
+- Refactor incrementally; don't let debt compound
+
+---
+
+## Quick Reference
+
+| Pillar | Core Question |
+|--------|---------------|
+| Operational Excellence | Can we deploy and operate confidently? |
+| Security | Is access controlled, data protected? |
+| Reliability | Does it recover gracefully from failure? |
+| Performance | Is it fast enough, efficient enough? |
+| Cost | Are we spending wisely? |
+| Sustainability | Is it efficient and maintainable long-term? |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Designing a new system or service
+- Adding significant infrastructure (databases, queues, caches)
+- Making technology choices (build vs buy, language, framework)
+- Reviewing architecture decisions
+- Planning for scale or reliability improvements
 ```
 
 ### coding.md
@@ -1317,113 +1482,413 @@ Read this document when:
 
 ## PRD Queue
 
-### ENH-010-idempotent-update.json
+### ENH-013-c4-diagram-generation.json
 
 ```json
 {
   "type": "enhancement",
   "project": "FADE",
-  "id": "ENH-010",
-  "name": "Idempotent Update - Ensure Complete Folder Structure",
-  "description": "Extend fade update to ensure any FADE project has complete folder structure. The principle: fade update should be idempotent - it brings any FADE project up to current spec, non-destructively. Never overwrites existing files, never deletes anything, only fills gaps and reports what was created.",
-  "dependsOn": ["ENH-009"],
+  "id": "ENH-013",
+  "name": "C4 Architecture Diagram Generation",
+  "description": "Extend 'fade map' to generate interactive C4 architecture diagrams as a self-contained HTML file. Uses Mermaid.js for rendering, requiring no external dependencies at view time. Provides visual representation of system context, containers, and components detected during codebase analysis.",
+  "dependsOn": ["FEAT-008"],
   "userStories": [
     {
       "id": "US-001",
-      "title": "Create fade/tests/ folder if missing",
-      "description": "As a developer running fade update on an older project, I want the tests folder created so I'm ready for regression testing",
+      "title": "Generate System Context diagram",
+      "description": "As a developer, I want fade map to generate a C4 System Context diagram showing my system and its external dependencies",
       "acceptanceCriteria": [
-        "fade update checks if fade/tests/ directory exists",
-        "If missing, creates fade/tests/ directory",
-        "Reports 'create: fade/tests/' when created",
-        "Reports 'skip: fade/tests/ (already exists)' when present",
-        "Does not modify or delete existing fade/tests/ if present"
+        "fade map --diagram generates architecture.html in project root",
+        "HTML file is self-contained with embedded Mermaid.js CDN link",
+        "Diagram shows the system as central element",
+        "External systems detected from dependencies (databases, APIs, auth providers) shown as external actors",
+        "Users/actors inferred from framework type (web app, CLI, API server)",
+        "Relationships labeled with interaction type (uses, reads, writes)"
       ],
       "priority": 1,
       "passes": true
     },
     {
       "id": "US-002",
-      "title": "Create fade/tests/run.sh scaffold if missing",
-      "description": "As a developer running fade update, I want the test runner scaffold created so regression tests can execute",
+      "title": "Generate Container diagram",
+      "description": "As a developer, I want a C4 Container diagram showing the major containers in my application",
       "acceptanceCriteria": [
-        "fade update checks if fade/tests/run.sh exists",
-        "If missing, creates run.sh with same scaffold as fade init (loops PRD-* folders, writes failures to failed.log)",
-        "run.sh is created with executable permissions (chmod +x)",
-        "Reports 'create: fade/tests/run.sh' when created",
-        "Reports 'skip: fade/tests/run.sh (already exists)' when present",
-        "Never overwrites existing run.sh even if different from template"
+        "Container diagram shows application containers (web app, API, workers, etc.)",
+        "Database containers detected from ORM/driver dependencies",
+        "Message queues detected from queue dependencies (Redis, RabbitMQ, SQS)",
+        "External service integrations shown as external containers",
+        "Technology labels included (Node.js, PostgreSQL, Redis, etc.)",
+        "Container diagram accessible via tab/toggle in HTML output"
       ],
       "priority": 2,
       "passes": true
     },
     {
       "id": "US-003",
-      "title": "Create fade/prd-archive/ folder if missing",
-      "description": "As a developer running fade update on an older project, I want the prd-archive folder created so completed PRDs can be archived",
+      "title": "Generate Component diagram",
+      "description": "As a developer, I want a C4 Component diagram showing the major components within my application",
       "acceptanceCriteria": [
-        "fade update checks if fade/prd-archive/ directory exists",
-        "If missing, creates fade/prd-archive/ directory",
-        "Reports 'create: fade/prd-archive/' when created",
-        "Reports 'skip: fade/prd-archive/ (already exists)' when present",
-        "Does not modify or delete existing fade/prd-archive/ if present"
+        "Components detected from directory structure (routes/, controllers/, services/, models/)",
+        "Component relationships inferred from import patterns where detectable",
+        "Components grouped by architectural layer (presentation, business, data)",
+        "Each component labeled with its responsibility based on directory/file naming",
+        "Component diagram accessible via tab/toggle in HTML output"
       ],
       "priority": 3,
       "passes": true
     },
     {
       "id": "US-004",
-      "title": "Create CLAUDE.md redirect if missing",
-      "description": "As a developer using Claude Code, I want CLAUDE.md created so Claude Code finds FADE context automatically",
+      "title": "Interactive HTML output",
+      "description": "As a developer, I want the HTML diagram to be interactive and self-contained for easy sharing",
       "acceptanceCriteria": [
-        "fade update checks if CLAUDE.md exists in project root",
-        "If missing, creates CLAUDE.md with redirect content pointing to FADE.md and fade/prompt.md",
-        "Redirect content matches: '# Claude Code Entry Point\\n\\nRead `FADE.md` for project context and `fade/prompt.md` for execution protocol.'",
-        "Reports 'create: CLAUDE.md' when created",
-        "Reports 'skip: CLAUDE.md (already exists)' when present",
-        "Never overwrites existing CLAUDE.md even if different from template"
+        "Single HTML file with no external dependencies except CDN (works offline after first load)",
+        "Tabs or buttons to switch between Context, Container, and Component views",
+        "Zoom and pan controls for large diagrams",
+        "Dark/light mode toggle",
+        "Export to PNG button using Mermaid's built-in export",
+        "Generated timestamp and FADE version shown in footer"
       ],
       "priority": 4,
       "passes": true
     },
     {
       "id": "US-005",
-      "title": "Summary report of structure check",
-      "description": "As a developer, I want a clear summary of what fade update did to my project structure",
+      "title": "Diagram customization options",
+      "description": "As a developer, I want to customize what's included in the generated diagrams",
       "acceptanceCriteria": [
-        "fade update shows 'Project Structure Check' section in output",
-        "Section appears after CLI and prompt.md updates, before completion",
-        "Lists each item checked with create/skip status",
-        "Shows count summary: 'N items created, M items already present'",
-        "If nothing created, shows 'Project structure up to date'"
+        "--diagram=context generates only System Context diagram",
+        "--diagram=container generates Context + Container diagrams",
+        "--diagram=component generates all three levels (default)",
+        "--diagram-output=PATH allows custom output location",
+        "--diagram-title='My System' sets custom system name",
+        "Options documented in fade map --help"
       ],
       "priority": 5,
       "passes": true
     },
     {
       "id": "US-006",
-      "title": "Structure check runs on all update modes",
-      "description": "As a developer, I want structure check to run whether I'm updating CLI, prompt.md, or checking for updates",
+      "title": "Mermaid DSL export",
+      "description": "As a developer, I want to export the raw Mermaid diagram code for use in documentation",
       "acceptanceCriteria": [
-        "Structure check runs on normal 'fade update'",
-        "Structure check runs on 'fade update --cli-only'",
-        "Structure check output shown in 'fade update --check' (reports what would be created)",
-        "In --check mode, structure gaps reported as 'would create: X' without actually creating"
+        "--diagram-format=mermaid outputs .mmd files instead of HTML",
+        "Generates context.mmd, container.mmd, component.mmd as separate files",
+        "Files can be embedded in README.md or other markdown docs",
+        "Includes comments in .mmd files explaining each section",
+        "Format documented in fade map --help"
       ],
       "priority": 6,
       "passes": true
     }
   ],
   "technicalNotes": {
-    "implementation": "Add structure check function to cmd_update() after existing CLI and prompt.md update logic",
-    "runShTemplate": "Use exact same heredoc template as cmd_init for run.sh scaffold to ensure consistency",
-    "claudeMdTemplate": "# Claude Code Entry Point\n\nRead `FADE.md` for project context and `fade/prompt.md` for execution protocol.",
-    "considerations": [
-      "Must be non-destructive - never overwrite, never delete",
-      "Structure check should work even if fade/ folder doesn't exist yet (create it)",
-      "Support both contained structure (fade/) and legacy structure (root level)",
-      "Keep DRY - extract shared templates/logic with cmd_init if practical"
-    ]
+    "approach": "Generate Mermaid C4 diagram syntax from codebase analysis results. Use Mermaid's native C4 diagram support (C4Context, C4Container, C4Component).",
+    "mermaidC4Syntax": "Mermaid supports C4 natively: Person(), System(), Container(), Component(), Rel(), SystemDb(), SystemQueue()",
+    "htmlTemplate": "Embed Mermaid via CDN, include tab switching logic, zoom controls via CSS transform. Single file ~50KB uncompressed.",
+    "detectionHeuristics": {
+      "databases": "Look for pg, mysql, mongodb, prisma, sequelize, typeorm, mongoose in dependencies",
+      "queues": "Look for redis, ioredis, bull, amqplib, sqs in dependencies",
+      "auth": "Look for passport, auth0, firebase-admin, jsonwebtoken in dependencies",
+      "storage": "Look for aws-sdk, @google-cloud/storage, multer in dependencies"
+    },
+    "limitations": "Component relationships are best-effort based on directory structure. Deep import analysis would require AST parsing which is out of scope for shell-based approach.",
+    "futureEnhancement": "Could add --deep-diagram flag that uses Claude to analyze actual code relationships for more accurate component diagrams."
+  }
+}
+```
+
+### FEAT-010-npm-distribution.json
+
+```json
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-010",
+  "name": "NPM Package Distribution",
+  "description": "Package FADE CLI as an NPM package for easier installation and updates. Instead of downloading a shell script manually, users can run 'npx fade-cli' or 'npm install -g fade-cli'. Inspired by GSD's 'npx get-shit-done-cc' which dramatically simplifies adoption.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "NPM package structure",
+      "description": "As a maintainer, I want FADE packaged as a valid NPM package so it can be published to npmjs.com",
+      "acceptanceCriteria": [
+        "package.json exists with name, version, description, bin, repository fields",
+        "Package name is 'fade-cli' (or similar available name)",
+        "bin field points to the fade shell script",
+        "files field includes only necessary files (bin/, prompts, templates)",
+        "License field matches LICENSE file"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "npx execution",
+      "description": "As a developer, I want to run 'npx fade-cli init' without installing anything globally",
+      "acceptanceCriteria": [
+        "npx fade-cli runs the CLI without global install",
+        "All fade commands work via npx (init, run, status, etc.)",
+        "First run downloads package, subsequent runs use cache",
+        "Works on macOS, Linux, and Windows (via WSL/Git Bash)"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Global installation",
+      "description": "As a developer, I want to install FADE globally so I can run 'fade' directly",
+      "acceptanceCriteria": [
+        "npm install -g fade-cli works",
+        "After install, 'fade' command is available in PATH",
+        "Global install doesn't conflict with local installs",
+        "Uninstall works: npm uninstall -g fade-cli"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Version management via npm",
+      "description": "As a developer, I want npm update to update FADE so I don't need 'fade update'",
+      "acceptanceCriteria": [
+        "npm update -g fade-cli updates to latest version",
+        "npx fade-cli@latest always runs latest version",
+        "Version in package.json matches FADE_VERSION in script",
+        "fade version shows npm package version"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Preserve fade update for artifacts",
+      "description": "As a developer, I want 'fade update' to still update prompt.md and standards even when using npm",
+      "acceptanceCriteria": [
+        "fade update still updates local prompt.md from latest template",
+        "fade update still syncs standards/ folder",
+        "fade update --check still works for artifact version checking",
+        "npm handles CLI binary, fade update handles project artifacts"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Documentation for npm installation",
+      "description": "As a new user, I want clear docs on how to install and use FADE via npm",
+      "acceptanceCriteria": [
+        "README.md has Installation section with npm commands",
+        "Shows both npx (no install) and global install options",
+        "Documents upgrade path: npx fade-cli@latest or npm update -g",
+        "Notes that fade update is still needed for project artifact updates"
+      ],
+      "priority": 6,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "packageName": "Check npm registry for availability. Options: fade-cli, fade-dev, fade-framework",
+    "binWrapper": "May need a small node wrapper that calls the shell script, or convert entire CLI to node",
+    "windowsSupport": "Shell script works in Git Bash/WSL. Could add .cmd wrapper for native Windows later.",
+    "publishWorkflow": "Add GitHub Action to publish to npm on release tag",
+    "gsdComparison": "GSD uses npx get-shit-done-cc with interactive installer. FADE can start simpler - just the CLI, no installer wizard."
+  }
+}
+```
+
+### FEAT-011-discovery-phase.json
+
+```json
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-011",
+  "name": "Discovery Phase for PRD Authoring",
+  "description": "Add 'fade discover' command that captures implementation preferences and context before PRD writing. GSD's /gsd:discuss-phase asks about layout, interactions, API structure, and content tone BEFORE planning. This helps write better PRDs by surfacing decisions upfront.",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Interactive discovery session",
+      "description": "As a developer planning a feature, I want an interactive discovery session that helps me think through implementation details",
+      "acceptanceCriteria": [
+        "fade discover command launches interactive Claude session",
+        "Session asks about: goals, constraints, tech preferences, edge cases",
+        "Questions are contextual based on project type (from FADE.md)",
+        "Session can be exited early with Ctrl+C",
+        "Documented in fade help"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Discovery output format",
+      "description": "As a developer, I want discovery session output saved in a format useful for PRD writing",
+      "acceptanceCriteria": [
+        "Output saved to fade/discoveries/{slug}.md",
+        "Format includes: Summary, Decisions, Open Questions, Suggested Stories",
+        "Slug derived from feature name provided at start of session",
+        "Output is markdown suitable for reference when writing PRD"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Domain-specific questions",
+      "description": "As a developer, I want discovery to ask relevant questions based on what I'm building",
+      "acceptanceCriteria": [
+        "If building API endpoint: asks about auth, validation, error handling, response format",
+        "If building UI component: asks about layout, interactions, states, accessibility",
+        "If building data feature: asks about schema, validation, migrations, backwards compat",
+        "Question sets defined in standards/ or embedded in prompt"
+      ],
+      "priority": 3,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Generate PRD draft from discovery",
+      "description": "As a developer, I want to optionally generate a PRD draft from my discovery session",
+      "acceptanceCriteria": [
+        "fade discover --prd generates PRD JSON after discovery session",
+        "PRD includes user stories derived from discussed features",
+        "Acceptance criteria derived from decisions made in discovery",
+        "PRD marked as draft for human review before activation",
+        "Output path: fade/prds/FEAT-NNN-{slug}.json"
+      ],
+      "priority": 4,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Codebase-aware discovery",
+      "description": "As a developer, I want discovery to understand my existing code so questions are relevant",
+      "acceptanceCriteria": [
+        "Discovery reads FADE.md for project context",
+        "If fade map was run, discovery references its output",
+        "Questions reference actual patterns in codebase ('I see you use Express, should this endpoint follow the same pattern as /api/users?')",
+        "Flags if proposed feature might conflict with existing code"
+      ],
+      "priority": 5,
+      "passes": true
+    },
+    {
+      "id": "US-006",
+      "title": "Reference discovery in PRD execution",
+      "description": "As a developer executing a PRD, I want Claude to reference the discovery doc for context",
+      "acceptanceCriteria": [
+        "PRD JSON can include 'discoveryDoc' field pointing to discoveries/*.md",
+        "fade run includes referenced discovery doc in context",
+        "Discovery doc provides implementation intent beyond acceptance criteria",
+        "Optional field - PRDs work fine without discovery docs"
+      ],
+      "priority": 6,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "gsdComparison": "GSD's discuss-phase captures preferences before planning. FADE's discovery is similar but outputs to file for async PRD writing.",
+    "sessionMode": "Discovery is interactive by nature - not automated like fade run. Could use claude without --print.",
+    "integrationWithMap": "fade map analyzes code structure. fade discover captures human intent. Together they provide complete context for PRD.",
+    "questionBank": "Consider making question sets extensible via standards/discovery-*.md files"
+  }
+}
+```
+
+### SPIKE-001-context-isolation.json
+
+```json
+{
+  "type": "spike",
+  "project": "FADE",
+  "id": "SPIKE-001",
+  "name": "Context Isolation via Sub-Agents",
+  "description": "Experiment with spawning fresh Claude sessions for story execution to prevent context degradation. GSD's core insight is that Claude quality degrades as context fills ('context rot'). Their solution: each executor gets an isolated 200k-token window. This ENH explores whether FADE can benefit from similar isolation.",
+  "dependsOn": [],
+  "branchName": "spike/context-isolation",
+  "outputArtifact": "docs/spike-context-isolation.md",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Research context rot in FADE sessions",
+      "description": "As a maintainer, I want to understand if/when context rot affects FADE sessions so we can decide if isolation is needed",
+      "acceptanceCriteria": [
+        "Document typical context size after N stories (measure with real PRDs)",
+        "Identify at what context size quality noticeably degrades",
+        "Compare output quality: story 1 vs story 5 vs story 10 in same session",
+        "Document findings in learned.md or spike output"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Design isolation architecture",
+      "description": "As a maintainer, I want a design doc for how sub-agent isolation would work in FADE",
+      "acceptanceCriteria": [
+        "Document how parent orchestrator would spawn child executors",
+        "Define what context each executor receives (PRD, FADE.md, relevant files)",
+        "Define how executor reports completion back to orchestrator",
+        "Address: how does learned.md propagate between sessions?",
+        "Address: how are git commits coordinated across executors?",
+        "Output is a design doc, not implementation"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Prototype isolated story execution",
+      "description": "As a maintainer, I want a minimal prototype of spawning a fresh Claude session per story",
+      "acceptanceCriteria": [
+        "fade run --isolated flag triggers new execution mode",
+        "Each story spawns: claude --print with story-specific context",
+        "Context includes: FADE.md, current story from PRD, relevant standards",
+        "Context excludes: progress.md history, previous story details",
+        "Prototype can execute single story, report success/failure"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Compare isolated vs continuous execution",
+      "description": "As a maintainer, I want to compare quality and speed of isolated vs continuous modes",
+      "acceptanceCriteria": [
+        "Run same PRD (5+ stories) in both modes",
+        "Measure: total time, token usage, output quality",
+        "Quality assessment: code correctness, test pass rate, style consistency",
+        "Document trade-offs: isolation overhead vs context rot prevention",
+        "Make recommendation: default mode, when to use each"
+      ],
+      "priority": 4,
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Learned.md synchronization",
+      "description": "As a developer using isolated mode, I want learnings from each story to be available to subsequent stories",
+      "acceptanceCriteria": [
+        "After each isolated story completes, orchestrator reads its learned.md additions",
+        "Learnings are injected into context for next story",
+        "Handles case where executor adds to learned.md mid-story",
+        "Learnings persist even if session is interrupted"
+      ],
+      "priority": 5,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "gsdApproach": "GSD spawns 'executors' with fresh 200k windows. They can run in parallel when tasks are independent.",
+    "fadeConstraint": "FADE is serial by design (one story at a time). Isolation benefits us for long PRDs, not parallelism.",
+    "implementation": "Could use claude --print with context file, or explore Claude Code's Task tool for sub-agents.",
+    "riskOfOverengineering": "This may not be needed if FADE's checkpoint-and-restart pattern already mitigates context rot. US-001 should determine if this is a real problem before building solutions.",
+    "spikeFirst": "Consider making this a SPIKE type PRD if US-001 reveals context rot isn't a significant issue."
   }
 }
 ```
@@ -1433,6 +1898,11 @@ Read this document when:
 - BUG-001-macos-head-compatibility.json
 - BUG-002-yolo-exit-signal-mismatch.json
 - BUG-003-prd-completion-integrity.json
+- BUG-004-test-generation-broken.json
+- BUG-005-all-mode-iteration-bugs-prd-mismatch-and-output-ca.json
+- BUG-006-test-generation-output-still-leaking-into-count-va.json
+- CHORE-001-release-031.json
+- ENH-001-architecture-standards-file.json
 - ENH-006-incremental-checkpointing.json
 - ENH-006-prd-archive.json
 - ENH-006-version-tracking.json
@@ -1440,6 +1910,10 @@ Read this document when:
 - ENH-008-rate-limit-handling.json
 - ENH-009-regression-testing.json
 - ENH-009-standards-folder.json
+- ENH-010-idempotent-update.json
+- ENH-011-strategic-context.json
 - FEAT-006-fade-update.json
 - FEAT-007-contained-structure.json
+- FEAT-008-codebase-mapping.json
+- FEAT-009-quick-mode.json
 

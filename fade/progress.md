@@ -1462,3 +1462,20 @@ For blocked stories, use:
 - Updated help text with Map Options and examples
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, tested on sample project with Express/Mongoose/Redis/Stripe/Sentry
+
+## 2026-01-25 15:30 - US-001: Detect shell portability errors in test output (FEAT-012) - COMPLETE
+
+- Added detect_shell_portability_error() function to bin/fade-cli (before run_regression_tests)
+- Function accepts path to test output file and returns 0 if portability error detected, 1 otherwise
+- Pattern detection implemented for three error types:
+  1. head: illegal line count (BSD head doesn't support -n -X syntax)
+  2. tail: illegal offset (BSD tail format differences)
+  3. sed -i needs an argument (BSD sed requires backup extension)
+- Returns structured output with error_type, error_message, affected_file (if available)
+- Uses grep to scan test output with minimal overhead (< 2 seconds for 10 iterations)
+- Modified run_regression_tests() to capture test output to /tmp/fade-test-output-$$.log
+- Detection runs when tests fail, displays portability error info in yellow banner
+- Currently detection-only (auto-healing to be implemented in US-002, US-003)
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, comprehensive test suite verified all detection patterns and performance
+

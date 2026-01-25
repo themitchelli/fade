@@ -1102,6 +1102,62 @@ get_tests_dir() {
     fi
 }
 
+# ============================================================================
+# AUTO-HEALER: Shell Portability Detection (FEAT-012)
+# ============================================================================
+
+# Detect shell portability errors in test output
+# Args: $1 - path to test output file
+# Returns: 0 if portability error detected, 1 if not
+# Outputs: JSON-like format with error_type, file, line_number (if available)
+detect_shell_portability_error() {
+    local output_file="$1"
+
+    if [[ ! -f "$output_file" ]]; then
+        return 1
+    fi
+
+    # Pattern 1: head: illegal line count
+    # Example: "head: illegal line count -- -1"
+    if grep -q "head: illegal line count" "$output_file"; then
+        local error_line=$(grep "head: illegal line count" "$output_file" | head -n 1)
+        local affected_file=$(grep -B 5 "head: illegal line count" "$output_file" | grep -E "^(Running|Testing|File):" | tail -n 1 | awk '{print $NF}')
+
+        echo "error_type=head_illegal_line_count"
+        echo "error_message=$error_line"
+        [[ -n "$affected_file" ]] && echo "affected_file=$affected_file"
+        return 0
+    fi
+
+    # Pattern 2: tail: illegal offset
+    # Example: "tail: illegal offset -- +1"
+    if grep -q "tail: illegal offset" "$output_file"; then
+        local error_line=$(grep "tail: illegal offset" "$output_file" | head -n 1)
+        local affected_file=$(grep -B 5 "tail: illegal offset" "$output_file" | grep -E "^(Running|Testing|File):" | tail -n 1 | awk '{print $NF}')
+
+        echo "error_type=tail_illegal_offset"
+        echo "error_message=$error_line"
+        [[ -n "$affected_file" ]] && echo "affected_file=$affected_file"
+        return 0
+    fi
+
+    # Pattern 3: sed -i needs an argument (BSD sed)
+    # Example: "sed: -i may not be used with stdin"
+    # or "sed: 1: \"file.txt\": invalid command code"
+    if grep -qE "sed:.*-i.*(may not|needs|requires|argument)" "$output_file"; then
+        local error_line=$(grep -E "sed:.*-i.*(may not|needs|requires|argument)" "$output_file" | head -n 1)
+        local affected_file=$(grep -B 5 -E "sed:.*-i" "$output_file" | grep -E "^(Running|Testing|File):" | tail -n 1 | awk '{print $NF}')
+
+        echo "error_type=sed_i_needs_argument"
+        echo "error_message=$error_line"
+        [[ -n "$affected_file" ]] && echo "affected_file=$affected_file"
+        return 0
+    fi
+
+    # No portability errors detected
+    return 1
+}
+
 # Run regression tests after STORY_DONE
 # Returns 0 on success/no tests, 1 on test failure
 # Respects 5-minute timeout to encourage test curation
@@ -1109,6 +1165,7 @@ run_regression_tests() {
     local tests_dir=$(get_tests_dir)
     local run_script="$tests_dir/run.sh"
     local timeout_seconds=300  # 5 minutes
+    local test_output_file="/tmp/fade-test-output-$$.log"
 
     # Check if run.sh exists and is executable
     if [[ ! -x "$run_script" ]]; then
@@ -1130,14 +1187,14 @@ run_regression_tests() {
 
     if command -v timeout &> /dev/null; then
         # GNU coreutils timeout (Linux)
-        output=$(timeout "$timeout_seconds" "$run_script" 2>&1)
+        output=$(timeout "$timeout_seconds" "$run_script" 2>&1 | tee "$test_output_file")
         exit_code=$?
         if [[ $exit_code -eq 124 ]]; then
             timed_out=true
         fi
     elif command -v gtimeout &> /dev/null; then
         # GNU coreutils timeout via Homebrew (macOS)
-        output=$(gtimeout "$timeout_seconds" "$run_script" 2>&1)
+        output=$(gtimeout "$timeout_seconds" "$run_script" 2>&1 | tee "$test_output_file")
         exit_code=$?
         if [[ $exit_code -eq 124 ]]; then
             timed_out=true
@@ -1145,12 +1202,10 @@ run_regression_tests() {
     else
         # No timeout command available - run without timeout
         # macOS doesn't have timeout by default
-        output=$("$run_script" 2>&1)
+        output=$("$run_script" 2>&1 | tee "$test_output_file")
         exit_code=$?
     fi
 
-    # Display test output
-    echo "$output"
     echo ""
 
     # Handle timeout
@@ -1165,11 +1220,39 @@ run_regression_tests() {
         echo "  - Keep only tests relevant to current work"
         echo "  - Move comprehensive tests to CI/CD"
         echo ""
+        rm -f "$test_output_file"
         return 1
     fi
 
     # Handle test failure
     if [[ $exit_code -ne 0 ]]; then
+        # Detect shell portability errors
+        local portability_error_info
+        if portability_error_info=$(detect_shell_portability_error "$test_output_file"); then
+            # Portability error detected - for now, just report it
+            # Future: US-002 and US-003 will implement auto-healing
+            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+            echo -e "${YELLOW}🔍 Shell Portability Error Detected${NC}"
+            echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+            echo ""
+            echo "$portability_error_info" | while IFS='=' read -r key value; do
+                case "$key" in
+                    error_type)
+                        echo "Error Type: $value"
+                        ;;
+                    error_message)
+                        echo "Error Message: $value"
+                        ;;
+                    affected_file)
+                        echo "Affected File: $value"
+                        ;;
+                esac
+            done
+            echo ""
+            echo "Note: Auto-healing not yet implemented (FEAT-012 US-002, US-003)"
+            echo ""
+        fi
+
         echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
         echo -e "${RED}❌ Regression Tests FAILED${NC}"
         echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
@@ -1177,6 +1260,7 @@ run_regression_tests() {
         echo "Test failures detected. Iteration blocked until tests pass."
         echo "See: fade/tests/failed.log for details"
         echo ""
+        rm -f "$test_output_file"
         return 1
     fi
 
@@ -1185,6 +1269,7 @@ run_regression_tests() {
     echo -e "${GREEN}✅ Regression Tests PASSED${NC}"
     echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
     echo ""
+    rm -f "$test_output_file"
     return 0
 }
 
