@@ -7558,6 +7558,356 @@ COUNCIL_EOF
     echo "  cat $council_brief_file"
 }
 
+# ============================================================================
+# WORKSPACE COMMANDS
+# ============================================================================
+
+cmd_workspace() {
+    local action="${1:-}"
+
+    if [[ -z "$action" ]]; then
+        echo "Usage: fade workspace <init|list|path>"
+        echo ""
+        echo "Actions:"
+        echo "  init <name>  - Create a new workspace"
+        echo "  list         - List all workspaces"
+        echo "  path         - Show current workspace path"
+        return 1
+    fi
+
+    case "$action" in
+        init)
+            local workspace_name="${2:-}"
+            if [[ -z "$workspace_name" ]]; then
+                echo "Error: Workspace name required"
+                echo "Usage: fade workspace init <name>"
+                return 1
+            fi
+            workspace_init "$workspace_name"
+            ;;
+        list)
+            workspace_list
+            ;;
+        path)
+            workspace_path
+            ;;
+        *)
+            echo "Unknown workspace action: $action"
+            echo "Usage: fade workspace <init|list|path>"
+            return 1
+            ;;
+    esac
+}
+
+workspace_init() {
+    local workspace_name="$1"
+    local workspace_dir="$HOME/.fade/workspaces/$workspace_name"
+
+    # Check if workspace already exists
+    if [[ -d "$workspace_dir" ]]; then
+        echo -e "${YELLOW}Workspace '$workspace_name' already exists at $workspace_dir${NC}"
+        return 1
+    fi
+
+    # Create workspace directory structure
+    mkdir -p "$workspace_dir"
+    mkdir -p "$workspace_dir/standards"
+
+    # Create workspace.json with empty repos array
+    cat > "$workspace_dir/workspace.json" << EOF
+{
+  "name": "$workspace_name",
+  "created": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
+  "repos": []
+}
+EOF
+
+    # Create learned.md for workspace-level learnings
+    cat > "$workspace_dir/learned.md" << EOF
+# Workspace Learnings: $workspace_name
+
+Shared learnings across all repos in this workspace.
+
+---
+
+EOF
+
+    # Create standards README
+    cat > "$workspace_dir/standards/README.md" << EOF
+# Workspace Standards
+
+This directory contains standards that apply to all repos in the workspace.
+
+Standards placed here will be loaded before repo-specific standards, with repo standards taking precedence.
+
+EOF
+
+    echo -e "${GREEN}✓ Workspace created: $workspace_dir${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Add repos: fade repo add <path>"
+    echo "  2. Add workspace-level standards to $workspace_dir/standards/"
+    echo "  3. Run commands: fade --repo <name> status"
+}
+
+workspace_list() {
+    local workspaces_dir="$HOME/.fade/workspaces"
+
+    if [[ ! -d "$workspaces_dir" ]]; then
+        echo "No workspaces found. Create one with: fade workspace init <name>"
+        return 0
+    fi
+
+    local workspace_count=0
+    echo -e "${CYAN}Workspaces:${NC}"
+    echo ""
+
+    for workspace_dir in "$workspaces_dir"/*; do
+        if [[ -d "$workspace_dir" ]] && [[ -f "$workspace_dir/workspace.json" ]]; then
+            local workspace_name=$(basename "$workspace_dir")
+            local repo_count=0
+
+            # Count repos in workspace
+            if command -v jq >/dev/null 2>&1; then
+                repo_count=$(jq -r '.repos | length' "$workspace_dir/workspace.json" 2>/dev/null || echo "0")
+            else
+                # Fallback: count lines with "path" field
+                repo_count=$(grep -c '"path"' "$workspace_dir/workspace.json" 2>/dev/null || echo "0")
+            fi
+
+            echo "  $workspace_name"
+            echo "    Path: $workspace_dir"
+            echo "    Repos: $repo_count"
+            echo ""
+            ((workspace_count++))
+        fi
+    done
+
+    if [[ $workspace_count -eq 0 ]]; then
+        echo "No workspaces found. Create one with: fade workspace init <name>"
+    fi
+}
+
+workspace_path() {
+    # Check if we're in a repo that's part of a workspace
+    local current_workspace=$(get_current_workspace)
+
+    if [[ -n "$current_workspace" ]]; then
+        echo "$current_workspace"
+    else
+        echo "Not in a workspace. Create one with: fade workspace init <name>"
+        return 1
+    fi
+}
+
+get_current_workspace() {
+    # Look for workspace by checking if current repo is registered
+    local workspaces_dir="$HOME/.fade/workspaces"
+
+    if [[ ! -d "$workspaces_dir" ]]; then
+        return 1
+    fi
+
+    local current_dir=$(pwd)
+
+    for workspace_dir in "$workspaces_dir"/*; do
+        if [[ -f "$workspace_dir/workspace.json" ]]; then
+            # Check if current directory matches any repo path
+            if grep -q "\"path\": \"$current_dir\"" "$workspace_dir/workspace.json" 2>/dev/null; then
+                echo "$workspace_dir"
+                return 0
+            fi
+        fi
+    done
+
+    return 1
+}
+
+cmd_repo() {
+    local action="${1:-}"
+
+    if [[ -z "$action" ]]; then
+        echo "Usage: fade repo <add|list|remove>"
+        echo ""
+        echo "Actions:"
+        echo "  add <path>      - Add a repo to the workspace"
+        echo "  list            - List repos in current workspace"
+        echo "  remove <name>   - Remove a repo from the workspace"
+        return 1
+    fi
+
+    case "$action" in
+        add)
+            local repo_path="${2:-}"
+            repo_add "$repo_path"
+            ;;
+        list)
+            repo_list
+            ;;
+        remove)
+            local repo_name="${2:-}"
+            repo_remove "$repo_name"
+            ;;
+        *)
+            echo "Unknown repo action: $action"
+            echo "Usage: fade repo <add|list|remove>"
+            return 1
+            ;;
+    esac
+}
+
+repo_add() {
+    local repo_path="$1"
+
+    if [[ -z "$repo_path" ]]; then
+        echo "Error: Repo path required"
+        echo "Usage: fade repo add <path>"
+        return 1
+    fi
+
+    # Resolve to absolute path
+    repo_path=$(cd "$repo_path" 2>/dev/null && pwd || echo "")
+
+    if [[ -z "$repo_path" ]] || [[ ! -d "$repo_path" ]]; then
+        echo "Error: Path does not exist or is not a directory: $repo_path"
+        return 1
+    fi
+
+    # Check if it's a FADE repo
+    if [[ ! -f "$repo_path/FADE.md" ]] && [[ ! -d "$repo_path/fade" ]]; then
+        echo "Error: Not a FADE repo (missing FADE.md or fade/ folder)"
+        echo "Run 'fade init' in the repo first"
+        return 1
+    fi
+
+    # Find the workspace to add to
+    local workspace_dir=$(get_current_workspace)
+
+    if [[ -z "$workspace_dir" ]]; then
+        # If not in a workspace, check if there's only one workspace
+        local workspaces_dir="$HOME/.fade/workspaces"
+        local workspace_count=$(find "$workspaces_dir" -maxdepth 1 -type d 2>/dev/null | wc -l)
+
+        if [[ $workspace_count -eq 2 ]]; then  # 2 because find includes the parent dir
+            workspace_dir=$(find "$workspaces_dir" -maxdepth 1 -type d ! -path "$workspaces_dir" | head -1)
+        else
+            echo "Error: Not in a workspace and multiple workspaces exist"
+            echo "Please run this command from within a workspace repo, or specify which workspace"
+            return 1
+        fi
+    fi
+
+    local workspace_json="$workspace_dir/workspace.json"
+
+    # Detect repo name from FADE.md or directory name
+    local repo_name=$(basename "$repo_path")
+    if [[ -f "$repo_path/FADE.md" ]]; then
+        # Try to extract project name from FADE.md
+        local fade_name=$(grep -m1 "^# " "$repo_path/FADE.md" | sed 's/^# //')
+        if [[ -n "$fade_name" ]]; then
+            repo_name="$fade_name"
+        fi
+    fi
+
+    # Check if repo already registered
+    if grep -q "\"path\": \"$repo_path\"" "$workspace_json" 2>/dev/null; then
+        echo -e "${YELLOW}Repo already registered in workspace${NC}"
+        return 0
+    fi
+
+    # Add repo to workspace.json
+    local temp_json=$(mktemp)
+
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq for proper JSON manipulation
+        jq --arg name "$repo_name" --arg path "$repo_path" \
+           '.repos += [{"name": $name, "path": $path, "added": "'$(date -u +"%Y-%m-%dT%H:%M:%SZ")'"}]' \
+           "$workspace_json" > "$temp_json"
+    else
+        # Fallback: manual JSON editing (less safe but functional)
+        # Remove the closing ] and } from repos array
+        sed '/"repos": \[/,/\]/{ s/\]$/,/; }' "$workspace_json" > "$temp_json"
+        cat >> "$temp_json" << EOF
+    {
+      "name": "$repo_name",
+      "path": "$repo_path",
+      "added": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    }
+  ]
+}
+EOF
+    fi
+
+    mv "$temp_json" "$workspace_json"
+
+    echo -e "${GREEN}✓ Repo added to workspace${NC}"
+    echo "  Name: $repo_name"
+    echo "  Path: $repo_path"
+}
+
+repo_list() {
+    local workspace_dir=$(get_current_workspace)
+
+    if [[ -z "$workspace_dir" ]]; then
+        echo "Error: Not in a workspace"
+        return 1
+    fi
+
+    local workspace_json="$workspace_dir/workspace.json"
+
+    echo -e "${CYAN}Repos in workspace:${NC}"
+    echo ""
+
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq for proper JSON parsing
+        jq -r '.repos[] | "  \(.name)\n    Path: \(.path)\n"' "$workspace_json"
+    else
+        # Fallback: simple grep-based parsing
+        grep -A2 '"name"' "$workspace_json" | while read -r line; do
+            if [[ "$line" =~ \"name\":[[:space:]]*\"([^\"]+)\" ]]; then
+                echo "  ${BASH_REMATCH[1]}"
+            elif [[ "$line" =~ \"path\":[[:space:]]*\"([^\"]+)\" ]]; then
+                echo "    Path: ${BASH_REMATCH[1]}"
+                echo ""
+            fi
+        done
+    fi
+}
+
+repo_remove() {
+    local repo_name="$1"
+
+    if [[ -z "$repo_name" ]]; then
+        echo "Error: Repo name required"
+        echo "Usage: fade repo remove <name>"
+        return 1
+    fi
+
+    local workspace_dir=$(get_current_workspace)
+
+    if [[ -z "$workspace_dir" ]]; then
+        echo "Error: Not in a workspace"
+        return 1
+    fi
+
+    local workspace_json="$workspace_dir/workspace.json"
+    local temp_json=$(mktemp)
+
+    if command -v jq >/dev/null 2>&1; then
+        # Use jq to remove repo
+        jq --arg name "$repo_name" '.repos = [.repos[] | select(.name != $name)]' \
+           "$workspace_json" > "$temp_json"
+    else
+        echo "Error: jq required for repo removal"
+        echo "Install jq to use this feature"
+        return 1
+    fi
+
+    mv "$temp_json" "$workspace_json"
+
+    echo -e "${GREEN}✓ Repo removed from workspace${NC}"
+}
+
 cmd_help() {
     cat << EOF
 ${CYAN}FADE v$FADE_VERSION${NC} - Framework for Agentic Development and Engineering
@@ -7577,6 +7927,8 @@ ${YELLOW}Commands:${NC}
   classify      Analyze and classify existing PRDs by complexity
   estimator     Explain complexity estimation rubric for a PRD (fade estimator explain [ID])
   dashboard     Configure and list repositories for multi-repo monitoring
+  workspace     Create and manage workspaces with multiple repos
+  repo          Add, list, or remove repos from a workspace
   logs          View logs from background runs (fade logs <run_id> [-f] [-n N])
   stop          Stop a background run (fade stop <run_id>)
   metrics       Show metrics from recent runs (fade metrics [--run <run_id>])
@@ -7719,6 +8071,24 @@ ${YELLOW}Dashboard Options:${NC}
                   - Requires --key flag as well
   --key <file>    Path to SSL key file for HTTPS support
                   - Requires --cert flag as well
+
+${YELLOW}Workspace Command:${NC}
+  fade workspace init <name>    Create a new workspace
+  fade workspace list           List all workspaces
+  fade workspace path           Show current workspace path
+
+  Workspaces group multiple repos together with shared standards and learnings.
+  - Workspace data stored in ~/.fade/workspaces/<name>/
+  - Contains workspace.json (repo registry), standards/, learned.md
+
+${YELLOW}Repo Command:${NC}
+  fade repo add <path>          Add a repo to the workspace
+  fade repo list                List repos in current workspace
+  fade repo remove <name>       Remove a repo from the workspace
+
+  Repos must be FADE-initialized (contain FADE.md or fade/ folder).
+  - Auto-detects display name from FADE.md first heading
+  - Falls back to directory name if no heading found
 
 ${YELLOW}Run Options:${NC}
   --yolo                 Skip prompts, use ALL mode with --dangerously-skip-permissions
@@ -12666,8 +13036,97 @@ cmd_metrics() {
 }
 
 # ============================================================================
+# REPO TARGETING (--repo flag)
+# ============================================================================
+
+resolve_repo_name_to_path() {
+    local repo_name="$1"
+
+    if [[ -z "$repo_name" ]]; then
+        return 1
+    fi
+
+    local workspaces_dir="$HOME/.fade/workspaces"
+
+    if [[ ! -d "$workspaces_dir" ]]; then
+        return 1
+    fi
+
+    # Search all workspaces for the repo
+    for workspace_dir in "$workspaces_dir"/*; do
+        if [[ -f "$workspace_dir/workspace.json" ]]; then
+            # Try with jq first
+            if command -v jq >/dev/null 2>&1; then
+                local repo_path=$(jq -r ".repos[] | select(.name == \"$repo_name\") | .path" "$workspace_dir/workspace.json" 2>/dev/null)
+                if [[ -n "$repo_path" ]]; then
+                    echo "$repo_path"
+                    return 0
+                fi
+            else
+                # Fallback: grep-based search
+                local found=0
+                while IFS= read -r line; do
+                    if [[ "$line" =~ \"name\":[[:space:]]*\"([^\"]+)\" ]]; then
+                        local current_name="${BASH_REMATCH[1]}"
+                        if [[ "$current_name" == "$repo_name" ]]; then
+                            found=1
+                        fi
+                    elif [[ $found -eq 1 ]] && [[ "$line" =~ \"path\":[[:space:]]*\"([^\"]+)\" ]]; then
+                        echo "${BASH_REMATCH[1]}"
+                        return 0
+                    fi
+                done < "$workspace_dir/workspace.json"
+            fi
+        fi
+    done
+
+    return 1
+}
+
+# ============================================================================
 # MAIN
 # ============================================================================
+
+# Parse global flags
+repo_name=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --repo)
+            if [[ $# -lt 2 ]]; then
+                echo "Error: --repo requires an argument"
+                echo "Usage: fade --repo <repo_name> <command> [options]"
+                exit 1
+            fi
+            repo_name="$2"
+            shift 2
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+# If --repo was specified, resolve and cd into the repo
+if [[ -n "$repo_name" ]]; then
+    repo_path=$(resolve_repo_name_to_path "$repo_name" || echo "")
+    if [[ -z "$repo_path" ]]; then
+        echo -e "${RED}Error: Repo '$repo_name' not found in any workspace${NC}"
+        echo "Available repos:"
+        for workspace_dir in "$HOME/.fade/workspaces"/*; do
+            if [[ -f "$workspace_dir/workspace.json" ]]; then
+                if command -v jq >/dev/null 2>&1; then
+                    jq -r '.repos[] | "  \(.name) (\(.path))"' "$workspace_dir/workspace.json" 2>/dev/null || true
+                fi
+            fi
+        done
+        exit 1
+    fi
+
+    if ! cd "$repo_path" 2>/dev/null; then
+        echo -e "${RED}Error: Cannot cd into repo path: $repo_path${NC}"
+        exit 1
+    fi
+fi
 
 case "${1:-}" in
     init)
@@ -12727,6 +13186,14 @@ case "${1:-}" in
     council)
         shift
         cmd_council "$@"
+        ;;
+    workspace)
+        shift
+        cmd_workspace "$@"
+        ;;
+    repo)
+        shift
+        cmd_repo "$@"
         ;;
     update)
         shift

@@ -21,7 +21,7 @@
         "Command `fade --repo <name> status|run|metrics` targets a specific registered repo without cd-ing into it (optional but strongly preferred)."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

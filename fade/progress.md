@@ -2539,3 +2539,6 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
   - ✓ Resume instructions provided: `fade resume <run_id>`
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed, categorization logic tested with 6 test cases (all correct)
+
+## Model Usage: sonnet (complexity: complex, duration: 9m, cost est: $0.25)
+
