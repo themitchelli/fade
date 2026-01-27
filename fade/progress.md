@@ -2033,3 +2033,6 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 
 ## Model Usage: haiku (complexity: simple, duration: 12m, cost est: $0.02)
 
+
+## Model Usage: haiku (complexity: medium, duration: 10m, cost est: $0.02)
+

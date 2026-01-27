@@ -181,7 +181,7 @@
         "Display date last learned: 'Learned from 47 PRDs, updated 2026-01-25 18:45'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-009",

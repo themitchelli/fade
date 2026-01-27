@@ -117,6 +117,123 @@ class DashboardData:
                     "lastUpdate": None
                 }
 
+    def get_learning_metrics(self, repo_name: str) -> Dict:
+        """Extract learning metrics from model-selection-history.json."""
+        repo_path = self.get_repo_path_by_name(repo_name)
+        if not repo_path:
+            return {}
+
+        # Try both contained and legacy structure
+        history_paths = [
+            os.path.join(repo_path, "fade", "model-selection-history.json"),
+            os.path.join(repo_path, "model-selection-history.json")
+        ]
+
+        history_data = None
+        for history_path in history_paths:
+            if os.path.exists(history_path):
+                try:
+                    with open(history_path, 'r') as f:
+                        history_data = json.load(f)
+                    break
+                except (json.JSONDecodeError, IOError):
+                    continue
+
+        if not history_data:
+            return {}
+
+        # Extract accuracy stats
+        learned_heuristics = history_data.get("learnedHeuristics", {})
+        accuracy_stats = learned_heuristics.get("accuracyStats", {})
+
+        # Extract PRD list for recent escalations
+        prds = history_data.get("prds", [])
+
+        # Calculate model accuracy and PRD counts
+        model_stats = {
+            "haiku": {
+                "accuracy": accuracy_stats.get("haiku_accuracy", 0),
+                "count": sum(1 for p in prds if p.get("actualOutcome", {}).get("model") == "haiku"),
+                "escalated": 0,
+                "wasted": 0
+            },
+            "sonnet": {
+                "accuracy": accuracy_stats.get("sonnet_accuracy", 0),
+                "count": sum(1 for p in prds if p.get("actualOutcome", {}).get("model") == "sonnet"),
+                "escalated": 0,
+                "wasted": 0
+            },
+            "opus": {
+                "accuracy": accuracy_stats.get("opus_accuracy", 0),
+                "count": sum(1 for p in prds if p.get("actualOutcome", {}).get("model") == "opus"),
+                "escalated": 0,
+                "wasted": 0
+            }
+        }
+
+        # Count escalations and wasted runs
+        for prd in prds:
+            outcome = prd.get("actualOutcome", {})
+            if outcome.get("escalated"):
+                model = outcome.get("model", "unknown")
+                if model in model_stats:
+                    model_stats[model]["escalated"] += 1
+            # Wasted = sessions where model failed and needed escalation
+            if outcome.get("sessions", 1) > 1 and outcome.get("escalated"):
+                model = outcome.get("model", "unknown")
+                if model in model_stats:
+                    model_stats[model]["wasted"] += 1
+
+        # Get key patterns (top 3 from decision tree rules)
+        patterns = []
+        for model_type in ["useHaikuIf", "useSonnetIf", "useOpusIf"]:
+            rules = learned_heuristics.get(model_type, [])
+            if rules and len(rules) > 0:
+                # Take the top rule by confidence
+                best_rule = max(rules, key=lambda r: r.get("confidence", 0))
+                if best_rule.get("confidence", 0) > 0:
+                    patterns.append({
+                        "model": model_type.replace("useIf", "").replace("use", ""),
+                        "pattern": best_rule.get("condition", ""),
+                        "confidence": best_rule.get("confidence", 0),
+                        "prds": best_rule.get("based_on_prds", 0)
+                    })
+
+        # Get recent escalations (last 3)
+        recent_escalations = []
+        for prd in sorted(prds, key=lambda p: p.get("date", ""), reverse=True)[:3]:
+            if prd.get("actualOutcome", {}).get("escalated"):
+                recent_escalations.append({
+                    "id": prd.get("id", ""),
+                    "date": prd.get("date", ""),
+                    "reason": prd.get("actualOutcome", {}).get("escalationReason", "Unknown")
+                })
+
+        # Calculate cost savings (all-Sonnet vs actual)
+        total_prds = len(prds)
+        if total_prds > 0:
+            # Rough pricing: haiku=$0.25, sonnet=$3, opus=$15 per 1M tokens (input)
+            # Assume ~50k tokens per PRD
+            haiku_count = model_stats["haiku"]["count"]
+            sonnet_count = model_stats["sonnet"]["count"]
+            opus_count = model_stats["opus"]["count"]
+
+            cost_actual = (haiku_count * 0.25 + sonnet_count * 3 + opus_count * 15) / 20  # Normalize to 50k tokens
+            cost_all_sonnet = total_prds * 3 / 20
+            savings = max(0, cost_all_sonnet - cost_actual)
+        else:
+            savings = 0
+
+        return {
+            "modelStats": model_stats,
+            "patterns": patterns,
+            "recentEscalations": recent_escalations,
+            "totalPrds": total_prds,
+            "costSavings": round(savings, 2),
+            "lastUpdated": history_data.get("lastUpdated", "Unknown"),
+            "confidence": "High" if total_prds >= 10 else ("Medium" if total_prds >= 5 else "Low")
+        }
+
     def get_aggregate_stats(self) -> Dict:
         """Calculate aggregate statistics across all repositories."""
         total_pending = 0
@@ -270,6 +387,8 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
             self._serve_status_api()
         elif self.path == "/api/aggregate":
             self._serve_aggregate_api()
+        elif self.path.startswith("/api/learning/"):
+            self._serve_learning_api()
         elif self.path.startswith("/api/docs/"):
             self._serve_docs_api()
         elif self.path.startswith("/api/doc/"):
@@ -306,6 +425,29 @@ class DashboardRequestHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(stats).encode('utf-8'))
+
+    def _serve_learning_api(self):
+        """Serve /api/learning/{repoName} endpoint with learning metrics."""
+        # Extract repo name from path: /api/learning/{repoName}
+        path_parts = self.path.split('/')
+        if len(path_parts) < 4:
+            self.send_error(400, "Invalid request - repo name required")
+            return
+
+        repo_name = path_parts[3]
+        metrics = self.dashboard_data.get_learning_metrics(repo_name)
+
+        if not metrics:
+            metrics = {
+                "error": "No learning data available",
+                "totalPrds": 0
+            }
+
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(metrics).encode('utf-8'))
 
     def _serve_docs_api(self):
         """Serve /api/docs/{repoName} endpoint with list of documentation files."""

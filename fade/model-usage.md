@@ -6,6 +6,7 @@ Tracks model selections, complexity routing, and estimated costs.
 |------|-----|------------|-------|----------|----------|-------------|-----------|
 | 2026-01-25 | BUG-007 | simple | haiku | no | 12m | 36320 | $0.02 |
 
+
 ## Aggregate Statistics
 
 **Total Sessions:** 1

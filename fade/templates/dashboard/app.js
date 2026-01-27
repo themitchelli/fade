@@ -397,6 +397,8 @@ class FadeDashboard {
             this.loadDocs(this.selectedRepo.name);
         } else if (targetTab === 'analytics' && this.selectedRepo) {
             this.renderAnalytics(this.selectedRepo.data);
+        } else if (targetTab === 'learning' && this.selectedRepo) {
+            this.loadLearning(this.selectedRepo.name);
         }
     }
 
@@ -843,6 +845,122 @@ class FadeDashboard {
         });
 
         return html;
+    }
+
+    async loadLearning(repoName) {
+        try {
+            const response = await fetch(`/api/learning/${encodeURIComponent(repoName)}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch learning metrics: ${response.status}`);
+            }
+            const metrics = await response.json();
+            this.renderLearning(metrics);
+        } catch (error) {
+            console.error('Error loading learning metrics:', error);
+            const tab = document.getElementById('tab-learning');
+            tab.innerHTML = '<p class="error">Failed to load learning metrics</p>';
+        }
+    }
+
+    renderLearning(metrics) {
+        const learningTab = document.getElementById('tab-learning');
+
+        if (metrics.error || metrics.totalPrds === 0) {
+            learningTab.innerHTML = `
+                <div class="learning-section">
+                    <p class="info">No learning data available yet. Complete some PRDs to build learning history.</p>
+                </div>
+            `;
+            return;
+        }
+
+        let html = '';
+
+        // Model accuracy stats
+        html += `<div class="learning-section">`;
+        html += `<h3>Model Accuracy Statistics</h3>`;
+        html += `<div class="model-stats">`;
+
+        const models = ['haiku', 'sonnet', 'opus'];
+        models.forEach(model => {
+            const stats = metrics.modelStats[model] || {};
+            const accuracy = stats.accuracy || 0;
+            const count = stats.count || 0;
+            const escalated = stats.escalated || 0;
+
+            if (count > 0) {
+                html += `<div class="model-stat-card">`;
+                html += `<div class="model-name">${model.charAt(0).toUpperCase() + model.slice(1)}</div>`;
+                html += `<div class="accuracy">${accuracy.toFixed(1)}%</div>`;
+                html += `<div class="detail">${count} PRDs`;
+                if (escalated > 0) {
+                    html += ` (${escalated} escalated)`;
+                }
+                html += `</div>`;
+                html += `</div>`;
+            }
+        });
+
+        html += `</div>`;
+        html += `</div>`;
+
+        // Key patterns learned
+        if (metrics.patterns && metrics.patterns.length > 0) {
+            html += `<div class="learning-section">`;
+            html += `<h3>Key Patterns Learned</h3>`;
+            html += `<div class="patterns-list">`;
+
+            metrics.patterns.forEach(pattern => {
+                html += `<div class="pattern-card">`;
+                html += `<div class="pattern-model">${pattern.model.charAt(0).toUpperCase() + pattern.model.slice(1)}</div>`;
+                html += `<div class="pattern-text">${pattern.pattern}</div>`;
+                html += `<div class="pattern-meta">`;
+                html += `Confidence: ${pattern.confidence.toFixed(0)}% (${pattern.prds} PRDs)`;
+                html += `</div>`;
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // Recommendation confidence
+        html += `<div class="learning-section">`;
+        html += `<h3>Recommendation Confidence</h3>`;
+        html += `<div class="confidence">`;
+        html += `<div class="confidence-level ${metrics.confidence.toLowerCase()}">${metrics.confidence}</div>`;
+        html += `<p>Based on ${metrics.totalPrds} completed PRDs</p>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        // Recent escalations
+        if (metrics.recentEscalations && metrics.recentEscalations.length > 0) {
+            html += `<div class="learning-section">`;
+            html += `<h3>Recent Escalations</h3>`;
+            html += `<div class="escalations-list">`;
+
+            metrics.recentEscalations.forEach(esc => {
+                html += `<div class="escalation-item">`;
+                html += `<div class="escalation-id">${esc.id}</div>`;
+                html += `<div class="escalation-date">${esc.date}</div>`;
+                html += `<div class="escalation-reason">${esc.reason}</div>`;
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+            html += `</div>`;
+        }
+
+        // Cost savings
+        html += `<div class="learning-section">`;
+        html += `<h3>Cost Impact</h3>`;
+        html += `<div class="cost-info">`;
+        html += `<p>Estimated savings vs all-Sonnet: <strong>$${metrics.costSavings.toFixed(2)}</strong></p>`;
+        html += `<p class="text-muted">Updated: ${metrics.lastUpdated}</p>`;
+        html += `</div>`;
+        html += `</div>`;
+
+        learningTab.innerHTML = html;
     }
 
     showError(message) {
