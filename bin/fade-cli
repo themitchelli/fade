@@ -6003,6 +6003,7 @@ What are they trying to accomplish? What's the context?
 cmd_prd_new() {
     local feature_name=""
     local model="${FADE_MODEL:-sonnet}"
+    local second_opinion=false
 
     # Parse arguments
     while [[ $# -gt 0 ]]; do
@@ -6011,10 +6012,14 @@ cmd_prd_new() {
                 model="$2"
                 shift 2
                 ;;
+            --second-opinion)
+                second_opinion=true
+                shift
+                ;;
             -*)
                 echo -e "${RED}Error: Unknown option '$1'${NC}"
                 echo ""
-                echo "Usage: fade prd new [--model <model>] \"<feature name>\""
+                echo "Usage: fade prd new [--model <model>] [--second-opinion] \"<feature name>\""
                 exit 1
                 ;;
             *)
@@ -6033,14 +6038,15 @@ cmd_prd_new() {
     if [[ -z "$feature_name" ]]; then
         echo -e "${RED}Error: Feature name required.${NC}"
         echo ""
-        echo "Usage: fade prd new [--model <model>] \"<feature name>\""
+        echo "Usage: fade prd new [--model <model>] [--second-opinion] \"<feature name>\""
         echo ""
         echo "Options:"
-        echo "  --model <name>  Use specific Claude model (opus, sonnet, haiku)"
+        echo "  --model <name>       Use specific Claude model (opus, sonnet, haiku)"
+        echo "  --second-opinion     Request alternative approaches and risks from second opinion"
         echo ""
         echo "Examples:"
         echo "  fade prd new \"User authentication\""
-        echo "  fade prd new --model opus \"Database migration\""
+        echo "  fade prd new --model opus --second-opinion \"Database migration\""
         exit 1
     fi
 
@@ -6048,6 +6054,39 @@ cmd_prd_new() {
     # discover already has all repo-context awareness (FADE.md, standards, map.md)
     # and integrates complexity analysis with estimator
     cmd_discover --prd --model "$model" "$feature_name"
+
+    # Optional: Generate council brief for second opinion if requested
+    if [[ "$second_opinion" == true ]]; then
+        # Find the newly created PRD to get its ID
+        local new_prd_id=""
+        local slug=$(generate_slug "$feature_name")
+        local prds_dir="fade/prds"
+        if [[ ! -d "$prds_dir" ]]; then
+            prds_dir="prds"
+        fi
+
+        # Find the most recently created FEAT PRD (should be our new one)
+        if [[ -d "$prds_dir" ]]; then
+            local latest_prd=$(find "$prds_dir" -name "FEAT-*.json" -type f -printf '%T@:%p\n' 2>/dev/null | sort -rn | head -1 | cut -d: -f2-)
+            if [[ -n "$latest_prd" ]]; then
+                new_prd_id=$(basename "$latest_prd" .json)
+                echo ""
+                echo -e "${YELLOW}Generating council second opinion...${NC}"
+
+                # Create _notes directory for storing second opinions
+                mkdir -p "$prds_dir/_notes"
+
+                # Generate council brief (this creates a markdown file)
+                local opinion_file="$prds_dir/_notes/${new_prd_id}-council.md"
+                cmd_council "$new_prd_id" > "$opinion_file" 2>&1 || true
+
+                if [[ -f "$opinion_file" ]]; then
+                    echo -e "${GREEN}✓ Council brief saved to: $opinion_file${NC}"
+                    echo "  Review the brief in separate LLM (ChatGPT, Gemini, etc.)"
+                fi
+            fi
+        fi
+    fi
 }
 
 cmd_new() {
@@ -8089,7 +8128,7 @@ ${YELLOW}Discover Options:${NC}
   --model <name>  Use specific Claude model (opus, sonnet, haiku)
 
 ${YELLOW}PRD Creation Command:${NC}
-  fade prd new [--model <model>] \"<feature name>\"
+  fade prd new [--model <model>] [--second-opinion] \"<feature name>\"
 
   Interactive PRD creation with full repo context awareness.
   Launched with Claude for structured work breakdown design.
@@ -8102,9 +8141,17 @@ ${YELLOW}PRD Creation Command:${NC}
   Output: fade/prds/FEAT-NNN-{slug}.json
   Format: Valid PRD JSON with complexity field and full story structure
 
+  Options:
+  --model <name>        Use specific Claude model (opus, sonnet, haiku)
+  --second-opinion      Generate council brief with alternative approaches and risks
+                        - Saves to fade/prds/_notes/FEAT-NNN-council.md
+                        - Use for getting second opinions from other LLMs
+                        - Optional: can be run later with 'fade council FEAT-NNN'
+
   Examples:
     fade prd new \"User authentication system\"
     fade prd new --model opus \"Database migration strategy\"
+    fade prd new --second-opinion \"API design\" # Generate with council opinion
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"

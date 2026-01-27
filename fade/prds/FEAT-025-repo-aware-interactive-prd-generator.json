@@ -32,7 +32,7 @@
         "PRD generator never blocks if second-opinion is unavailable; it degrades gracefully."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
