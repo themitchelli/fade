@@ -38,3 +38,20 @@ Only add learnings that are:
 - Completion rate: 100% across all sizes
 
 **Files affected:** All FADE execution flows (cmd_run, checkpoint protocol, context building)
+
+## $(date +"%Y-%m-%d") - Blocked State Recovery Patterns
+
+**Source:** FEAT-022 US-002
+
+**What:** Implemented automatic triage for BLOCKED states by categorizing reasons into recoverable vs unrecoverable types. Pattern matching on blocked reasons enables targeted resolution strategies: test failures delegate to self-healing, missing dependencies prompt operator questions, unclear requirements request clarification. Each category gets specific guidance in operator_questions.md rather than generic "blocked" messages.
+
+**Why it matters:** Reduces human interruption for recoverable BLOCKED states. Instead of halting on every BLOCKED signal, FADE can now distinguish between "I need help" (operator question) vs "I'm broken" (unrecoverable). This enables better autonomous flow while maintaining safety guardrails. Pattern matching on blocked reason text is brittle but effective—future sessions should maintain the category patterns when updating BLOCKED detection logic.
+
+**Key patterns:**
+- Test failures: "test.*fail", "regression.*fail", "assertion.*fail"
+- Missing deps: "command not found", "missing.*package", "no such file.*bin"
+- Unclear reqs: "unclear", "ambiguous", "missing.*context"
+- Environment: "env.*var", "database.*url", "api.*key"
+- Permissions: "permission denied", "cannot.*write", "read-only"
+
+**Files affected:** bin/fade-cli (categorize_blocked_reason, attempt_blocked_resolution, create_operator_question, BLOCKED handler in cmd_run)

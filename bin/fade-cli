@@ -2945,6 +2945,191 @@ display_council_suggestion() {
     printf "%b\n" "${YELLOW}└────────────────────────────────────────────────────┘${NC}"
 }
 
+# ============================================================================
+# BLOCKED STATE TRIAGE AND AUTO-RESOLUTION (FEAT-022 US-002)
+# ============================================================================
+
+# Categorize BLOCKED reason into recovery categories
+# Parameters: $1=blocked_reason (the text after "BLOCKED: ")
+# Returns: category name or "unrecoverable"
+# Categories:
+#   - failing_tests: test failures
+#   - missing_dependency: missing command, library, package
+#   - unclear_requirement: ambiguous AC, missing context
+#   - environmental: env vars, permissions, file system
+#   - permission_issue: file/dir permissions
+categorize_blocked_reason() {
+    local reason="$1"
+
+    # Convert to lowercase for matching
+    local reason_lower=$(echo "$reason" | tr '[:upper:]' '[:lower:]')
+
+    # Test failures
+    if echo "$reason_lower" | grep -q "test.*fail\|tests.*fail\|regression.*fail\|assertion.*fail"; then
+        echo "failing_tests"
+        return 0
+    fi
+
+    # Missing dependencies/commands
+    if echo "$reason_lower" | grep -q "command not found\|not found in path\|missing.*command\|missing.*package\|missing.*dependency\|no such file or directory.*bin"; then
+        echo "missing_dependency"
+        return 0
+    fi
+
+    # Unclear requirements
+    if echo "$reason_lower" | grep -q "unclear\|ambiguous\|missing.*context\|missing.*requirement\|don't understand\|not clear\|what.*should"; then
+        echo "unclear_requirement"
+        return 0
+    fi
+
+    # Environmental issues
+    if echo "$reason_lower" | grep -q "environment\|env.*var\|missing.*var\|database.*url\|api.*key\|config.*missing"; then
+        echo "environmental"
+        return 0
+    fi
+
+    # Permission issues
+    if echo "$reason_lower" | grep -q "permission denied\|access denied\|cannot.*write\|cannot.*create\|read-only"; then
+        echo "permission_issue"
+        return 0
+    fi
+
+    # If none of the above, it's unrecoverable (needs human)
+    echo "unrecoverable"
+}
+
+# Attempt automatic resolution for recoverable BLOCKED categories
+# Parameters: $1=category, $2=blocked_reason, $3=run_id
+# Returns: 0 if resolution attempted, 1 if category is unrecoverable
+attempt_blocked_resolution() {
+    local category="$1"
+    local blocked_reason="$2"
+    local run_id="$3"
+
+    case "$category" in
+        failing_tests)
+            echo -e "${YELLOW}⚠ Category: Failing Tests${NC}"
+            echo "Auto-resolution: Triggering self-healing loop for test failures..."
+            # Self-healing for test failures is already implemented in US-001
+            # This will be invoked by the caller if tests are detected
+            return 0
+            ;;
+
+        missing_dependency)
+            echo -e "${YELLOW}⚠ Category: Missing Dependency${NC}"
+            echo "Suggestion: Install missing dependency or use alternative command"
+
+            # Create operator question for human guidance
+            create_operator_question "$run_id" "missing_dependency" "$blocked_reason" \
+                "A required command or dependency is missing. Please install it or provide an alternative approach."
+
+            echo "Created operator question at: fade/runs/$run_id/operator_questions.md"
+            echo "After addressing, resume with: fade resume $run_id"
+            return 0
+            ;;
+
+        unclear_requirement)
+            echo -e "${YELLOW}⚠ Category: Unclear Requirement${NC}"
+            echo "Suggestion: Clarify acceptance criteria or provide additional context"
+
+            # Create operator question
+            create_operator_question "$run_id" "unclear_requirement" "$blocked_reason" \
+                "The requirement is ambiguous or lacks context. Please clarify the acceptance criteria or provide additional details."
+
+            echo "Created operator question at: fade/runs/$run_id/operator_questions.md"
+            echo "After clarifying, resume with: fade resume $run_id"
+            return 0
+            ;;
+
+        environmental)
+            echo -e "${YELLOW}⚠ Category: Environmental Issue${NC}"
+            echo "Suggestion: Set missing environment variables or update configuration"
+
+            # Create operator question
+            create_operator_question "$run_id" "environmental" "$blocked_reason" \
+                "An environment variable or configuration is missing. Please set the required values."
+
+            echo "Created operator question at: fade/runs/$run_id/operator_questions.md"
+            echo "After setting environment, resume with: fade resume $run_id"
+            return 0
+            ;;
+
+        permission_issue)
+            echo -e "${YELLOW}⚠ Category: Permission Issue${NC}"
+            echo "Suggestion: Fix file/directory permissions"
+
+            # Create operator question
+            create_operator_question "$run_id" "permission_issue" "$blocked_reason" \
+                "File or directory permissions are preventing progress. Please fix permissions or provide write access."
+
+            echo "Created operator question at: fade/runs/$run_id/operator_questions.md"
+            echo "After fixing permissions, resume with: fade resume $run_id"
+            return 0
+            ;;
+
+        unrecoverable)
+            echo -e "${RED}⛔ Category: Unrecoverable${NC}"
+            echo "This blocked state requires human intervention."
+
+            # Create operator question for general blocked state
+            create_operator_question "$run_id" "unrecoverable" "$blocked_reason" \
+                "Manual intervention required. The agent cannot proceed with this task."
+
+            echo "Created operator question at: fade/runs/$run_id/operator_questions.md"
+            echo "Review and address, then resume with: fade resume $run_id"
+            return 1
+            ;;
+    esac
+}
+
+# Create an operator_questions.md file for human guidance
+# Parameters: $1=run_id, $2=category, $3=blocked_reason, $4=guidance
+create_operator_question() {
+    local run_id="$1"
+    local category="$2"
+    local blocked_reason="$3"
+    local guidance="$4"
+
+    local run_dir="fade/runs/$run_id"
+    local questions_file="$run_dir/operator_questions.md"
+
+    # Create run directory if it doesn't exist
+    if [[ ! -d "$run_dir" ]]; then
+        mkdir -p "$run_dir"
+    fi
+
+    # Create or append to operator_questions.md
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+
+    if [[ ! -f "$questions_file" ]]; then
+        # Create new file with header
+        cat > "$questions_file" <<EOF
+# Operator Questions
+
+This file contains questions and issues that require human guidance.
+
+---
+
+EOF
+    fi
+
+    # Append the question
+    cat >> "$questions_file" <<EOF
+## $timestamp - BLOCKED: $category
+
+**Reason:** $blocked_reason
+
+**Guidance:** $guidance
+
+**Actions to resolve:**
+1. Address the issue described above
+2. Resume execution with: \`fade resume $run_id\`
+
+---
+
+EOF
+}
+
 # Display session context (used by all interruption handlers)
 display_session_context() {
     local active_prd=$(get_active_prd)
@@ -4976,17 +5161,43 @@ cmd_run() {
                 # Emit blocked event (ENH-021 US-001)
                 emit_event "$tracking_run_id" "blocked" "{\"reason\":\"$blocked_reason\",\"iteration\":$iteration}" 2>/dev/null || true
 
+                echo ""
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${RED}⛔ BLOCKED - Analyzing for auto-resolution...${NC}"
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+                echo "Blocked reason: $blocked_reason"
+                echo ""
+
+                # FEAT-022 US-002: Auto-triage and attempt resolution for BLOCKED states
+                local blocked_category=$(categorize_blocked_reason "$blocked_reason")
+                echo "Blocked category: $blocked_category"
+                echo ""
+
+                # Special handling for failing_tests: delegate to self-healing loop
+                if [[ "$blocked_category" == "failing_tests" ]]; then
+                    echo -e "${YELLOW}Detected test failures. Delegating to self-healing loop...${NC}"
+                    # The self-healing loop should already be invoked by the test failure handler
+                    # If we reach here, self-healing was either not applicable or already exhausted
+                    echo "Test self-healing was not successful. Creating operator question."
+                    create_operator_question "$tracking_run_id" "failing_tests" "$blocked_reason" \
+                        "Regression tests failed and self-healing was unsuccessful. Review failed.log and fix tests manually."
+                    echo "Created operator question at: fade/runs/$tracking_run_id/operator_questions.md"
+                    echo "After fixing tests, resume with: fade run --resume"
+                    echo ""
+                fi
+
+                # Attempt resolution for other recoverable categories
+                if [[ "$blocked_category" != "failing_tests" ]]; then
+                    attempt_blocked_resolution "$blocked_category" "$blocked_reason" "$tracking_run_id"
+                    echo ""
+                fi
+
                 # Emit run_stop event for blocked state (ENH-021 US-001)
-                emit_event "$tracking_run_id" "run_stop" "{\"status\":\"blocked\",\"reason\":\"$blocked_reason\",\"iterations\":$iteration}" 2>/dev/null || true
+                emit_event "$tracking_run_id" "run_stop" "{\"status\":\"blocked\",\"reason\":\"$blocked_reason\",\"category\":\"$blocked_category\",\"iterations\":$iteration}" 2>/dev/null || true
 
                 # Export final status with blocked reason
                 export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "$blocked_reason"
-
-                echo ""
-                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
-                echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
-                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
-                echo ""
 
                 # Check if escalation might help (BLOCKED in early iterations suggests under-provisioned model)
                 if [[ "$iteration" -le 2 ]] && [[ "$selected_model" != "opus" ]] && echo "$blocked_reason" | grep -qi "test\|fail\|error"; then

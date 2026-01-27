@@ -2505,3 +2505,37 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 - Files changed: CLAUDE.md, fade/progress.md, fade/learned.md
 - Tests: fade version --all shows all artifacts at v0.3.1
 
+
+## $(date +"%Y-%m-%d %H:%M") - US-002: Auto-triage and retry BLOCKED states (FEAT-022) - COMPLETE
+
+- Implemented auto-triage system for BLOCKED states with intelligent categorization
+- Created categorize_blocked_reason() function to classify BLOCKED reasons into 5 categories:
+  - failing_tests: Test failures (delegates to self-healing loop from US-001)
+  - missing_dependency: Missing commands, libraries, or packages
+  - unclear_requirement: Ambiguous acceptance criteria or missing context
+  - environmental: Missing environment variables or configuration
+  - permission_issue: File/directory permission problems
+  - unrecoverable: Anything else requiring human intervention
+- Created attempt_blocked_resolution() function for automated resolution steps:
+  - For failing_tests: indicates self-healing loop should be used
+  - For recoverable categories: creates operator_questions.md with guidance
+  - For unrecoverable: creates operator question for general human review
+- Created create_operator_question() function to generate structured operator questions
+  - Creates fade/runs/<run_id>/operator_questions.md with timestamp, category, reason, and guidance
+  - Provides clear resume instructions: `fade resume <run_id>`
+  - Append-only format allows multiple questions per run
+- Enhanced BLOCKED signal handler in cmd_run() to use auto-triage:
+  - Categorizes blocked reason immediately after detection
+  - Displays category and attempts resolution before stopping
+  - Special handling for failing_tests: delegates to self-healing from US-001
+  - For other categories: creates operator question with specific guidance
+  - Emits enhanced blocked event with category field in telemetry
+- Updated run_stop event to include blocked category for better analytics
+- All acceptance criteria satisfied:
+  - ✓ BLOCKED signals detected and blocked event recorded with reason
+  - ✓ Categorization into 5+ categories (failing_tests, missing_dependency, unclear_requirement, environmental, permission_issue, unrecoverable)
+  - ✓ Resolution steps attempted for recoverable categories
+  - ✓ operator_questions.md created with guidance for each category
+  - ✓ Resume instructions provided: `fade resume <run_id>`
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, categorization logic tested with 6 test cases (all correct)

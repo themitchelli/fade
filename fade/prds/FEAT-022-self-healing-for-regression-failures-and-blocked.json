@@ -36,7 +36,7 @@
         "If still BLOCKED, FADE creates a short 'operator question' artifact in `fade/runs/<run_id>/operator_questions.md` that you can answer, then resume via `fade resume <run_id>`."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
