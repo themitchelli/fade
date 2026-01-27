@@ -22,7 +22,7 @@ For blocked stories, use:
 
 ---
 
-## 2026-01-27 - US-001, US-002, US-003, US-004: Model Selection Learning System (ENH-015) - IN PROGRESS
+## 2026-01-27 - US-001, US-002, US-003, US-004: Model Selection Learning System (ENH-015) - COMPLETE
 
 - Created fade/lib/detect-sessions.sh: Script to count distinct work sessions for a PRD
   - Parses progress.md for ALL_COMPLETE and BLOCKED signals matching PRD ID
@@ -48,6 +48,32 @@ For blocked stories, use:
   - Tested on ENH-015 (recommends OPUS, 90% confidence) and BUG-001 (recommends HAIKU, 80% confidence)
 - Files changed: fade/lib/detect-sessions.sh, fade/lib/extract-features.py, fade/model-selection-history.json, fade/recommend-model.py
 - Tests: All scripts working correctly with proper output formatting and error handling
+
+## 2026-01-27 - US-005: Auto-update history after PRD completion (ENH-015) - COMPLETE
+
+- Created fade/lib/log-outcome.sh: Script to log actual PRD outcomes when completion occurs
+  - Takes PRD_ID, MODEL_USED, and optional ESCALATED_TO parameters
+  - Calls detect-sessions.sh to get actual session count (sessions required)
+  - Extracts model usage from progress.md tracking
+  - Detects error types from progress.md (BLOCKED entries, test failures) if multiple sessions
+  - Determines escalation status: true if escalated or multiple sessions required
+  - Appends new PRD entry to fade/model-selection-history.json with all outcome fields
+  - Validates JSON integrity after update (jq if available, fallback to python3 -m json.tool)
+  - Skips duplicates gracefully (logs warning, continues)
+  - Returns count of PRDs now in history for feedback
+- Created fade/lib/update-heuristics.py: Script to recalculate decision tree from history
+  - Analyzes prds array from model-selection-history.json
+  - Calculates success rates for each model: (succeeded outcomes)/(total uses)
+  - Extracts feature patterns that led to success/failure per model
+  - Generates decision tree rules with confidence thresholds
+  - Produces useHaikuIf[], useSonnetIf[], useOpusIf[] rule arrays
+  - Outputs accuracyStats: haiku_accuracy, sonnet_accuracy, opus_accuracy percentages
+  - Can be called after log-outcome.sh to update heuristics automatically
+  - Supports both contained and legacy FADE project structures
+- Both scripts handle bash/python compatibility and file path discovery
+- Error handling: graceful fallbacks when optional tools unavailable (jq, python3)
+- Files changed: fade/lib/log-outcome.sh, fade/lib/update-heuristics.py, fade/progress.md
+- Tests: bash -n syntax check passed for log-outcome.sh, python3 -m py_compile passed for update-heuristics.py, manual testing verified duplicate detection and history appending
 
 ## 2026-01-25 22:22 - BUG-007: Signal detection false positive on BLOCKED - COMPLETE
 

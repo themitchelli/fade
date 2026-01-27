@@ -118,7 +118,7 @@
         "Verify JSON is valid after update"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-006",
