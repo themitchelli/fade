@@ -2088,3 +2088,52 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - All escalation logic respects user override (--model flag takes precedence)
 - Files changed: bin/fade-cli, fade/prds/ENH-015-model-selection-learner.json
 - Tests: bash -n syntax check passed
+
+## 2026-01-27 - US-010: Export and review learning metrics (ENH-015) - COMPLETE
+
+- Created cmd_export_learning() function to export model selection learning data
+- Added 'fade export-learning' command to main case statement
+- Command accepts --format flag: 'json', 'markdown', or 'both' (default is both)
+- Generates learning-report.json using jq or Python JSON parser:
+  - Generated timestamp in ISO 8601 format
+  - Summary section with total PRDs analyzed
+  - Accuracy statistics per model (haiku_accuracy, sonnet_accuracy, opus_accuracy)
+  - Complete PRD list with features, outcomes, and confidence
+  - Full decision tree patterns and learned heuristics
+- Generates human-readable learning-report.md with:
+  - Title: Learning Report: Quarterly Model Selection Review
+  - Summary metrics section (total PRDs, accuracy %)
+  - Model performance section for each tier (Haiku, Sonnet, Opus)
+  - Use case recommendations per model
+  - Tuning recommendations for threshold adjustments
+  - Decision tree rules documentation
+  - Next steps section for review workflow
+- Uses fast path with jq when available for data extraction
+- Falls back to Python json module if jq not available
+- Handles both contained (fade/) and legacy (root) directory structures
+- Creates .bak backup file during sed replacement for BSD/GNU sed compatibility
+- Provides success messages with file paths to generated reports
+- Reports ready for quarterly review, data analysis, and system tuning
+- Files changed: bin/fade-cli, fade/prds/ENH-015-model-selection-learner.json
+- Tests: bash -n syntax check passed
+
+## ENH-015: Self-Improving Model Selection Learner - ALL COMPLETE
+
+- All 10 user stories completed:
+  - US-001: Session detection from exit signals ✓
+  - US-002: Extract PRD features for analysis ✓
+  - US-003: Initialize model-selection-history.json ✓
+  - US-004: Build model recommender with decision tree ✓
+  - US-005: Auto-update history after PRD completion ✓
+  - US-006: Integrate recommender into fade run workflow ✓
+  - US-007: Recalculate learned heuristics from history ✓
+  - US-008: Dashboard display of learned insights ✓
+  - US-009: Graceful escalation handling ✓
+  - US-010: Export and review learning metrics ✓
+- Feature provides complete feedback loop for model selection learning
+- System learns which models succeed on which work types
+- Recommendations improve with each completed PRD
+- Dashboard provides transparency into what system learned
+- Escalation handling guides users to better models when needed
+- Export provides quarterly review capabilities
+
