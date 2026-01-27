@@ -4571,6 +4571,29 @@ EOF
 }
 
 cmd_run() {
+    # ══════════════════════════════════════════════════════════════════════════
+    # COMMAND FLOW DIAGRAM
+    # ══════════════════════════════════════════════════════════════════════════
+    # 1. Parse flags (--yolo, --quiet, --model, --detach, --force)
+    # 2. Validate FADE project (FADE.md exists)
+    # 3. Check for active runs (if --detach)
+    # 4. Display work queue
+    # 5. Apply model selection routing (complexity or override)
+    # 6. Display version banner
+    # 7a. DETACH mode: create run, emit event, return immediately
+    # 7b. Warn if active run exists (non-detach)
+    # 8. Determine execution mode (STOP or ALL)
+    # 9a. STOP mode: exec claude (process replacement, no return)
+    # 9b. ALL mode: enter iteration loop
+    #
+    # ALL MODE LOOP EXIT PATHS:
+    # - ALL_COMPLETE: test generation → archive → break (or continue if more PRDs)
+    # - STORY_DONE: regression tests → continue (or break if tests fail after healing)
+    # - BLOCKED: auto-triage → break
+    # - INTERRUPTION (rate_limit/network/service): exit with code 2/3
+    # - NO SIGNAL: generic message → break
+    # ══════════════════════════════════════════════════════════════════════════
+
     local yolo_mode=false
     local quiet_mode=false
     local model="${FADE_MODEL:-sonnet}"
@@ -4686,8 +4709,6 @@ cmd_run() {
         fi
     elif [[ "$model_override" == true ]]; then
         routing_source="--model flag (override)"
-    elif [[ -n "${FADE_MODEL:-}" ]]; then
-        routing_source="FADE_MODEL env var (override)"
     fi
 
     # Display version banner (CLI version, prompt.md version, any warnings)
@@ -4848,8 +4869,6 @@ cmd_run() {
                 esac
             elif [[ "$model_override" == true ]]; then
                 routing_source="--model flag (override)"
-            elif [[ -n "${FADE_MODEL:-}" ]]; then
-                routing_source="FADE_MODEL env var (override)"
             fi
 
             # Capture complexity rubric scores for telemetry (ENH-023 US-001)
@@ -4981,12 +5000,26 @@ cmd_run() {
                 emit_event "$tracking_run_id" "signal_received" "{\"signal\":\"$detected_signal\",\"iteration\":$iteration}" 2>/dev/null || true
             fi
 
-            # Check for signals in output (strict pattern matching to avoid false positives)
-            # Detection order: ALL_COMPLETE, STORY_DONE, BLOCKED
-            # - ALL_COMPLETE: '^ALL_COMPLETE$' (own line, exact match)
-            # - STORY_DONE: '^STORY_DONE: ' (at start of line, colon required)
-            # - BLOCKED: '^BLOCKED: ' (at start of line, colon required)
-            # This prevents matching these words in other contexts (e.g., "blocked repos" in output)
+            # ══════════════════════════════════════════════════════════════════════
+            # SIGNAL DETECTION AND EXIT PATH ROUTING
+            # ══════════════════════════════════════════════════════════════════════
+            # Detection uses strict pattern matching to avoid false positives.
+            # Order matters: ALL_COMPLETE → STORY_DONE → BLOCKED → INTERRUPTION → NO SIGNAL
+            #
+            # PATTERNS:
+            # - ALL_COMPLETE: '^ALL_COMPLETE$' (exact line match)
+            # - STORY_DONE: '^STORY_DONE: US-XXX' (line start, colon, story ID)
+            # - BLOCKED: '^BLOCKED: reason' (line start, colon, reason text)
+            # - INTERRUPTION: detect_interruption() checks for rate_limit/network/service patterns
+            # - NO SIGNAL: fallback if none of the above match
+            #
+            # EXIT PATHS:
+            # 1. ALL_COMPLETE → test generation → archive → break (or continue if more PRDs)
+            # 2. STORY_DONE → regression tests → continue (or healing → break if tests fail)
+            # 3. BLOCKED → auto-triage → break
+            # 4. INTERRUPTION → exit 2 (rate_limit) or exit 3 (network/service)
+            # 5. NO SIGNAL → generic message → break
+            # ══════════════════════════════════════════════════════════════════════
 
             if echo "$output" | grep -qx "ALL_COMPLETE"; then
                 rm -f "$learned_before_file"

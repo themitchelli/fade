@@ -2657,3 +2657,26 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - ✓ Version markers updated consistently
 - Files changed: bin/fade-cli (added helper functions, enhanced cmd_update, updated help text), fade/prds/FEAT-027-overhaul-update-mechanism-for-reliable-upgrades.json
 - Tests: bash -n syntax check passed, manual dry-run testing verified all planned changes displayed correctly
+## 2026-01-27 - US-001: Audit cmd_run() for dead code and unreachable branches (STAB-001) - COMPLETE
+
+- Added comprehensive flowchart comment at beginning of cmd_run() documenting all code paths
+  - Entry: flag parsing, validation, model selection, mode determination
+  - Exit paths: STOP mode (exec), ALL mode loop with 5 exit conditions
+  - Exit conditions: ALL_COMPLETE, STORY_DONE, BLOCKED, INTERRUPTION, NO SIGNAL
+- Removed unreachable code: 2 instances of dead elif branches
+  - Lines checking `elif [[ -n "${FADE_MODEL:-}" ]]` were unreachable
+  - model_override is boolean (true/false), so third elif can never execute
+  - Removed from both pre-loop routing (line ~4689) and in-loop routing (line ~4851)
+- Added detailed signal detection comment block
+  - Documents all signal patterns with regex examples
+  - Documents detection order: ALL_COMPLETE → STORY_DONE → BLOCKED → INTERRUPTION → NO SIGNAL
+  - Documents exit paths for each signal type
+- Verified all exit paths are covered:
+  - ALL_COMPLETE: generates tests, archives PRDs, breaks or continues
+  - STORY_DONE: runs regression tests, continues or breaks after healing
+  - BLOCKED: auto-triages, breaks
+  - INTERRUPTION: exits with code 2 (rate_limit) or 3 (network/service)
+  - NO SIGNAL: displays generic message, breaks
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
+

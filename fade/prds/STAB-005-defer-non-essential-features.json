@@ -1,0 +1,54 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-005",
+  "name": "Defer non-essential features behind flags",
+  "description": "Several features added in the past 3 days are 'nice to have' but not essential for core autonomous operation: telemetry events, council suggestions, model recommendations display. Defer these behind opt-in flags so core loop is simpler.",
+  "complexity": "simple",
+  "dependsOn": ["STAB-001"],
+  "priority": 5,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Make telemetry opt-in with FADE_TELEMETRY flag",
+      "description": "events.jsonl logging adds I/O overhead. Make it opt-in.",
+      "acceptanceCriteria": [
+        "FADE_TELEMETRY=1 enables event logging to events.jsonl",
+        "Default (unset) skips all emit_event() calls",
+        "emit_event() checks flag before writing",
+        "Help text documents the flag"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Remove automatic council suggestions from loop",
+      "description": "Council suggestions interrupt flow. User can run `fade council` manually.",
+      "acceptanceCriteria": [
+        "Remove display_council_suggestion() calls from cmd_run loop",
+        "fade council command still works for manual use",
+        "No prompts or suggestions interrupt the execution loop"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Remove model recommendation display from loop",
+      "description": "Model recommendation banner adds noise. Routing happens silently.",
+      "acceptanceCriteria": [
+        "Remove display_model_recommendation() from cmd_run",
+        "Model selection still works (just no banner)",
+        "fade run --show-recommendation still works for manual check",
+        "Reduces output noise during autonomous operation"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "haiku",
+    "rationale": "Simple conditional removals and flag checks. Haiku sufficient."
+  }
+}

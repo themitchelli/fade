@@ -1,0 +1,58 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-002",
+  "name": "Simplify model selection to three clear paths",
+  "description": "Model selection has become complex with learned heuristics, Python scripts, and multiple override points. Simplify to three clear paths: 1) --model flag, 2) FADE_MODEL env, 3) PRD complexity field. Remove the learning system for now - it can be re-added once core is stable.",
+  "complexity": "medium",
+  "dependsOn": ["STAB-001"],
+  "priority": 2,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Remove model selection learner integration from cmd_run",
+      "description": "The recommend-model.py and learned heuristics add complexity. Disable them from the main loop.",
+      "acceptanceCriteria": [
+        "cmd_run() no longer calls get_model_recommendation()",
+        "Model selection uses only: --model flag > FADE_MODEL env > complexity field > sonnet default",
+        "fade/lib/ Python scripts remain (not deleted) but are not called from fade-cli",
+        "bash -n syntax check passes"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Consolidate get_model_for_complexity to single function",
+      "description": "Model routing logic is scattered. Create one clear function.",
+      "acceptanceCriteria": [
+        "Single get_model_for_complexity() function handles all routing",
+        "Function signature: get_model_for_complexity(prd_file, model_override, env_override)",
+        "Returns model name and routing_source for logging",
+        "Function has clear comment explaining precedence",
+        "Remove duplicate routing logic from other functions"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add model selection test coverage",
+      "description": "Create tests that verify model selection works as documented.",
+      "acceptanceCriteria": [
+        "Test: --model flag overrides everything",
+        "Test: FADE_MODEL env overrides complexity",
+        "Test: complexity=simple routes to haiku",
+        "Test: complexity=complex routes to opus",
+        "Test: missing complexity defaults to sonnet",
+        "All tests in fade/tests/STAB-002/"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Refactoring requires understanding existing patterns. Medium complexity."
+  }
+}

@@ -1,0 +1,55 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-003",
+  "name": "Simplify self-healing to match manual workflow",
+  "description": "The current self-healing in FEAT-022 is complex with auto-triage, categorization, and retry loops. The user's actual workflow is simple: regression fails → copy error → Claude creates bug PRD → fixed. Simplify to match this proven pattern.",
+  "complexity": "simple",
+  "dependsOn": ["STAB-001"],
+  "priority": 3,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "On regression failure, output clear error summary for copy-paste",
+      "description": "When tests fail, output a formatted block that can be directly pasted to Claude Code.",
+      "acceptanceCriteria": [
+        "On test failure, output includes: test name, assertion that failed, expected vs actual",
+        "Output is formatted as markdown code block for easy copy",
+        "Output suggests: 'Paste this to Claude Code to generate a fix PRD'",
+        "Remove complex categorization logic - just show the error clearly"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Remove automatic bug PRD generation",
+      "description": "Let the user/Claude Code create the bug PRD rather than auto-generating.",
+      "acceptanceCriteria": [
+        "FADE no longer auto-generates bug PRDs in fade/prds/auto/",
+        "FADE halts cleanly after showing error summary",
+        "User can manually run `fade new bug` or paste to Claude Code",
+        "Remove generate_bug_prd() and related auto-generation code"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Remove retry loop for self-healing",
+      "description": "The K-attempts retry loop adds complexity. Remove it.",
+      "acceptanceCriteria": [
+        "No automatic retry after failure",
+        "User explicitly runs `fade run` to retry after fix",
+        "Remove MAX_HEAL_ATTEMPTS and related loop logic",
+        "FADE exits with clear status: 'Regression failed. Fix and re-run.'"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "haiku",
+    "rationale": "Removing code is simpler than adding. Haiku can handle deletion and simplification."
+  }
+}

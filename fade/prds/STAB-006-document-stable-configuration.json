@@ -1,0 +1,55 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-006",
+  "name": "Document stable configuration and recommended usage",
+  "description": "After stabilization, document the recommended configuration for reliable autonomous operation. Update FADE.md and README with clear guidance on which features to use and which to defer.",
+  "complexity": "simple",
+  "dependsOn": ["STAB-001", "STAB-002", "STAB-003", "STAB-004", "STAB-005"],
+  "priority": 6,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Update FADE.md with stability notes",
+      "description": "Document which features are stable vs experimental.",
+      "acceptanceCriteria": [
+        "FADE.md has 'Feature Stability' section",
+        "Core features marked as stable: run, new, status, update",
+        "Optional features marked: dashboard, council, workspace, telemetry",
+        "Recommended env vars for production use documented"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Update architecture.md with simplified model routing",
+      "description": "Reflect the simplified model selection in docs.",
+      "acceptanceCriteria": [
+        "Architecture.md model routing section updated",
+        "Removes references to learned heuristics (deferred)",
+        "Shows simple 3-path routing: flag > env > complexity",
+        "Diagram updated to match implementation"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Add troubleshooting section to README",
+      "description": "Help users diagnose common issues.",
+      "acceptanceCriteria": [
+        "README has 'Troubleshooting' section",
+        "Covers: loop not detecting signals, model selection issues, test failures",
+        "Includes diagnostic commands: fade status --json, bash -n",
+        "Links to relevant sections of prompt.md"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "haiku",
+    "rationale": "Documentation updates. Haiku is sufficient."
+  }
+}

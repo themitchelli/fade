@@ -1,0 +1,27 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-027",
+  "name": "Overhaul update mechanism for reliable upgrades",
+  "description": "The current update mechanism is clunky and hard to trust across multiple repos. As FADE becomes a core control plane, updates must be safe, idempotent, and transparent.",
+  "complexity": "complex",
+  "dependsOn": [
+    "FEAT-024"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Idempotent updates with preview and rollback",
+      "description": "Updating FADE should not corrupt repo state or overwrite user changes unexpectedly.",
+      "acceptanceCriteria": [
+        "`fade update` is idempotent: running it multiple times yields the same repo state.",
+        "`fade update --dry-run` shows planned file changes (add/modify) without applying them.",
+        "Update preserves user-edited content in FADE.md and custom standards; templated sections are clearly separated.",
+        "Update writes a checkpoint/backup under `fade/update-backups/<timestamp>/` enabling rollback.",
+        "Update updates version markers consistently (FADE version, artifact versions)."
+      ],
+      "priority": 1,
+      "passes": true
+    }
+  ]
+}

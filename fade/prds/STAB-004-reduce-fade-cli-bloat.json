@@ -1,0 +1,68 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-004",
+  "name": "Reduce fade-cli bloat by extracting optional commands",
+  "description": "fade-cli grew from ~5000 to 13,600 lines in 3 days. Many features are optional (dashboard, council, discover, workspace). Extract these to separate scripts in fade/lib/ that fade-cli calls. Core script should be <6000 lines.",
+  "complexity": "medium",
+  "dependsOn": ["STAB-001", "STAB-002"],
+  "priority": 4,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Extract cmd_dashboard to fade/lib/dashboard.sh",
+      "description": "Dashboard is self-contained. Move it out of fade-cli.",
+      "acceptanceCriteria": [
+        "fade/lib/dashboard.sh contains all dashboard logic",
+        "fade-cli cmd_dashboard() becomes a thin wrapper that sources the lib",
+        "fade dashboard still works identically",
+        "bash -n passes on both files"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Extract cmd_council to fade/lib/council.sh",
+      "description": "Council is self-contained. Move it out of fade-cli.",
+      "acceptanceCriteria": [
+        "fade/lib/council.sh contains all council brief generation",
+        "fade-cli cmd_council() becomes thin wrapper",
+        "fade council still works identically",
+        "bash -n passes on both files"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Extract cmd_workspace to fade/lib/workspace.sh",
+      "description": "Workspace/multi-repo is self-contained. Move it out.",
+      "acceptanceCriteria": [
+        "fade/lib/workspace.sh contains workspace registry logic",
+        "fade-cli cmd_workspace() becomes thin wrapper",
+        "fade workspace still works identically",
+        "bash -n passes on both files"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Verify fade-cli is under 6000 lines",
+      "description": "After extraction, the core script should be manageable.",
+      "acceptanceCriteria": [
+        "wc -l bin/fade-cli shows < 6000 lines",
+        "All extracted libs are < 1500 lines each",
+        "All fade commands still work",
+        "All 16+ regression tests pass"
+      ],
+      "priority": 4,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Careful refactoring across multiple files. Medium complexity."
+  }
+}
