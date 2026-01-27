@@ -164,7 +164,7 @@
         "Call this automatically after fade/lib/log-outcome.sh updates history"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-008",

@@ -264,21 +264,45 @@
   ],
   "learnedHeuristics": {
     "useHaikuIf": [
-      "storyCount < 3 AND acCount < 10 AND NOT architecture",
-      "type=bug OR type=chore"
+      {
+        "condition": "storyCount < 7 AND acCount < 50 AND NOT architecture",
+        "confidence": 100.0,
+        "based_on_prds": 1,
+        "note": "Simple bug fixes and small features"
+      }
     ],
     "useSonnetIf": [
-      "storyCount >= 3 AND storyCount <= 10 AND acCount <= 50",
-      "integrate=true AND integrationSurface <= 3"
+      {
+        "condition": "storyCount <= 9 AND integrate AND integrationSurface <= 2",
+        "confidence": 88.9,
+        "based_on_prds": 9,
+        "note": "Moderate features with light integration"
+      },
+      {
+        "condition": "NOT (architecture OR (integrate AND integrationSurface >= 3))",
+        "confidence": 88.9,
+        "based_on_prds": 9,
+        "note": "Default for medium complexity"
+      }
     ],
     "useOpusIf": [
-      "architecture=true AND integrationSurface >= 4",
-      "integrate=true AND stateful=true AND integrationSurface >= 3"
+      {
+        "condition": "architecture OR (integrate AND integrationSurface >= 3)",
+        "confidence": 0.0,
+        "based_on_prds": 0,
+        "note": "Complex architectural work or heavy integration"
+      },
+      {
+        "condition": "stateful AND integrationSurface >= 2",
+        "confidence": 0.0,
+        "based_on_prds": 0,
+        "note": "Stateful systems with multiple subsystems"
+      }
     ],
     "accuracyStats": {
-      "haiku_accuracy": 100,
-      "sonnet_accuracy": 83,
-      "opus_accuracy": 0
+      "haiku_accuracy": 100.0,
+      "sonnet_accuracy": 88.9,
+      "opus_accuracy": 0.0
     }
   }
 }

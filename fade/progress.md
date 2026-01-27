@@ -22,6 +22,58 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-27 - US-007: Recalculate learned heuristics from history (ENH-015) - COMPLETE
+
+- Verified fade/lib/update-heuristics.py script exists and is fully functional
+  - Script correctly reads fade/model-selection-history.json prds array
+  - Calculates success rates for each model type (Haiku, Sonnet, Opus)
+  - Generates decision tree rules with confidence thresholds
+  - Outputs useHaikuIf[], useSonnetIf[], useOpusIf[] arrays with conditions
+  - Produces accuracyStats with success percentages for each model
+- Tested update-heuristics.py with current history
+  - Command: python3 fade/lib/update-heuristics.py fade/model-selection-history.json
+  - Output shows correctly structured learnedHeuristics JSON
+  - Haiku: 100% confidence for simple bugs/small features
+  - Sonnet: 88.9% confidence for moderate features with light integration
+  - Opus: Complex architectural work or heavy integration
+- All acceptance criteria satisfied:
+  - ✓ Script created and functional
+  - ✓ Reads PRD history data
+  - ✓ Calculates success rates per model
+  - ✓ Generates decision tree rules
+  - ✓ Outputs structured learnedHeuristics with all required fields
+- Files changed: fade/prds/ENH-015-model-selection-learner.json
+- Tests: Manual testing verified script execution and output correctness
+
+Note: Script was created in US-005 session but PRD story was not marked complete. This checkpoint marks the story complete after verification.
+
+## 2026-01-27 - US-006: Integrate recommender into fade run workflow (ENH-015) - COMPLETE
+
+- Created get_model_recommendation() helper function to call fade/recommend-model.py and retrieve model recommendations
+  - Handles both contained (fade/) and legacy (root) directory structures
+  - Gracefully returns 1 if recommender script not found
+  - Uses python3 or python fallback for compatibility
+- Created display_model_recommendation() helper function to format and display recommendation banner
+  - Parses recommender output and extracts model, confidence, and reasoning
+  - Displays cyan-colored banner with recommendation and instructions
+  - Returns 1 if recommendation parsing fails
+- Integrated recommendation display into cmd_run() workflow
+  - Displays after work queue but before execution mode selection
+  - Only shows recommendation if no --model override provided (respects user choice)
+  - Returns early if --show-recommendation flag passed (display-only mode)
+- Added --show-recommendation flag support for display-only execution
+  - Useful for checking recommendation without committing to execution
+  - Respects all other flags (--yolo, --quiet, etc.) in parsing
+- Updated help text
+  - Added --show-recommendation to "Run Options" section
+  - Added example: "fade run --show-recommendation"
+- Tested recommendation display working correctly
+  - Verified banner displays with proper formatting
+  - Verified --show-recommendation flag exits after displaying
+  - Verified ENH-015 recommends OPUS with 90% confidence
+- Files changed: bin/fade-cli, fade/prds/ENH-015-model-selection-learner.json
+- Tests: bash -n syntax check passed, manual testing verified all acceptance criteria
+
 ## 2026-01-27 - US-001, US-002, US-003, US-004: Model Selection Learning System (ENH-015) - COMPLETE
 
 - Created fade/lib/detect-sessions.sh: Script to count distinct work sessions for a PRD
