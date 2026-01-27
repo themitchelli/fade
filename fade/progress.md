@@ -2817,3 +2817,27 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - bin/fade-cli (enhanced test failure output with copy-pasteable format)
   - fade/prds/STAB-003-simplify-self-healing-workflow.json (US-001 passes: true)
 
+
+## 2026-01-27 - US-002: Remove automatic bug PRD generation (STAB-003) - COMPLETE
+
+- Removed automatic bug PRD generation from test failure handling
+- Removed self-healing retry loop from main execution path
+- FADE now halts cleanly after showing error summary (bin/fade-cli:5217-5237)
+- Removed 4 functions (~300 lines total):
+  * capture_test_failure_summary() (lines 1899-1941)
+  * generate_bug_prd_for_test_failure() (lines 1943-2002)
+  * run_bug_fix_agent() (lines 2004-2096)
+  * attempt_self_healing_for_test_failure() (lines 2098-2200)
+- User workflow now: regression fails → copy error → manually create bug PRD or paste to Claude Code
+- Exit message: "⛔ Regression failed. Fix and re-run."
+- No fade/prds/auto/ generation
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ FADE no longer auto-generates bug PRDs in fade/prds/auto/
+  - ✓ FADE halts cleanly after showing error summary
+  - ✓ User can manually run `fade new bug` or paste to Claude Code
+  - ✓ Remove generate_bug_prd() and related auto-generation code
+- Files changed:
+  - bin/fade-cli (removed 300+ lines of auto-generation/healing code)
+  - fade/prds/STAB-003-simplify-self-healing-workflow.json (US-002 passes: true)
+

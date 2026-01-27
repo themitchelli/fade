@@ -32,7 +32,7 @@
         "Remove generate_bug_prd() and related auto-generation code"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
