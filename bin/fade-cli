@@ -5998,6 +5998,58 @@ What are they trying to accomplish? What's the context?
     exec $claude_cmd "$context"
 }
 
+# Interactive PRD creation with full repo context awareness (FEAT-025 US-001)
+# This is the primary interface for creating new PRDs with automatic complexity analysis
+cmd_prd_new() {
+    local feature_name=""
+    local model="${FADE_MODEL:-sonnet}"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --model)
+                model="$2"
+                shift 2
+                ;;
+            -*)
+                echo -e "${RED}Error: Unknown option '$1'${NC}"
+                echo ""
+                echo "Usage: fade prd new [--model <model>] \"<feature name>\""
+                exit 1
+                ;;
+            *)
+                if [[ -z "$feature_name" ]]; then
+                    feature_name="$1"
+                else
+                    echo -e "${RED}Error: Unexpected argument '$1'${NC}"
+                    exit 1
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    # Validate feature name
+    if [[ -z "$feature_name" ]]; then
+        echo -e "${RED}Error: Feature name required.${NC}"
+        echo ""
+        echo "Usage: fade prd new [--model <model>] \"<feature name>\""
+        echo ""
+        echo "Options:"
+        echo "  --model <name>  Use specific Claude model (opus, sonnet, haiku)"
+        echo ""
+        echo "Examples:"
+        echo "  fade prd new \"User authentication\""
+        echo "  fade prd new --model opus \"Database migration\""
+        exit 1
+    fi
+
+    # Use discover --prd for the interactive flow
+    # discover already has all repo-context awareness (FADE.md, standards, map.md)
+    # and integrates complexity analysis with estimator
+    cmd_discover --prd --model "$model" "$feature_name"
+}
+
 cmd_new() {
     local prd_type=""
     local prd_name=""
@@ -7969,6 +8021,7 @@ ${YELLOW}Usage:${NC} fade <command> [options]
 ${YELLOW}Commands:${NC}
   init          Create FADE structure (FADE.md, progress.md, learned.md, prds/)
   new           Create a new PRD file (fade new <type> "<name>")
+  prd new       Interactive PRD creation with full repo context awareness
   discover      Interactive session to explore implementation details before PRD
   map           Analyze codebase and generate FADE.md context (for brownfield projects)
   council       Generate a council brief for a PRD (multi-LLM review)
@@ -8034,6 +8087,24 @@ ${YELLOW}Discover Options:${NC}
                   - Output: fade/prds/FEAT-NNN-{slug}.json
                   - PRD references discovery doc via discoveryDoc field
   --model <name>  Use specific Claude model (opus, sonnet, haiku)
+
+${YELLOW}PRD Creation Command:${NC}
+  fade prd new [--model <model>] \"<feature name>\"
+
+  Interactive PRD creation with full repo context awareness.
+  Launched with Claude for structured work breakdown design.
+  - Automatically references: repo structure, FADE.md, relevant standards, fade/map.md
+  - Asks clarifying questions about feature scope, constraints, risks, integration
+  - Generates PRD JSON with properly numbered user stories and acceptance criteria
+  - Includes automatic complexity classification with estimation rationale
+  - Faster and more focused than 'fade discover' for PRD-first workflows
+
+  Output: fade/prds/FEAT-NNN-{slug}.json
+  Format: Valid PRD JSON with complexity field and full story structure
+
+  Examples:
+    fade prd new \"User authentication system\"
+    fade prd new --model opus \"Database migration strategy\"
 
 ${YELLOW}Quick Command:${NC}
   fade quick "<task description>"
@@ -13183,6 +13254,19 @@ fi
 case "${1:-}" in
     init)
         cmd_init
+        ;;
+    prd)
+        shift
+        case "${1:-}" in
+            new)
+                shift
+                cmd_prd_new "$@"
+                ;;
+            *)
+                echo "Usage: fade prd new [--model <model>] \"<feature name>\""
+                exit 1
+                ;;
+        esac
         ;;
     new)
         shift

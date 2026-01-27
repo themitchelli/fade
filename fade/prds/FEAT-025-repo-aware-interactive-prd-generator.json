@@ -20,7 +20,7 @@
         "PRD includes an explicit `complexity` recommendation and stores the estimator rationale (brief) in the PRD description or a sidecar file."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
