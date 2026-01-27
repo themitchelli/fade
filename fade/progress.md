@@ -2864,3 +2864,25 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
 All STAB-003 user stories now complete (US-001, US-002, US-003).
 Self-healing workflow simplified to match manual debugging pattern.
 
+
+## 2026-01-27 - US-001: Extract cmd_dashboard to fade/lib/dashboard.sh (STAB-004) - COMPLETE
+
+- Created fade/lib/dashboard.sh (413 lines) with all dashboard logic:
+  * Dashboard config functions (get_dashboard_config_dir, read/write_dashboard_config, etc.)
+  * Repository management (dashboard_add_repo, dashboard_list_repos, dashboard_auto_discover)
+  * Server launch (dashboard_start_server)
+  * Main command (cmd_dashboard)
+- Modified bin/fade-cli to source dashboard library at startup (after color definitions)
+- Removed 384 lines from fade-cli (13194 → 12810 lines)
+- Dashboard functions now loaded from external library on demand
+- bash -n syntax check passes on both files
+- All acceptance criteria satisfied:
+  - ✓ fade/lib/dashboard.sh contains all dashboard logic
+  - ✓ fade-cli sources the library (no wrapper needed - sourced at startup)
+  - ✓ fade dashboard still works identically (functions available after source)
+  - ✓ bash -n passes on both files
+- Files changed:
+  - fade/lib/dashboard.sh (new, 413 lines)
+  - bin/fade-cli (reduced 384 lines, added source statement)
+  - fade/prds/STAB-004-reduce-fade-cli-bloat.json (US-001 passes: true)
+
