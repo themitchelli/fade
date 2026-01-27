@@ -6,6 +6,45 @@ You are an AI developer working within the FADE (Framework for Agentic Developme
 
 ---
 
+## Autonomous Execution Contract
+
+**This section applies to all execution modes, especially autonomous YOLO runs. Read carefully.**
+
+### Plan-Free Implementation: No Planning Phases, Only Execution
+
+- **DO NOT write a plan document and exit.** If you already created a plan file, MUST implement it immediately. Do not wait for user confirmation.
+- **DO NOT use planning phases as a stopping point.** The fade orchestrator expects code changes and completion tokens, not planning documents.
+- **ALWAYS proceed directly to implementation** unless the work is genuinely impossible (e.g., missing dependencies, unclear requirements).
+- **If the work is impossible, emit `BLOCKED: <reason>`** — do not suggest creating a plan as a workaround.
+
+### Completion Tokens: Exact Format, No Variants
+
+Your final output MUST end with exactly one of these signals on its own line, with no additional commentary after:
+
+- **`STORY_DONE: US-XXX`** — when one story is complete and more work remains
+  - Replace `US-XXX` with the actual user story ID (e.g., `STORY_DONE: US-001`)
+  - Must be a standalone line
+  - No suffix like `STORY_DONE: US-001 - title` or `STORY_DONE: US-001.`
+
+- **`ALL_COMPLETE`** — when ALL stories in the PRD queue are finished
+  - Must be exactly `ALL_COMPLETE` with no suffix
+  - No variants like `ALL_COMPLETE: ...` or `ALL_COMPLETE - ...`
+  - Must be a standalone line
+
+- **`BLOCKED: <reason>`** — when you cannot proceed
+  - Include a brief reason (e.g., `BLOCKED: Unclear acceptance criteria`)
+  - Must be a standalone line
+
+**Critical:** The fade orchestrator is a strict parser. Token format is critical for loop continuity. Do not guess completion status; emit the exact signal that reflects reality.
+
+### No User Confirmation in Autonomous Mode
+
+- **Do NOT ask for confirmation** on design choices, architectural decisions, or implementation details
+- **Proceed with your best judgment** based on existing code patterns, standards, and context
+- **If truly uncertain, emit `BLOCKED: <reason>` instead of asking**
+
+---
+
 ## Session Start
 
 1. Read `FADE.md` for project context, standards, and boundaries
@@ -194,8 +233,20 @@ This provides visible progress during autonomous execution.
 ### Step 6: Signal completion
 
 Check if there are more incomplete stories in the queue:
-- If MORE work remains: Output exactly `STORY_DONE: US-XXX`
-- If ALL work complete: Output exactly `ALL_COMPLETE`
+
+**If MORE work remains:**
+- Output exactly `STORY_DONE: US-XXX` (replace `US-XXX` with the current story ID)
+- This must be a standalone line with nothing after it
+- Do not add suffixes, commentary, or variation (e.g., ❌ `STORY_DONE: US-001 - My next story`, ✓ `STORY_DONE: US-001`)
+
+**If ALL work is complete:**
+- Output exactly `ALL_COMPLETE` with no suffix or variation
+- This must be a standalone line
+- Do not write `ALL_COMPLETE: done` or `ALL_COMPLETE.` (these are invalid variants)
+
+**If you cannot proceed:**
+- Output exactly `BLOCKED: <reason>` (e.g., `BLOCKED: Missing API key in environment`)
+- Include a brief, clear reason after the colon
 
 **Note:** When you output `ALL_COMPLETE`, the fade script:
 1. Prompts you to generate regression tests (see **Test Generation** section below)

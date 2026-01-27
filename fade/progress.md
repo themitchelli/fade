@@ -2392,3 +2392,61 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 
 ## Model Usage: haiku (complexity: medium, duration: 10m, cost est: $0.02)
 
+
+## 2026-01-27 - US-001: Prevent plan-only exits in autonomous runs (PATCH-001) - COMPLETE
+
+- Added "Autonomous Execution Contract" section to prompt.md near top (right after introduction)
+  - Explicitly forbids plan-only outputs, planning-phase handoffs, and writing plan documents as final output
+  - If plan file was created, model MUST implement it immediately without asking user confirmation
+  - Mandates direct implementation unless work is impossible (then emit BLOCKED signal)
+  - Defines exact completion token format with no variants allowed
+  - Forbids asking for confirmation in autonomous mode
+- Enhanced Step 6 of Story Completion Protocol with detailed token format rules
+  - STORY_DONE: US-XXX must be standalone line with no suffix or commentary
+  - ALL_COMPLETE must be exactly as written, no variants like "ALL_COMPLETE: done"
+  - BLOCKED: <reason> format with brief explanation after colon
+  - Examples show what's valid (✓) and what's invalid (❌)
+- Wording uses strong language: "MUST", "DO NOT", "ALWAYS", "Critical"
+- All acceptance criteria satisfied:
+  - ✓ Plan-only exits explicitly forbidden
+  - ✓ Plan implementation mandatory
+  - ✓ No user confirmation in autonomous mode
+  - ✓ Signals must be exact format on own line
+  - ✓ STORY_DONE format enforced with examples
+  - ✓ Placement near top ensures always in context
+- Files changed: fade/prompt.md, fade/prd.json
+- Tests: Manual verification of prompt.md content and formatting
+
+## 2026-01-27 - US-002: Standardize completion tokens and forbid variants (PATCH-001) - COMPLETE
+
+- Added "Completion Tokens: Exact Format, No Variants" subsection to Autonomous Execution Contract
+  - Forbids variants like "ALL_COMPLETE: ...", "ALL_COMPLETE - ...", "ALL_COMPLETE."
+  - Forbids variants like "STORY_DONE: US-001 - title" or with trailing punctuation
+  - Requires standalone lines with no additional commentary after signals
+  - Explains critical importance: fade orchestrator is a strict parser
+- Enhanced Step 6 with explicit format rules and examples
+  - Uses checkmarks (✓) to show correct format vs X marks (❌) for invalid
+  - Shows exact output format for all three signal types (STORY_DONE, ALL_COMPLETE, BLOCKED)
+  - Clarifies that if uncertain, emit BLOCKED rather than guessing completion status
+- All acceptance criteria satisfied:
+  - ✓ Token variants explicitly forbidden with examples
+  - ✓ ALL_COMPLETE must be exact with no suffix
+  - ✓ STORY_DONE must be standalone line (no trailing content)
+  - ✓ No additional commentary after completion token lines
+  - ✓ Guidance against guessing completion status
+- Files changed: fade/prompt.md, fade/prd.json
+- Tests: Manual verification of format requirements and example coverage
+
+## PATCH-001: Emergency Prompt Hardening - ALL COMPLETE
+
+- Both user stories completed:
+  - US-001: Prevent plan-only exits in autonomous runs ✓
+  - US-002: Standardize completion tokens and forbid variants ✓
+- Prompt contract now explicitly enforces:
+  - Implementation-first behavior (no planning phases)
+  - Exact completion token format (strict parsing)
+  - Autonomous mode rules (no confirmation asking)
+- All prompt changes are unambiguous and placed for maximum visibility
+- Only prompt.md was modified (no code changes as specified)
+
+Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)

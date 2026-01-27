@@ -1,0 +1,63 @@
+{
+  "id": "PATCH-001",
+  "name": "Emergency Patch: Prompt contract hardening (no-plan + strict signals)",
+  "type": "patch",
+  "priority": "P0",
+  "status": "queued",
+  "owner": "Steve",
+  "tags": ["orchestration", "reliability", "prompt", "claude-code", "protocol", "yolo"],
+  "context": {
+    "problem_statement": "FADE sessions are pausing due to missing recognized completion signals and Claude Code entering a 'planning phase' (writing a plan file and exiting) instead of implementing changes. This causes 'Session Interrupted' even when work is ready to proceed.",
+    "why_this_matters": "YOLO mode must remain autonomous and resilient. The prompt contract is the primary mechanism to keep Claude Code in 'implement-now' mode and to ensure FADE receives strict completion tokens it can parse.",
+    "scope_note": "This patch ONLY updates prompt.md. No code changes outside prompt.md are allowed in this patch."
+  },
+  "user_stories": [
+    {
+      "id": "US-001",
+      "title": "Prevent plan-only exits in autonomous runs",
+      "description": "As the operator, I want Claude Code to implement immediately (not produce a plan document and stop), so YOLO runs do not pause without making code changes.",
+      "acceptance_criteria": [
+        "Update prompt.md to explicitly forbid plan-only outputs, planning-phase handoffs, or writing plan documents as the final output in autonomous runs.",
+        "Update prompt.md to explicitly instruct: if the model has already created a plan file, it must implement the plan immediately and MUST NOT create a new plan.",
+        "Update prompt.md to explicitly instruct: do not ask the user for confirmation; proceed with implementation unless the work is truly impossible, in which case emit BLOCKED: <reason>.",
+        "Update prompt.md to explicitly instruct that the model must always end each iteration with exactly one of the recognized signals on its own line: STORY_DONE: <US-ID> OR ALL_COMPLETE OR BLOCKED: <reason>.",
+        "Update prompt.md to explicitly instruct that STORY_DONE must be printed as an exact line beginning with 'STORY_DONE:' and include the current user story id.",
+        "Ensure wording is unambiguous and placed near the top of prompt.md so it is always in context."
+      ],
+      "implementation_notes": [
+        "This patch is prompt-only. Do not refactor code or change orchestrator parsing here.",
+        "Add a small section titled 'Autonomous Execution Contract' near the very top of prompt.md.",
+        "Use strong, explicit language: 'MUST', 'DO NOT', 'ALWAYS'."
+      ],
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Standardize completion tokens and forbid variants",
+      "description": "As the operator, I want the LLM to output completion tokens in the exact format FADE expects so runs don't falsely pause.",
+      "acceptance_criteria": [
+        "Update prompt.md to forbid token variants such as 'ALL_COMPLETE: ...' or 'ALL_COMPLETE - ...' as the final completion line.",
+        "Update prompt.md to instruct that the final completion line must be EXACTLY 'ALL_COMPLETE' with no suffix when the PRD is fully complete.",
+        "Update prompt.md to instruct that 'STORY_DONE: US-xxx' must be a standalone line and should be the last non-empty line of the message when a user story is completed.",
+        "Update prompt.md to instruct that no additional commentary may appear AFTER the completion token line.",
+        "Update prompt.md to instruct that if uncertain whether work is complete, the model should not guess completion; it should either implement missing work or emit 'BLOCKED: <reason>'."
+      ],
+      "implementation_notes": [
+        "This is a prompt contract reinforcement. Keep it short and prominent.",
+        "Make explicit that FADE is a strict parser and token formatting is critical."
+      ],
+      "passes": true
+    }
+  ],
+  "out_of_scope": [
+    "Changing FADE code to parse additional completion token variants",
+    "Implementing self-healing logic",
+    "Changing regression tests",
+    "Any changes outside prompt.md"
+  ],
+  "definition_of_done": [
+    "prompt.md updated with an 'Autonomous Execution Contract' section meeting the acceptance criteria",
+    "No other files changed",
+    "Progress logged as per FADE protocol"
+  ]
+}
