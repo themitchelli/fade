@@ -4289,6 +4289,7 @@ cmd_run() {
     local model_override=false  # Track if --model flag was used
     local detach_mode=false
     local force_detach=false
+    local single_prd=false  # Stop after completing one PRD
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -4312,6 +4313,10 @@ cmd_run() {
                 ;;
             --force)
                 force_detach=true
+                shift
+                ;;
+            --single-prd)
+                single_prd=true
                 shift
                 ;;
             *)
@@ -4734,6 +4739,16 @@ cmd_run() {
                 # Check if there are more PRDs with incomplete work
                 local next_prd=$(get_active_prd)
                 if [[ -n "$next_prd" ]]; then
+                    # If --single-prd flag is set, stop after this PRD
+                    if [[ "$single_prd" == true ]]; then
+                        local next_prd_name=$(get_prd_name "$next_prd")
+                        echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+                        echo -e "${CYAN}More PRDs in queue (${next_prd_name}), but --single-prd set.${NC}"
+                        echo -e "${CYAN}Stopping. Run 'fade yolo' to continue with remaining PRDs.${NC}"
+                        echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
+                        echo ""
+                        break
+                    fi
                     local next_prd_name=$(get_prd_name "$next_prd")
                     echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
                     echo -e "${CYAN}More PRDs in queue. Continuing to: ${next_prd_name}${NC}"
@@ -7169,6 +7184,7 @@ ${YELLOW}Run Options:${NC}
   --yolo                 Skip prompts, use ALL mode with --dangerously-skip-permissions
   --quiet, -q            Suppress iteration summaries in ALL/YOLO mode (final message still shown)
   --model <name>         Use specific Claude model (opus, sonnet, haiku)
+  --single-prd           Stop after completing current PRD (don't continue to next)
   --show-recommendation  Display model recommendation and exit (don't execute)
 
 ${YELLOW}Migrate Options:${NC}
@@ -7273,6 +7289,7 @@ ${YELLOW}Examples:${NC}
   fade yolo                              # 🤘 Full auto mode, no prompts
   fade yolo --model sonnet               # 🤘 Full auto with Sonnet
   fade yolo --quiet                      # 🤘 Full auto mode, minimal output
+  fade yolo --single-prd                 # 🤘 Full auto, but stop after one PRD
   fade run --yolo --quiet                # Same as above
   fade status                            # Check work queue
   fade status --json                     # Machine-readable status
