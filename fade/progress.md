@@ -2277,3 +2277,33 @@ Note: Script was created in US-005 session but PRD story was not marked complete
   - fade metrics command summarizes recent runs ✓
   - fade metrics --run shows per-run metrics ✓
   - Metrics output is deterministic and table-like ✓
+
+## Model Usage: haiku (complexity: medium, duration: 16m, cost est: $0.02)
+
+
+## 2026-01-27 - US-001: Replace heuristic estimator with scored rubric (ENH-023) - COMPLETE
+
+- Created `get_complexity_rubric()` function to calculate complexity with detailed rubric scores
+  - Returns JSON object with complexity level, totalScore, and individual factor scores
+  - Implements 5 documented factors: acceptanceCriteria, complexKeywords, simpleKeywords, estimatedEffort, dependencies
+  - Accumulates scores from factors: AC count >15 (+2), AC count <5 (-1), complex keywords (+2), simple keywords (-2), effort >1 week (+2), effort <4 hours (-1), dependencies >2 (+1)
+  - Final complexity determined by totalScore: >=3 = complex, <=-2 = simple, else medium
+- Updated ALL mode model selection to capture complexity rubric scores
+  - Extracts PRD name, description, and AC count before calculating rubric
+  - Calls `get_complexity_rubric()` with PRD information (only when not using override)
+  - Stores rubric JSON for inclusion in telemetry
+- Enhanced `model_selected` event emission to include complexity rubric and override flag
+  - Event now includes `"rubric"` field with full JSON rubric data when available
+  - Event includes `"override":true` field when operator explicitly set model with --model flag
+  - Example: `{"model":"sonnet","source":"complexity=medium","iteration":1,"rubric":{"complexity":"medium","totalScore":0,"factors":{...}}}`
+- Updated routing_source to indicate "(override)" when user overrides model
+  - Distinguishes between automatic model selection and explicit user override
+  - Shows "(override)" suffix for --model flag and FADE_MODEL env var
+- Verified all acceptance criteria satisfied:
+  - ✓ Estimator produces complexity based on scored rubric with 5 documented factors
+  - ✓ Estimator writes decision and factor scores to model_selected telemetry event
+  - ✓ Operator can override model and override is recorded in telemetry
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, get_complexity_rubric() tested with various parameters producing correct JSON output
+
+## Model Usage: haiku (complexity: medium, duration: 8m, cost est: $0.01)

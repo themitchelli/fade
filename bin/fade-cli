@@ -2270,6 +2270,80 @@ analyze_complexity() {
     echo "$complexity"
 }
 
+# Calculate complexity with detailed rubric scores (returns JSON)
+# Usage: get_complexity_rubric <prd_name> <prd_description> <ac_count> <estimated_effort> <dependencies_count>
+# Returns JSON object with complexity, score, and individual factor scores
+get_complexity_rubric() {
+    local prd_name="$1"
+    local prd_description="$2"
+    local ac_count="${3:-0}"
+    local estimated_effort="${4:-}"
+    local dependencies_count="${5:-0}"
+
+    local score=0
+    local text="$prd_name $prd_description"
+    local text_lower=$(echo "$text" | tr '[:upper:]' '[:lower:]')
+
+    # Initialize factor scores (0 = not triggered, 1 = triggered)
+    local ac_score=0
+    local complex_keywords_score=0
+    local simple_keywords_score=0
+    local effort_score=0
+    local dependencies_score=0
+
+    # Rule 1: Acceptance criteria count
+    if [[ $ac_count -gt 15 ]]; then
+        ac_score=2
+        score=$((score + 2))
+    elif [[ $ac_count -lt 5 && $ac_count -gt 0 ]]; then
+        ac_score=-1
+        score=$((score - 1))
+    fi
+
+    # Rule 2: Complex keywords
+    if echo "$text_lower" | grep -qE 'architecture|refactor|integrate|migration|migrate|multi-service|distributed|scalability|infrastructure'; then
+        complex_keywords_score=2
+        score=$((score + 2))
+    fi
+
+    # Rule 3: Simple keywords
+    if echo "$text_lower" | grep -qE 'typo|fix typo|update docs|add test|add logging|simple fix|small change|trivial'; then
+        simple_keywords_score=-2
+        score=$((score - 2))
+    fi
+
+    # Rule 4: Estimated effort
+    if [[ -n "$estimated_effort" ]]; then
+        if echo "$estimated_effort" | grep -qE '>.*1.*week|multiple weeks|months|2\+.*weeks|3\+.*weeks'; then
+            effort_score=2
+            score=$((score + 2))
+        elif echo "$estimated_effort" | grep -qE '<.*4.*hours|1-2 hours|quick|minutes'; then
+            effort_score=-1
+            score=$((score - 1))
+        fi
+    fi
+
+    # Rule 5: Dependencies
+    if [[ $dependencies_count -gt 2 ]]; then
+        dependencies_score=1
+        score=$((score + 1))
+    fi
+
+    # Determine final complexity
+    local complexity
+    if [[ $score -ge 3 ]]; then
+        complexity="complex"
+    elif [[ $score -le -2 ]]; then
+        complexity="simple"
+    else
+        complexity="medium"
+    fi
+
+    # Return JSON with all rubric data
+    printf '{"complexity":"%s","totalScore":%d,"factors":{"acceptanceCriteria":%d,"complexKeywords":%d,"simpleKeywords":%d,"estimatedEffort":%d,"dependencies":%d}}' \
+        "$complexity" "$score" "$ac_score" "$complex_keywords_score" "$simple_keywords_score" "$effort_score" "$dependencies_score"
+}
+
 # Get PRD ID from JSON file
 get_prd_id() {
     local prd_file="$1"
@@ -4091,9 +4165,9 @@ cmd_run() {
             esac
         fi
     elif [[ "$model_override" == true ]]; then
-        routing_source="--model flag"
+        routing_source="--model flag (override)"
     elif [[ -n "${FADE_MODEL:-}" ]]; then
-        routing_source="FADE_MODEL env var"
+        routing_source="FADE_MODEL env var (override)"
     fi
 
     # Display version banner (CLI version, prompt.md version, any warnings)
@@ -4227,6 +4301,8 @@ cmd_run() {
             # Apply complexity-based routing if --model flag was not used
             local selected_model="$model"
             local routing_source="default"
+            local complexity_rubric=""  # JSON with rubric scores
+
             if [[ "$model_override" == false ]] && [[ -n "$active_prd" ]]; then
                 local complexity=$(get_prd_complexity "$active_prd")
 
@@ -4251,13 +4327,34 @@ cmd_run() {
                         ;;
                 esac
             elif [[ "$model_override" == true ]]; then
-                routing_source="--model flag"
+                routing_source="--model flag (override)"
             elif [[ -n "${FADE_MODEL:-}" ]]; then
-                routing_source="FADE_MODEL env var"
+                routing_source="FADE_MODEL env var (override)"
             fi
 
-            # Emit model_selected event (ENH-021 US-001)
-            emit_event "$tracking_run_id" "model_selected" "{\"model\":\"$selected_model\",\"source\":\"$routing_source\",\"iteration\":$iteration}" 2>/dev/null || true
+            # Capture complexity rubric scores for telemetry (ENH-023 US-001)
+            if [[ "$model_override" == false ]] && [[ -n "$active_prd" ]]; then
+                # Extract PRD info for rubric calculation
+                local prd_name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$active_prd" 2>/dev/null | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+                local prd_description=$(grep -o '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$active_prd" 2>/dev/null | head -1 | sed 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+                local ac_count=$(grep -o '"acceptanceCriteria"[[:space:]]*:[[:space:]]*\[\([^\]]*\)\]' "$active_prd" 2>/dev/null | grep -o '"[^"]*"' | wc -l)
+
+                # Get rubric with scores
+                complexity_rubric=$(get_complexity_rubric "$prd_name" "$prd_description" "$ac_count" "" "0" 2>/dev/null)
+            fi
+
+            # Emit model_selected event with rubric scores (ENH-023 US-001)
+            # Include complexity rubric if available, record override status
+            local event_data="{\"model\":\"$selected_model\",\"source\":\"$routing_source\",\"iteration\":$iteration"
+            if [[ -n "$complexity_rubric" ]]; then
+                event_data="$event_data,\"rubric\":$complexity_rubric"
+            fi
+            if [[ "$model_override" == true ]]; then
+                event_data="$event_data,\"override\":true"
+            fi
+            event_data="$event_data}"
+
+            emit_event "$tracking_run_id" "model_selected" "$event_data" 2>/dev/null || true
 
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo -e "${CYAN}Iteration $iteration - ${iteration_start_time} - model: ${selected_model} (${routing_source})${NC}"

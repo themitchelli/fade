@@ -1,0 +1,39 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-021",
+  "name": "Structured telemetry and metrics",
+  "description": "FADE currently produces human-readable logs (progress/learned), but not machine-usable telemetry. Telemetry is required to (a) measure efficiency and reliability, (b) improve model selection/complexity estimation, (c) support dashboards and multi-repo operations, and (d) provide research-grade evidence of impact.",
+  "complexity": "medium",
+  "dependsOn": [
+    "FEAT-020"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Emit structured events for key lifecycle actions",
+      "description": "FADE writes append-only JSONL events for run lifecycle, PRD/story transitions, model selection, signals, and errors.",
+      "acceptanceCriteria": [
+        "Each run writes `fade/runs/<run_id>/events.jsonl` as newline-delimited JSON objects.",
+        "Event schema includes: `ts`, `run_id`, `repo`, `event_type`, and a `data` object for details.",
+        "At minimum, emit events for: run_start, run_stop, prd_start, prd_end, story_start, story_end, model_selected, signal_received, blocked, regression_start, regression_end, error.",
+        "Events are appended in chronological order and never rewritten.",
+        "Events do not contain secrets (no API keys, tokens, or credential-like strings)."
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Provide operator metrics derived from telemetry",
+      "description": "Operators can quickly understand throughput, failures, retries, and model usage.",
+      "acceptanceCriteria": [
+        "Command `fade metrics` summarizes the last N runs across the current repo (and workspace later): total stories completed, failures, BLOCKED count, regressions run, average story duration, model usage breakdown.",
+        "Command `fade metrics --run <run_id>` prints per-run metrics including per-story durations and outcomes.",
+        "Metrics output is deterministic and readable (table-like)."
+      ],
+      "priority": 2,
+      "passes": true
+    }
+  ]
+}
