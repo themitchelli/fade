@@ -2625,6 +2625,23 @@ display_escalation_suggestion() {
     printf "%b\n" "${COLOR_WARNING}└────────────────────────────────────────────────────┘${COLOR_RESET}"
 }
 
+# Display council suggestion (for high-risk work)
+display_council_suggestion() {
+    local prd_id="$1"
+    local reason="$2"
+
+    printf "%b\n" "${YELLOW}┌────────────────────────────────────────────────────┐${NC}"
+    printf "%b\n" "${YELLOW}│ Council Mode Suggested                              │${NC}"
+    printf "%b\n" "${YELLOW}│ High-risk work benefits from multi-LLM review       │${NC}"
+    printf "%b\n" "${YELLOW}├────────────────────────────────────────────────────┤${NC}"
+    printf "%b\n" "${YELLOW}│ Reason: $reason${NC}"
+    printf "%b\n" "${YELLOW}├────────────────────────────────────────────────────┤${NC}"
+    printf "%b\n" "${YELLOW}│ To use council: fade council $prd_id${NC}"
+    printf "%b\n" "${YELLOW}│ Paste brief into ChatGPT, Gemini, etc. for          │${NC}"
+    printf "%b\n" "${YELLOW}│ comparison. Returns consensus approach.             │${NC}"
+    printf "%b\n" "${YELLOW}└────────────────────────────────────────────────────┘${NC}"
+}
+
 # Display session context (used by all interruption handlers)
 display_session_context() {
     local active_prd=$(get_active_prd)
@@ -4355,6 +4372,38 @@ cmd_run() {
             event_data="$event_data}"
 
             emit_event "$tracking_run_id" "model_selected" "$event_data" 2>/dev/null || true
+
+            # Check for council suggestion (ENH-026 US-002)
+            # Suggest council mode when: complexity=complex, or K retries occur
+            local should_suggest_council=false
+            local council_reason=""
+
+            if [[ -n "$active_prd" ]]; then
+                local prd_id=$(get_prd_id "$active_prd")
+                local complexity=$(get_prd_complexity "$active_prd")
+
+                # Suggest council mode for complex work (high-risk, significant decisions)
+                if [[ "$complexity" == "complex" ]]; then
+                    should_suggest_council=true
+                    council_reason="Complexity is marked as 'complex' - benefits from multi-LLM review"
+                fi
+
+                # Suggest council mode if we're retrying (iteration 2 or later indicates previous failure)
+                if [[ $iteration -gt 1 ]] && [[ "$should_suggest_council" == false ]]; then
+                    should_suggest_council=true
+                    council_reason="Multiple retries ($iteration attempts) - consensus approach may help"
+                fi
+
+                # Emit council_suggested event if suggesting (ENH-026 US-002)
+                if [[ "$should_suggest_council" == true ]]; then
+                    emit_event "$tracking_run_id" "council_suggested" "{\"prd_id\":\"$prd_id\",\"reason\":\"$council_reason\",\"iteration\":$iteration}" 2>/dev/null || true
+
+                    # Display suggestion (non-blocking, informational)
+                    echo ""
+                    display_council_suggestion "$prd_id" "$council_reason"
+                    echo ""
+                fi
+            fi
 
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo -e "${CYAN}Iteration $iteration - ${iteration_start_time} - model: ${selected_model} (${routing_source})${NC}"
