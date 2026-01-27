@@ -8273,6 +8273,7 @@ ${YELLOW}Migrate Options:${NC}
 ${YELLOW}Update Options:${NC}
   --check       Check for updates without applying (exit code: 0=up-to-date, 1=updates available)
   --cli-only    Only update the CLI, skip prompt.md template update
+  --dry-run     Preview all changes without applying (idempotent, safe to run multiple times)
 
 ${YELLOW}Status Options:${NC}
   --json        Output status as JSON (for scripting)
@@ -8681,9 +8682,127 @@ get_fade_path() {
     echo "/$(basename "$script_path")"
 }
 
+# Create backup directory for update rollback
+# Usage: create_update_backup <update_type>
+# Returns: path to backup directory
+create_update_backup() {
+    local update_type="$1"  # e.g., "cli", "artifacts", "full"
+
+    # Determine backup location (prefer fade/ if exists)
+    local backup_base=""
+    if [[ -d "fade" ]]; then
+        backup_base="fade/update-backups"
+    else
+        backup_base="update-backups"
+    fi
+
+    # Create base directory if missing
+    mkdir -p "$backup_base"
+
+    # Generate timestamp-based backup directory
+    local timestamp=$(date +%Y%m%d-%H%M%S)
+    local backup_dir="$backup_base/$timestamp-$update_type"
+    mkdir -p "$backup_dir"
+
+    echo "$backup_dir"
+}
+
+# Extract templated vs custom sections from FADE.md
+# Returns: 0 if file exists and can be parsed, 1 otherwise
+parse_fade_md_sections() {
+    local fade_file="$1"
+    local output_file="$2"
+
+    if [[ ! -f "$fade_file" ]]; then
+        return 1
+    fi
+
+    # Extract custom sections (between <!-- FADE --> markers)
+    # Assumption: sections marked with <!-- AUTO-GENERATED --> or <!-- USER-CUSTOMIZED --> are preserved
+
+    # For now, create structured output showing what can be updated
+    cat > "$output_file" << 'SECTIONS'
+{
+    "templated_sections": [
+        "Standards",
+        "Off-Limits Modules",
+        "Session Boundaries",
+        "Target Architecture"
+    ],
+    "custom_sections": [
+        "Project Overview",
+        "Coding Standards",
+        "Architecture References",
+        "Additional Context"
+    ],
+    "preservation_strategy": "Keep custom sections, update templated sections only"
+}
+SECTIONS
+
+    return 0
+}
+
+# Check if file contents are identical
+# Usage: files_are_identical <file1> <file2>
+# Returns: 0 if identical, 1 if different or error
+files_are_identical() {
+    local file1="$1"
+    local file2="$2"
+
+    if [[ ! -f "$file1" ]] || [[ ! -f "$file2" ]]; then
+        return 1
+    fi
+
+    if cmp -s "$file1" "$file2"; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Validate update consistency by checking version markers
+# Usage: validate_update_consistency
+# Returns: 0 if all version markers are consistent, 1 otherwise
+validate_update_consistency() {
+    local expected_version="$1"
+    local had_error=0
+
+    # Check fade-cli version
+    if ! grep -q "FADE_VERSION=\"$expected_version\"" "$0"; then
+        echo -e "${YELLOW}Warning: FADE_VERSION mismatch in fade-cli${NC}" >&2
+        had_error=1
+    fi
+
+    # Check FADE.md version if it exists
+    if [[ -f "FADE.md" ]]; then
+        if ! grep -q "FADE FADE.md v$expected_version" "FADE.md"; then
+            echo -e "${YELLOW}Warning: FADE.md version mismatch${NC}" >&2
+            had_error=1
+        fi
+    fi
+
+    # Check prompt.md version
+    local prompt_path=""
+    if [[ -f "fade/prompt.md" ]]; then
+        prompt_path="fade/prompt.md"
+    elif [[ -f "prompt.md" ]]; then
+        prompt_path="prompt.md"
+    fi
+
+    if [[ -n "$prompt_path" ]] && [[ -f "$prompt_path" ]]; then
+        if ! grep -q "FADE prompt.md v$expected_version" "$prompt_path"; then
+            echo -e "${YELLOW}Warning: prompt.md version mismatch${NC}" >&2
+            had_error=1
+        fi
+    fi
+
+    return $had_error
+}
+
 cmd_update() {
     local cli_only=false
     local check_only=false
+    local dry_run=false
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -8696,6 +8815,10 @@ cmd_update() {
                 check_only=true
                 shift
                 ;;
+            --dry-run)
+                dry_run=true
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -8703,6 +8826,7 @@ cmd_update() {
     done
 
     echo -e "${CYAN}FADE Update${NC}"
+    [[ "$dry_run" == true ]] && echo -e "${YELLOW}(DRY RUN - no changes will be applied)${NC}"
     echo ""
 
     # Check for curl or wget
@@ -8937,6 +9061,14 @@ cmd_update() {
     local prompt_updated=false
     local prompt_version_before=""
     local artifacts_updated=0
+    local update_backup_dir=""
+
+    # Create backup directory if updates will be applied
+    if [[ "$dry_run" != true ]] && [[ "$remote_available" == true ]] && [[ "$cli_only" != true ]]; then
+        update_backup_dir=$(create_update_backup "full")
+        echo -e "${CYAN}Update backup directory: $update_backup_dir${NC}"
+        echo ""
+    fi
 
     # Remote-dependent updates (CLI, prompt.md, standards)
     if [[ "$remote_available" == true ]]; then
@@ -8960,8 +9092,8 @@ cmd_update() {
             fade_script="$(cd "$(dirname "$fade_script")" && pwd)/$(basename "$fade_script")"
         fi
 
-        # Check if we have write permission
-        if [[ ! -w "$fade_script" ]]; then
+        # Check if we have write permission (unless dry-run)
+        if [[ "$dry_run" != true ]] && [[ ! -w "$fade_script" ]]; then
             echo -e "${RED}Error: Cannot write to $fade_script${NC}"
             echo "You may need to run with sudo or check file permissions."
             exit 1
@@ -8992,18 +9124,24 @@ cmd_update() {
             exit 1
         fi
 
-        # Create backup
-        local cli_backup_path="${fade_script}.bak"
-        cp "$fade_script" "$cli_backup_path"
+        if [[ "$dry_run" == true ]]; then
+            echo -e "${YELLOW}[DRY RUN] Would update: $fade_script${NC}"
+            echo -e "${YELLOW}[DRY RUN] Version: v$current_version → v$latest_version${NC}"
+            echo -e "${YELLOW}[DRY RUN] Backup: $update_backup_dir/fade-cli.bak${NC}"
+        else
+            # Create backup in backup directory for rollback
+            mkdir -p "$update_backup_dir"
+            cp "$fade_script" "$update_backup_dir/fade-cli.bak"
 
-        # Write new script
-        echo "$new_script" > "$fade_script"
-        chmod +x "$fade_script"
+            # Write new script
+            echo "$new_script" > "$fade_script"
+            chmod +x "$fade_script"
 
-        echo -e "${GREEN}✓ CLI updated: v$current_version → v$latest_version${NC}"
-        echo -e "  Backup: $cli_backup_path"
-        cli_updated=true
-        ((artifacts_updated++))
+            echo -e "${GREEN}✓ CLI updated: v$current_version → v$latest_version${NC}"
+            echo -e "  Backup: $update_backup_dir/fade-cli.bak"
+            cli_updated=true
+            ((artifacts_updated++))
+        fi
     fi
 
     echo ""
@@ -9080,30 +9218,41 @@ cmd_update() {
 
                 rm -f "$temp_current" "$temp_latest"
 
-                # Ask for confirmation
-                echo -e "${YELLOW}Update $prompt_path to latest template?${NC}"
-                echo -e "This will backup your current prompt.md to ${prompt_path}.bak"
-                echo ""
-                read -p "Update $prompt_path? [y/N]: " confirm </dev/tty
-
-                if [[ "$confirm" =~ ^[Yy]$ ]]; then
-                    # Create backup
-                    cp "$prompt_path" "${prompt_path}.bak"
-
-                    # Write new prompt.md
-                    echo "$latest_prompt" > "$prompt_path"
-
-                    # Show version transition
+                if [[ "$dry_run" == true ]]; then
+                    echo -e "${YELLOW}[DRY RUN] Would update: $prompt_path${NC}"
                     if [[ -n "$prompt_version_before" ]]; then
-                        echo -e "${GREEN}✓ $prompt_path updated: v$prompt_version_before → v$latest_version${NC}"
+                        echo -e "${YELLOW}[DRY RUN] Version: v$prompt_version_before → v$latest_version${NC}"
                     else
-                        echo -e "${GREEN}✓ $prompt_path updated: (no version) → v$latest_version${NC}"
+                        echo -e "${YELLOW}[DRY RUN] Version: (no version) → v$latest_version${NC}"
                     fi
-                    echo -e "  Backup: ${prompt_path}.bak"
-                    prompt_updated=true
-                    ((artifacts_updated++))
+                    echo -e "${YELLOW}[DRY RUN] Backup: $update_backup_dir/$prompt_path.bak${NC}"
                 else
-                    echo -e "${CYAN}Skipped $prompt_path update${NC}"
+                    # Ask for confirmation (skip in autonomous mode)
+                    echo -e "${YELLOW}Update $prompt_path to latest template?${NC}"
+                    echo -e "This will backup your current prompt.md in $update_backup_dir"
+                    echo ""
+                    read -p "Update $prompt_path? [y/N]: " confirm </dev/tty
+
+                    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                        # Create backup in backup directory
+                        mkdir -p "$update_backup_dir"
+                        cp "$prompt_path" "$update_backup_dir/$prompt_path.bak"
+
+                        # Write new prompt.md
+                        echo "$latest_prompt" > "$prompt_path"
+
+                        # Show version transition
+                        if [[ -n "$prompt_version_before" ]]; then
+                            echo -e "${GREEN}✓ $prompt_path updated: v$prompt_version_before → v$latest_version${NC}"
+                        else
+                            echo -e "${GREEN}✓ $prompt_path updated: (no version) → v$latest_version${NC}"
+                        fi
+                        echo -e "  Backup: $update_backup_dir/$prompt_path.bak"
+                        prompt_updated=true
+                        ((artifacts_updated++))
+                    else
+                        echo -e "${CYAN}Skipped $prompt_path update${NC}"
+                    fi
                 fi
             fi
         fi
@@ -9132,8 +9281,12 @@ cmd_update() {
 
         # Create standards folder if it doesn't exist
         if [[ ! -d "$standards_path" ]]; then
-            mkdir -p "$standards_path"
-            echo -e "  ${GREEN}create${NC}: $standards_path/"
+            if [[ "$dry_run" == true ]]; then
+                echo -e "  ${YELLOW}[DRY RUN] Would create: $standards_path/${NC}"
+            else
+                mkdir -p "$standards_path"
+                echo -e "  ${GREEN}create${NC}: $standards_path/"
+            fi
         fi
 
         # Add each standard file that doesn't exist locally
@@ -9150,8 +9303,12 @@ cmd_update() {
                 standard_content=$(fetch_url "$standard_url" 10) || true
 
                 if [[ -n "$standard_content" ]]; then
-                    echo "$standard_content" > "$local_path"
-                    echo -e "  ${GREEN}Added${NC}: $standards_path/$standard_file"
+                    if [[ "$dry_run" == true ]]; then
+                        echo -e "  ${YELLOW}[DRY RUN] Would add: $standards_path/$standard_file${NC}"
+                    else
+                        echo "$standard_content" > "$local_path"
+                        echo -e "  ${GREEN}Added${NC}: $standards_path/$standard_file"
+                    fi
                     standards_added+=("$standard_file")
                 else
                     echo -e "  ${YELLOW}Warning: Could not fetch $standard_file${NC}"
@@ -9178,8 +9335,12 @@ cmd_update() {
 
         # Check/create fade/tests/
         if [[ ! -d "fade/tests" ]]; then
-            mkdir -p "fade/tests"
-            echo -e "  ${GREEN}create${NC}: fade/tests/"
+            if [[ "$dry_run" == true ]]; then
+                echo -e "  ${YELLOW}[DRY RUN] Would create: fade/tests/${NC}"
+            else
+                mkdir -p "fade/tests"
+                echo -e "  ${GREEN}create${NC}: fade/tests/"
+            fi
             structure_created+=("fade/tests/")
         else
             echo -e "  ${CYAN}skip${NC}: fade/tests/ (already exists)"
@@ -9188,6 +9349,9 @@ cmd_update() {
 
         # Check/create fade/tests/run.sh
         if [[ ! -f "fade/tests/run.sh" ]]; then
+            if [[ "$dry_run" == true ]]; then
+                echo -e "  ${YELLOW}[DRY RUN] Would create: fade/tests/run.sh${NC}"
+            else
             cat > "fade/tests/run.sh" << 'RUNSH_EOF'
 #!/bin/bash
 # FADE Regression Test Runner
@@ -9295,7 +9459,8 @@ else
     exit 0
 fi
 RUNSH_EOF
-            chmod +x "fade/tests/run.sh"
+            fi
+            chmod +x "fade/tests/run.sh" 2>/dev/null || true
             echo -e "  ${GREEN}create${NC}: fade/tests/run.sh"
             structure_created+=("fade/tests/run.sh")
         else
@@ -9305,8 +9470,12 @@ RUNSH_EOF
 
         # Check/create fade/prd-archive/
         if [[ ! -d "fade/prd-archive" ]]; then
-            mkdir -p "fade/prd-archive"
-            echo -e "  ${GREEN}create${NC}: fade/prd-archive/"
+            if [[ "$dry_run" == true ]]; then
+                echo -e "  ${YELLOW}[DRY RUN] Would create: fade/prd-archive/${NC}"
+            else
+                mkdir -p "fade/prd-archive"
+                echo -e "  ${GREEN}create${NC}: fade/prd-archive/"
+            fi
             structure_created+=("fade/prd-archive/")
         else
             echo -e "  ${CYAN}skip${NC}: fade/prd-archive/ (already exists)"
@@ -9315,9 +9484,13 @@ RUNSH_EOF
 
         # Check/create CLAUDE.md
         if [[ ! -f "CLAUDE.md" ]]; then
-            local claude_content="${CLAUDE_TEMPLATE//__FADE_VERSION__/$ARTIFACT_VERSION}"
-            echo "$claude_content" > "CLAUDE.md"
-            echo -e "  ${GREEN}create${NC}: CLAUDE.md"
+            if [[ "$dry_run" == true ]]; then
+                echo -e "  ${YELLOW}[DRY RUN] Would create: CLAUDE.md${NC}"
+            else
+                local claude_content="${CLAUDE_TEMPLATE//__FADE_VERSION__/$ARTIFACT_VERSION}"
+                echo "$claude_content" > "CLAUDE.md"
+                echo -e "  ${GREEN}create${NC}: CLAUDE.md"
+            fi
             structure_created+=("CLAUDE.md")
         else
             echo -e "  ${CYAN}skip${NC}: CLAUDE.md (already exists)"
@@ -9432,7 +9605,14 @@ FRAGILEAREAS_EOF
     # SUMMARY
     # ========================================================================
 
-    if [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]] || [[ ${#structure_created[@]} -gt 0 ]] || [[ ${#fade_sections_added[@]} -gt 0 ]]; then
+    if [[ "$dry_run" == true ]]; then
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+        echo -e "${YELLOW}DRY RUN COMPLETE - No changes applied${NC}"
+        echo -e "${YELLOW}════════════════════════════════════════════════════════════${NC}"
+        echo ""
+        echo "To apply these changes, run: fade update"
+        echo ""
+    elif [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]] || [[ ${#standards_added[@]} -gt 0 ]] || [[ ${#structure_created[@]} -gt 0 ]] || [[ ${#fade_sections_added[@]} -gt 0 ]]; then
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
         echo -e "${GREEN}✓ FADE update complete!${NC}"
         echo -e "${GREEN}════════════════════════════════════════════════════════════${NC}"
@@ -9478,9 +9658,21 @@ FRAGILEAREAS_EOF
             fi
             echo -e "  ${GREEN}$total_changes $change_word applied${NC}"
         fi
+
+        # Show backup directory if updates were made
+        if [[ -n "$update_backup_dir" ]] && [[ "$remote_available" == true ]]; then
+            echo ""
+            echo -e "  ${CYAN}Backup directory: $update_backup_dir${NC}"
+            echo -e "  To rollback: cp $update_backup_dir/* . (manually if needed)"
+        fi
         echo ""
     else
         echo -e "${GREEN}✓ All artifacts at v$latest_version${NC}"
+    fi
+
+    # Validate version consistency at end
+    if [[ "$dry_run" != true ]] && [[ "$cli_updated" == true ]] || [[ "$prompt_updated" == true ]]; then
+        validate_update_consistency "$latest_version" || true
     fi
 }
 

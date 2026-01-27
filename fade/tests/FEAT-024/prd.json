@@ -1,0 +1,39 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-024",
+  "name": "Workspace and multi-repo registry",
+  "description": "Operators frequently work across multiple repos (e.g., LiveCalc and FADE). FADE is currently repo-local, making cross-repo coordination, shared standards, shared learnings, and dashboards difficult. This PRD introduces a workspace concept with a repo registry and shared intelligence.",
+  "complexity": "complex",
+  "dependsOn": [
+    "ENH-021",
+    "FEAT-020"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create and manage a workspace with multiple repos",
+      "description": "A workspace contains a registry of repos and shared knowledge/standards.",
+      "acceptanceCriteria": [
+        "Command `fade workspace init` creates a workspace folder (e.g., `~/.fade/workspaces/<name>/`).",
+        "Command `fade repo add <path>` registers a repo with name and path; stored in `workspace.json`.",
+        "Command `fade repo list` shows registered repos.",
+        "Command `fade --repo <name> status|run|metrics` targets a specific registered repo without cd-ing into it (optional but strongly preferred)."
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Share standards and intelligence across repos with inheritance",
+      "description": "Workspace-level standards and learnings can be inherited by each repo while allowing repo overrides.",
+      "acceptanceCriteria": [
+        "Workspace contains `standards/` and `learned.json` (or `learned.md` + json) at workspace level.",
+        "When running inside a repo, FADE loads workspace standards first then repo standards, with clear precedence rules.",
+        "FADE records key learnings at both repo level and workspace level (configurable)."
+      ],
+      "priority": 2,
+      "passes": true
+    }
+  ]
+}

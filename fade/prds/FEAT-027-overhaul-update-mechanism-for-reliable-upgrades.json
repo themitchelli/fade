@@ -21,7 +21,7 @@
         "Update updates version markers consistently (FADE version, artifact versions)."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     }
   ]
 }

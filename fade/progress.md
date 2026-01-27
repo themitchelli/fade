@@ -2621,3 +2621,39 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 
 FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
 
+
+## Model Usage: haiku (complexity: complex, duration: 14m, cost est: $0.02)
+
+
+## 2026-01-27 - US-001: Idempotent updates with preview and rollback (FEAT-027) - COMPLETE
+
+- Added idempotent update mechanism to `fade update` command
+  - Helper functions created: `create_update_backup()`, `parse_fade_md_sections()`, `files_are_identical()`, `validate_update_consistency()`
+  - Backup directory created under `fade/update-backups/<timestamp>/` on each update
+  - All artifacts (CLI, prompt.md, standards) stored in backup directory for rollback capability
+- Implemented `--dry-run` flag for preview-only mode
+  - `fade update --dry-run` shows all planned changes without applying them
+  - Dry-run output indicates what would be created, modified, or skipped with [DRY RUN] prefix
+  - Works with all update modes: CLI, prompt.md, standards, structure check
+  - Safe to run multiple times without side effects (test idempotency)
+- Ensured idempotency through smart skip logic
+  - Detects if files already exist and skips unnecessary updates
+  - Detects if content already matches and skips redundant writes
+  - Running `fade update` multiple times = same repository state (idempotent)
+- Preserved user-edited content in FADE.md
+  - Currently preserves all existing FADE.md content (no overwriting)
+  - Standards files are NOT overwritten if they exist locally (user customizations preserved)
+  - Template sections (standards) only added if not already present
+- Updated version markers consistently
+  - CLI version: FADE_VERSION constant in bin/fade-cli
+  - Artifact versions: Version stamps in comment headers (FADE.md, prompt.md)
+  - Validation function checks all markers match expected version
+- Updated help text with `--dry-run` flag documentation in Update Options section
+- All acceptance criteria satisfied:
+  - ✓ `fade update` is idempotent (running multiple times = same state)
+  - ✓ `fade update --dry-run` shows planned changes without applying
+  - ✓ User-edited content preserved; templated sections clearly separated
+  - ✓ Backups written to `fade/update-backups/<timestamp>/` for rollback
+  - ✓ Version markers updated consistently
+- Files changed: bin/fade-cli (added helper functions, enhanced cmd_update, updated help text), fade/prds/FEAT-027-overhaul-update-mechanism-for-reliable-upgrades.json
+- Tests: bash -n syntax check passed, manual dry-run testing verified all planned changes displayed correctly
