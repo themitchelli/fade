@@ -1,3 +1,5 @@
+<!-- FADE progress.md v0.3.1 -->
+
 # Progress Log
 
 Session history for this project. Append-only.

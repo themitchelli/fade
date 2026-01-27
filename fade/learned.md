@@ -1,3 +1,5 @@
+<!-- FADE learned.md v0.3.1 -->
+
 # Learned
 
 Discoveries and insights from development sessions. Append-only.
