@@ -2699,3 +2699,24 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - fade/tests/PRD-BUG-007/test_us002_03_signal_with_trailing_whitespace.sh (new)
   - fade/prds/STAB-001-core-loop-audit-and-hardening.json (US-002 passes: true)
 
+
+## 2026-01-27 - US-003: Simplify iteration counter and loop bounds (STAB-001) - COMPLETE
+
+- Added MAX_ITERATIONS constant (default: 20) to control loop bounds at bin/fade-cli:4804
+- Added iteration bounds check at start of while loop (bin/fade-cli:4830-4847)
+- Clear, detailed message when max iterations reached including:
+  - Status display with RED formatting
+  - Explanation of what happened
+  - Actionable suggestions (review progress.md, check for error patterns, break into smaller stories, resume)
+  - Event emission for tracking (max_iterations status)
+- Verified single $iteration variable is used throughout (no redundant counters found)
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ Single $iteration variable tracks loop count (already present at line 4803)
+  - ✓ MAX_ITERATIONS constant controls loop bound (default 20)
+  - ✓ Clear log message when max iterations reached
+  - ✓ Remove any redundant counter variables (none found, already clean)
+- Files changed:
+  - bin/fade-cli (added MAX_ITERATIONS constant and bounds check)
+  - fade/prds/STAB-001-core-loop-audit-and-hardening.json (US-003 passes: true)
+

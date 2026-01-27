@@ -4801,6 +4801,7 @@ cmd_run() {
     else
         # ALL mode: loop until complete or blocked
         local iteration=1
+        local MAX_ITERATIONS=20
 
         # Session tracking for status export
         local session_start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -4824,6 +4825,26 @@ cmd_run() {
 
         while true; do
             local iteration_start_time=$(date '+%Y-%m-%d %H:%M:%S')
+
+            # Check if max iterations reached
+            if [[ $iteration -gt $MAX_ITERATIONS ]]; then
+                echo ""
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${RED}⛔ Maximum iterations ($MAX_ITERATIONS) reached${NC}"
+                echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+                echo "The session has exceeded the maximum iteration limit."
+                echo "This usually indicates the agent is stuck in a loop or making no progress."
+                echo ""
+                echo "Suggestions:"
+                echo "  • Review progress.md to see what was accomplished"
+                echo "  • Check for repeating error patterns in the output"
+                echo "  • Consider breaking the work into smaller stories"
+                echo "  • Try resuming with: fade run --resume"
+                echo ""
+                emit_event "$tracking_run_id" "run_stop" "{\"status\":\"max_iterations\",\"iterations\":$iteration}" 2>/dev/null || true
+                break
+            fi
 
             # Get the next story that will be worked on
             local active_prd=$(get_active_prd)
