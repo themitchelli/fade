@@ -2743,3 +2743,29 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - bin/fade-cli (removed learner calls, fixed precedence in 2 locations, removed --show-recommendation flag)
   - fade/prds/STAB-002-simplify-model-selection.json (US-001 passes: true)
 
+
+## 2026-01-27 - US-002: Consolidate get_model_for_complexity to single function (STAB-002) - COMPLETE
+
+- Created get_model_for_complexity() function at bin/fade-cli:707
+- Function signature: get_model_for_complexity(prd_file, model_override_flag, model_value)
+- Returns format: "model_name|routing_source" (e.g., "opus|complexity=complex")
+- Clear inline documentation explaining the 4-tier precedence order:
+  1. --model flag (highest priority)
+  2. FADE_MODEL env var
+  3. PRD complexity field
+  4. sonnet default (lowest priority)
+- Replaced duplicate routing logic in cmd_run() with function calls:
+  * STOP mode: Replaced ~42 lines with 3-line function call
+  * ALL mode loop: Replaced ~42 lines with 3-line function call
+- Single source of truth for model selection logic
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ Single get_model_for_complexity() function handles all routing
+  - ✓ Function signature: get_model_for_complexity(prd_file, model_override, env_override)
+  - ✓ Returns model name and routing_source for logging
+  - ✓ Function has clear comment explaining precedence
+  - ✓ Remove duplicate routing logic from other functions
+- Files changed:
+  - bin/fade-cli (new function, replaced 2 duplicate logic blocks)
+  - fade/prds/STAB-002-simplify-model-selection.json (US-002 passes: true)
+
