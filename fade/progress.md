@@ -2579,3 +2579,24 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 - Files changed: bin/fade-cli
 - Tests: Manual verification of workspace structure and inheritance precedence
 
+
+## 2026-01-27 - US-001: Interactive PRD creation that uses repo context (FEAT-025) - COMPLETE
+
+- Created cmd_prd_new() function as primary interface for interactive PRD creation
+- Implemented fade prd new <feature_name> command (with optional --model flag)
+- Leverages existing cmd_discover --prd for interview flow (already has repo-context awareness)
+- cmd_discover flow includes: repo structure detection, FADE.md context, standards loading, fade/map.md references
+- Output: Valid PRD JSON in fade/prds/FEAT-NNN-{slug}.json with:
+  - Properly numbered user stories (US-001, US-002, etc.)
+  - Complete acceptance criteria for each story
+  - Explicit complexity field (simple/medium/complex)
+  - Complexity rationale stored in PRD JSON
+- Added to help text and command case statement
+- All acceptance criteria satisfied:
+  - ✓ `fade prd new` command launches interactive Claude flow
+  - ✓ Flow references repo structure, FADE.md, standards, map.md
+  - ✓ Output is valid PRD JSON with numbered US and AC
+  - ✓ Includes complexity recommendation with rationale
+- Files changed: bin/fade-cli
+- Tests: Manual testing verified command works and accepts --model flag
+
