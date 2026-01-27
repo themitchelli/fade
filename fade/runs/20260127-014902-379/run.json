@@ -1,0 +1,14 @@
+{
+  "run_id": "20260127-014902-379",
+  "repo": "fade",
+  "repo_path": "/Users/stevemitchell/Documents/GitHub/fade",
+  "branch": "spike/context-isolation",
+  "mode": "ALL",
+  "model": "sonnet",
+  "start_time": "2026-01-27T01:49:02Z",
+  "current_prd": "ENH-021",
+  "current_prd_name": "Structured telemetry and metrics",
+  "state": "running",
+  "stop_time": null,
+  "stop_reason": null
+}

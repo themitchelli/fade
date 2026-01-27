@@ -19,7 +19,7 @@
         "If a detached run is already active for the same repo, FADE refuses to start another unless `--force` is used, and prints a clear message."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

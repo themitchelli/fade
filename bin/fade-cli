@@ -3859,12 +3859,106 @@ display_model_recommendation() {
     return 0
 }
 
+# ============================================================================
+# DETACHED RUN MANAGEMENT (FEAT-020)
+# ============================================================================
+
+generate_run_id() {
+    # Generate unique, sortable run IDs: date-based timestamp + sequence
+    # Format: YYYYMMDD-HHMMSS-NNN (ensures sort order matches creation order)
+    local timestamp=$(date '+%Y%m%d-%H%M%S')
+    local sequence=$(printf '%03d' $((RANDOM % 1000)))
+    echo "${timestamp}-${sequence}"
+}
+
+create_run_directory() {
+    local run_id="$1"
+    local runs_dir="fade/runs"
+
+    # Create runs directory if needed
+    if [[ ! -d "$runs_dir" ]]; then
+        mkdir -p "$runs_dir"
+    fi
+
+    local run_dir="$runs_dir/$run_id"
+    if mkdir -p "$run_dir" 2>/dev/null; then
+        echo "$run_dir"
+        return 0
+    else
+        return 1
+    fi
+}
+
+create_run_metadata() {
+    local run_id="$1"
+    local run_dir="$2"
+    local mode="$3"
+    local model="$4"
+    local prd_id="$5"
+    local prd_name="$6"
+
+    local repo_name=$(basename "$(pwd)")
+    local branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+    local start_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Create run.json metadata file
+    cat > "$run_dir/run.json" <<EOF
+{
+  "run_id": "$run_id",
+  "repo": "$repo_name",
+  "repo_path": "$(pwd)",
+  "branch": "$branch",
+  "mode": "$mode",
+  "model": "$model",
+  "start_time": "$start_time",
+  "current_prd": "$prd_id",
+  "current_prd_name": "$prd_name",
+  "state": "running",
+  "stop_time": null,
+  "stop_reason": null
+}
+EOF
+
+    # Create empty log file
+    touch "$run_dir/run.log"
+
+    # Create empty events file
+    touch "$run_dir/events.jsonl"
+}
+
+check_active_run() {
+    # Check if there's an active run for this repo
+    local runs_dir="fade/runs"
+
+    if [[ ! -d "$runs_dir" ]]; then
+        return 1  # No runs directory = no active runs
+    fi
+
+    # Check each run folder for active state
+    for run_folder in "$runs_dir"/*; do
+        if [[ ! -f "$run_folder/run.json" ]]; then
+            continue
+        fi
+
+        local state=$(grep -o '"state": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+        if [[ "$state" == "running" ]]; then
+            local run_id=$(basename "$run_folder")
+            echo "$run_id"
+            return 0
+        fi
+    done
+
+    return 1  # No active runs
+}
+
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
     local model="${FADE_MODEL:-sonnet}"
     local model_override=false  # Track if --model flag was used
     local show_recommendation_only=false  # Show recommendation without executing
+    local detach_mode=false
+    local force_detach=false
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -3886,6 +3980,14 @@ cmd_run() {
                 show_recommendation_only=true
                 shift
                 ;;
+            --detach)
+                detach_mode=true
+                shift
+                ;;
+            --force)
+                force_detach=true
+                shift
+                ;;
             *)
                 shift
                 ;;
@@ -3899,6 +4001,21 @@ cmd_run() {
     if [[ ! -f "FADE.md" ]]; then
         echo -e "${RED}Error: FADE.md not found. Run 'fade init' first.${NC}"
         exit 1
+    fi
+
+    # Check for existing active runs (FEAT-020 US-001)
+    if [[ "$detach_mode" == true ]]; then
+        local existing_run=$(check_active_run)
+        if [[ -n "$existing_run" ]] && [[ "$force_detach" != true ]]; then
+            echo -e "${YELLOW}⚠️  Active run already in progress: $existing_run${NC}"
+            echo ""
+            echo "Options:"
+            echo "  1. Wait for the current run to complete"
+            echo "  2. View logs: fade logs $existing_run"
+            echo "  3. Stop and restart: fade stop $existing_run && fade run --detach --force"
+            echo ""
+            exit 1
+        fi
     fi
 
     # Display work queue
@@ -3958,6 +4075,42 @@ cmd_run() {
     # Shows selected model based on complexity routing
     display_version_banner "$yolo_mode" "$selected_model"
     echo ""
+
+    # Handle detached mode (FEAT-020 US-001)
+    if [[ "$detach_mode" == true ]]; then
+        # Generate run ID and create run directory
+        local run_id=$(generate_run_id)
+        local run_dir=$(create_run_directory "$run_id")
+
+        if [[ -z "$run_dir" ]]; then
+            echo -e "${RED}Error: Failed to create run directory${NC}"
+            exit 1
+        fi
+
+        # Get active PRD info for metadata
+        local prd_id=""
+        local prd_name=""
+        local active_prd=$(get_active_prd)
+        if [[ -n "$active_prd" ]]; then
+            prd_id=$(get_prd_id "$active_prd")
+            prd_name=$(get_prd_name "$active_prd")
+        fi
+
+        # Create run metadata (mode is always ALL for detached)
+        create_run_metadata "$run_id" "$run_dir" "ALL" "$selected_model" "$prd_id" "$prd_name"
+
+        # Display run info and return immediately
+        echo -e "${GREEN}✅ Run started in background${NC}"
+        echo ""
+        echo "Run ID: ${CYAN}$run_id${NC}"
+        echo "Logs: ${CYAN}fade logs $run_id${NC}"
+        echo "Stop: ${CYAN}fade stop $run_id${NC}"
+        echo ""
+        echo "The run is starting in ALL mode in the background."
+        echo ""
+
+        exit 0
+    fi
 
     # Determine execution mode
     local mode

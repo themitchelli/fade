@@ -2137,3 +2137,6 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - Escalation handling guides users to better models when needed
 - Export provides quarterly review capabilities
 
+
+## Model Usage: haiku (complexity: medium, duration: 14m, cost est: $0.02)
+
