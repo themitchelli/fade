@@ -567,6 +567,119 @@ FADE uses conventional commit prefixes:
 - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code)
 - bash
 
+## Troubleshooting
+
+### Loop Not Detecting Signals
+
+**Problem:** FADE runs but doesn't detect `STORY_DONE` or `ALL_COMPLETE` signals.
+
+**Diagnosis:**
+1. Check the output from the last Claude Code execution
+2. Run `bash -n bin/fade-cli` to verify syntax (if you modified it)
+3. Verify the signal format in prompt.md:
+   ```bash
+   grep "^STORY_DONE:\|^ALL_COMPLETE\|^BLOCKED:" fade/prompt.md
+   ```
+
+**Solutions:**
+- Verify Claude Code output ended with exact signal: `STORY_DONE: US-XXX` (no suffix)
+- Check progress.md to see what was actually output
+- Review prompt.md Story Completion Protocol section for exact format requirements
+- Verify no stray output after the signal line
+
+**Reference:** See prompt.md "Exit Signals (Canonical Reference)" section for exact format.
+
+### Model Selection Issues
+
+**Problem:** FADE is using the wrong model (e.g., haiku when opus is needed).
+
+**Diagnosis:**
+1. Check current model routing with:
+   ```bash
+   fade status
+   # Look for model selection in active runs
+   ```
+2. Verify PRD complexity field:
+   ```bash
+   cat fade/prds/FEAT-*.json | grep '"complexity"'
+   ```
+3. Check for overrides:
+   ```bash
+   echo "FADE_MODEL: ${FADE_MODEL:-not set}"
+   # And check if fade run used --model flag
+   ```
+
+**Solutions:**
+- Set explicit model with `fade run --model opus`
+- Set default model with `export FADE_MODEL=sonnet`
+- Update PRD complexity field with `fade classify`
+- Review fade/docs/architecture.md for routing precedence
+
+**Model Selection Precedence:**
+1. `--model` flag (highest)
+2. `FADE_MODEL` env var
+3. PRD `complexity` field
+4. Default: `sonnet` (lowest)
+
+**Reference:** See fade/docs/architecture.md for detailed routing logic.
+
+### Test Failures and Regression Blocks
+
+**Problem:** FADE halts with "Regression failed. Fix and re-run."
+
+**Diagnosis:**
+1. View the test failures:
+   ```bash
+   cat fade/tests/failed.log
+   ```
+2. Check which specific tests are failing:
+   ```bash
+   tail -20 fade/tests/failed.log
+   ```
+
+**Solutions:**
+- Fix the broken code in your repository
+- Re-run with `fade run` to resume the same PRD
+- Or create a bug PRD with `fade new bug` and fix it first
+
+**Manual Fix Workflow:**
+1. View the error with `cat fade/tests/failed.log`
+2. Fix the code in your editor
+3. Run `fade run` to resume and re-test
+4. Or use `fade quick "fix test failure"` for quick fixes
+
+**Reference:** See prompt.md "Test Generation" section for test file format.
+
+### Debug Commands
+
+Use these commands to diagnose FADE issues:
+
+```bash
+# See current PRD queue and active runs
+fade status
+
+# See detailed JSON status (machine-readable)
+fade status --json
+
+# View recent model selections and costs
+fade estimator explain BUG-001
+
+# Check syntax of modified fade-cli
+bash -n bin/fade-cli
+
+# View last N lines of progress
+tail -30 fade/progress.md
+
+# Verify PRD integrity
+fade status | grep "incomplete\|stories"
+```
+
+**Tips:**
+- `fade status --json` output is helpful for scripting diagnostics
+- Always run `bash -n bin/fade-cli` before committing changes
+- Check fade/progress.md for detailed session history
+- Review learned.md for insights from previous sessions
+
 ## Repository Structure
 
 ```

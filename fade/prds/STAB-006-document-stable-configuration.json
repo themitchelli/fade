@@ -32,7 +32,7 @@
         "Diagram updated to match implementation"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -45,7 +45,7 @@
         "Links to relevant sections of prompt.md"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

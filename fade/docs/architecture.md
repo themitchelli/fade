@@ -1,68 +1,53 @@
 # FADE Architecture
 
-## Model Routing Decision Tree
+## Model Selection
 
-FADE uses intelligent model selection based on PRD complexity to optimize cost and quality. This decision tree shows how the system determines which Claude model to use for each PRD.
+FADE routes work to different Claude models based on explicit configuration and PRD complexity to optimize cost and quality. This section documents the simple, predictable routing logic.
 
-### Decision Flow
+### Routing Decision Flow
+
+FADE uses a simple, predictable 3-path routing system:
 
 ```
-┌─────────────────────────────────────────┐
-│   Start: fade run detects active PRD    │
-└────────────────┬────────────────────────┘
-                 │
-                 ▼
-         ┌───────────────┐
-         │ Check --model │  ◄─── Override 1: CLI flag (highest priority)
-         │  flag present? │
-         └───────┬───────┘
-                 │
-        ┌────────┴────────┐
-        │                 │
-      YES (use --model)  NO
-        │                 │
-        │                 ▼
-        │         ┌───────────────┐
-        │         │ Check FADE_   │  ◄─── Override 2: Environment variable
-        │         │MODEL env var? │
-        │         └───────┬───────┘
-        │                 │
-        │        ┌────────┴────────┐
-        │        │                 │
-        │       YES (use env)     NO
-        │        │                 │
-        │        │                 ▼
-        │        │         ┌───────────────┐
-        │        │         │ Read PRD      │
-        │        │         │ complexity    │
-        │        │         │ field         │
-        │        │         └───────┬───────┘
-        │        │                 │
-        │        │         ┌───────┴────────┐
-        │        │         │                │
-        │        │    complexity?        (missing)
-        │        │         │                │
-        │        │         │                ▼
-        │        │         │         DEFAULT: sonnet
-        │        │         │
-        │        │   ┌─────┴─────┬─────────┐
-        │        │   │           │         │
-        │        │ simple      medium   complex
-        │        │   │           │         │
-        │        │   │           │         │
-        ▼        ▼   ▼           ▼         ▼
-┌────────┬─────────┬──────────┬──────────┬─────────┐
-│ --model│FADE_MODEL│  haiku   │  sonnet  │  opus   │
-│  value │  value   │          │ (default)│         │
-└────────┴─────────┴──────────┴──────────┴─────────┘
-        │        │       │          │         │
-        └────────┴───────┴──────────┴─────────┘
-                         │
-                         ▼
+┌──────────────────────────────┐
+│ Start: fade run <PRD>        │
+└──────────────┬───────────────┘
+               │
+               ▼
+      ┌────────────────┐
+      │ Path 1:        │
+      │ --model flag?  │
+      └────┬───────┬───┘
+           │       │
+         YES (use) NO
+           │       │
+           │       ▼
+           │   ┌──────────────┐
+           │   │ Path 2:      │
+           │   │ FADE_MODEL   │
+           │   │ env var?     │
+           │   └──┬───────┬───┘
+           │      │       │
+           │    YES (use) NO
+           │      │       │
+           │      │       ▼
+           │      │   ┌──────────────────┐
+           │      │   │ Path 3:          │
+           │      │   │ Read PRD         │
+           │      │   │ complexity field │
+           │      │   └──┬───────┬───┬───┘
+           │      │      │       │   │
+           │      │      │       │   └─── missing: default sonnet
+           │      │      │       │
+           │      │   simple  medium  complex
+           │      │      │       │       │
+           └──────┴──────┴───────┴───────┘
+                        │
+                        ▼
               ┌──────────────────┐
-              │ Execute Claude   │
-              │ with selected    │
-              │ model            │
+              │ Selected model:  │
+              │ haiku/sonnet/    │
+              │ opus             │
               └──────────────────┘
 ```
 
@@ -156,9 +141,17 @@ fade classify
 # Scans all PRDs, suggests complexity, prompts to update
 ```
 
-### Heuristic Analysis
+### Complexity Assignment
 
-The `analyze_complexity()` function scores PRDs based on:
+The complexity field in PRDs can be set:
+
+1. **During PRD creation** with `fade new ... --complexity=simple|medium|complex`
+2. **Interactively** when prompted during `fade new` (with heuristic suggestion)
+3. **For existing PRDs** using `fade classify` to analyze and suggest complexity
+
+#### Heuristic Analysis (for suggestions only)
+
+When creating PRDs interactively, FADE suggests complexity based on analysis:
 
 | Factor | Simple (-) | Complex (+) |
 |--------|-----------|-------------|
@@ -169,31 +162,7 @@ The `analyze_complexity()` function scores PRDs based on:
 
 **Score interpretation**: ≥ 3 = complex, ≤ -2 = simple, else medium
 
-### Cost Impact
-
-Example: 40-50 PRDs/day across 5 repos
-
-| Scenario | Model Mix | Est. Monthly Cost |
-|----------|-----------|------------------|
-| **No routing** (all sonnet) | 100% sonnet | ~$500/month |
-| **Smart routing** | 30% haiku, 60% sonnet, 10% opus | ~$350/month (30% savings) |
-| **Over-optimization** (all haiku) | 100% haiku | ~$50/month (but quality suffers on complex work) |
-
-### Audit Trail
-
-Model selections are logged in two locations:
-
-1. **progress.md**: After each PRD completion
-   ```
-   ## Model Usage: haiku (complexity: simple, duration: 23m, cost est: $0.15)
-   ```
-
-2. **fade/model-usage.md**: Detailed log with aggregate stats
-   ```
-   | Date | PRD | Complexity | Model | Override | Duration | Est. Cost |
-   |------|-----|-----------|-------|----------|----------|-----------|
-   | 2026-01-25 | ENH-042 | simple | haiku | none | 18m | $0.12 |
-   ```
+**Note:** Heuristic analysis is used for PRD creation suggestions only. It's not part of the runtime model selection logic.
 
 ---
 
@@ -201,21 +170,22 @@ Model selections are logged in two locations:
 
 ### Code Location
 
-- **Model routing**: `bin/fade-cli` in `cmd_run()` function (lines ~1400-1450)
-- **Complexity analysis**: `analyze_complexity()` function in `bin/fade-cli`
-- **Heuristics**: Embedded directly in `analyze_complexity()`, tunable via threshold constants
+- **Model routing**: `bin/fade-cli` in `get_model_for_complexity()` function (lines ~736-790)
+  - Implements the 3-path routing (flag → env → complexity → default)
+  - Called during `cmd_run()` for both STOP and ALL modes
+- **Complexity analysis**: `analyze_complexity()` function in `bin/fade-cli` (lines ~2142-2210)
+  - Used only for PRD creation suggestions via `fade new` and `fade classify`
+  - Not used in runtime model selection
 
-### Extension Points
+### Tuning Complexity Heuristics
 
-To add new complexity factors:
+To adjust complexity thresholds (e.g., change AC count from 15 to 20 for complex):
 
 1. Edit `analyze_complexity()` in `bin/fade-cli`
-2. Add scoring rule (e.g., `if grep -q "database migration" "$prd_file"; then score=$((score + 2)); fi`)
-3. Log reasoning to learned.md for review
-4. Update heuristics table in README.md and this document
+2. Update scoring thresholds in the scoring logic
+3. Test with `fade classify` to verify new suggestions
+4. Update this documentation when finalizing
 
-### Future Enhancements
+### Future Work
 
-- **Learning feedback**: Track which complexity assignments led to PRD failures, auto-adjust heuristics
-- **Project-specific tuning**: Allow `.fade-config` to override default thresholds
-- **Model auto-upgrade**: If haiku fails, auto-retry with sonnet (requires failure detection)
+Advanced model selection (learned heuristics, escalation tracking) has been deferred to v0.4.x. The current 3-path routing provides reliable, predictable model selection without machine learning complexity. See FADE.md Feature Stability section for details.

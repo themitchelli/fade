@@ -31,6 +31,10 @@ fi
 workspace_lib="$script_dir/fade/lib/workspace.sh"
 if [[ -f "$workspace_lib" ]]; then
     source "$workspace_lib"
+else
+    # Fallback stub when workspace library not available (e.g., standalone install)
+    get_current_workspace() { return 1; }
+    cmd_workspace() { echo "Workspace commands require library files. Install from source."; return 1; }
 fi
 
 # ============================================================================

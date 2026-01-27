@@ -3049,3 +3049,22 @@ All STAB-004 user stories now complete (US-001, US-002, US-003, US-004).
 - All optional/experimental features are now properly gated
 
 ---
+
+## 2026-01-27 - US-002, US-003: Documentation Updates for STAB-006 - COMPLETE
+
+- Updated fade/docs/architecture.md to remove references to deferred learning system
+  - Simplified "Heuristic Analysis" section to focus on PRD creation (fade new, fade classify only)
+  - Removed "Cost Impact" section showing cost calculations (not relevant after learning system deferred)
+  - Removed "Audit Trail" section mentioning model-usage.md logging
+  - Updated "Implementation Notes" to clarify that analyze_complexity is only for PRD creation
+  - Simplified code location references to match current implementation
+  - Updated "Future Work" section to note v0.4.x deferral
+- Added comprehensive "Troubleshooting" section to README.md
+  - Covers: loop not detecting signals, model selection issues, test failures
+  - Includes diagnostic commands: fade status, fade status --json, bash -n
+  - Provides 3-step diagnosis + solutions workflow for each issue type
+  - Links to relevant sections of prompt.md and architecture.md
+  - Added "Debug Commands" subsection with practical diagnostic tools
+- All changes align with STAB-005 (deferred non-essential features)
+- Files changed: fade/docs/architecture.md, README.md, fade/prds/STAB-006-document-stable-configuration.json
+- Tests: bash -n syntax check passed, PRD JSON validation confirmed
