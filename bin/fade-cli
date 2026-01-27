@@ -1263,10 +1263,37 @@ get_active_prd() {
     fi
 }
 
+# Check if a specific story ID is incomplete (passes: false) in a PRD file
+story_is_incomplete_in_prd() {
+    local prd_file="$1"
+    local story_id="$2"
+
+    # Use awk to find if this story ID has passes: false
+    # This handles the JSON structure properly
+    awk -v sid="$story_id" '
+        /"userStories"/ { in_stories=1 }
+        in_stories && /"id"[[:space:]]*:[[:space:]]*"/ {
+            gsub(/.*"id"[[:space:]]*:[[:space:]]*"/, "")
+            gsub(/".*/, "")
+            current_id = $0
+        }
+        in_stories && /"passes"[[:space:]]*:/ {
+            if (current_id == sid && /false/) {
+                found = 1
+                exit
+            }
+            current_id = ""
+        }
+        END { exit !found }
+    ' "$prd_file" 2>/dev/null
+}
+
 # Find the PRD containing a specific story ID
 # Searches all PRD locations for a story with matching ID
+# PRIORITIZES PRDs where the story is incomplete (passes: false)
 find_prd_by_story_id() {
     local story_id="$1"
+    local fallback_prd=""
 
     if [[ -z "$story_id" ]]; then
         return
@@ -1277,14 +1304,20 @@ find_prd_by_story_id() {
 
     # Check fade/prd.json first
     if [[ -f "fade/prd.json" ]] && grep -q "$pattern" "fade/prd.json" 2>/dev/null; then
-        echo "fade/prd.json"
-        return
+        if story_is_incomplete_in_prd "fade/prd.json" "$story_id"; then
+            echo "fade/prd.json"
+            return
+        fi
+        [[ -z "$fallback_prd" ]] && fallback_prd="fade/prd.json"
     fi
 
     # Check root prd.json
     if [[ -f "prd.json" ]] && grep -q "$pattern" "prd.json" 2>/dev/null; then
-        echo "prd.json"
-        return
+        if story_is_incomplete_in_prd "prd.json" "$story_id"; then
+            echo "prd.json"
+            return
+        fi
+        [[ -z "$fallback_prd" ]] && fallback_prd="prd.json"
     fi
 
     # Check fade/prds/
@@ -1292,8 +1325,11 @@ find_prd_by_story_id() {
         for prd_file in fade/prds/*.json; do
             [[ -f "$prd_file" ]] || continue
             if grep -q "$pattern" "$prd_file" 2>/dev/null; then
-                echo "$prd_file"
-                return
+                if story_is_incomplete_in_prd "$prd_file" "$story_id"; then
+                    echo "$prd_file"
+                    return
+                fi
+                [[ -z "$fallback_prd" ]] && fallback_prd="$prd_file"
             fi
         done
     fi
@@ -1303,11 +1339,18 @@ find_prd_by_story_id() {
         for prd_file in prds/*.json; do
             [[ -f "$prd_file" ]] || continue
             if grep -q "$pattern" "$prd_file" 2>/dev/null; then
-                echo "$prd_file"
-                return
+                if story_is_incomplete_in_prd "$prd_file" "$story_id"; then
+                    echo "$prd_file"
+                    return
+                fi
+                [[ -z "$fallback_prd" ]] && fallback_prd="$prd_file"
             fi
         done
     fi
+
+    # Fall back to first PRD that has the story (even if complete)
+    # This handles edge cases like displaying history
+    echo "$fallback_prd"
 }
 
 # Get PRD ID from JSON file
@@ -3324,7 +3367,7 @@ ask_execution_mode() {
 #
 # Signal          Format                  Pattern Match
 # --------------- ----------------------- ------------------------------------------
-# ALL_COMPLETE    ALL_COMPLETE            grep -qx "ALL_COMPLETE" (exact line match)
+# ALL_COMPLETE    ALL_COMPLETE            grep -q '^[*]*ALL_COMPLETE' (line start, optional markdown)
 # STORY_DONE      STORY_DONE: US-XXX      grep -q '^STORY_DONE: ' (line start + colon)
 # BLOCKED         BLOCKED: [reason]       grep -q '^BLOCKED: ' (line start + colon)
 #
@@ -4580,7 +4623,7 @@ cmd_run() {
 
             # Emit signal detection event if any signal is present (ENH-021 US-001)
             local detected_signal=""
-            if echo "$output" | grep -qx "ALL_COMPLETE"; then
+            if echo "$output" | grep -q '^[*]*ALL_COMPLETE'; then
                 detected_signal="ALL_COMPLETE"
             elif echo "$output" | grep -q '^STORY_DONE: '; then
                 detected_signal="STORY_DONE"
@@ -4598,7 +4641,7 @@ cmd_run() {
             # Order matters: ALL_COMPLETE → STORY_DONE → BLOCKED → INTERRUPTION → NO SIGNAL
             #
             # PATTERNS:
-            # - ALL_COMPLETE: '^ALL_COMPLETE$' (exact line match)
+            # - ALL_COMPLETE: '^[*]*ALL_COMPLETE' (line start, optional markdown, extra text OK)
             # - STORY_DONE: '^STORY_DONE: US-XXX' (line start, colon, story ID)
             # - BLOCKED: '^BLOCKED: reason' (line start, colon, reason text)
             # - INTERRUPTION: detect_interruption() checks for rate_limit/network/service patterns
@@ -4612,7 +4655,7 @@ cmd_run() {
             # 5. NO SIGNAL → generic message → break
             # ══════════════════════════════════════════════════════════════════════
 
-            if echo "$output" | grep -qx "ALL_COMPLETE"; then
+            if echo "$output" | grep -q '^[*]*ALL_COMPLETE'; then
                 rm -f "$learned_before_file"
 
                 # Emit prd_end event (ENH-021 US-001)
