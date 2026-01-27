@@ -19,7 +19,7 @@
         "Remove complex categorization logic - just show the error clearly"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

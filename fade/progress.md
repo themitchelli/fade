@@ -2795,3 +2795,25 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - fade/tests/run.sh (added STAB-* pattern support)
   - fade/prds/STAB-002-simplify-model-selection.json (US-003 passes: true)
 
+
+## 2026-01-27 - US-001: On regression failure, output clear error summary for copy-paste (STAB-003) - COMPLETE
+
+- Modified run_regression_tests() test failure output at bin/fade-cli:1822
+- Replaced simple error message with formatted markdown code block containing:
+  * Failing test names (up to 10 tests)
+  * Assertion details for first 3 failures (Expected vs Actual)
+  * Clear "Test Failure Summary" heading
+- Output formatted as ```markdown code block``` for easy copy-paste
+- Added clear suggestion: "Copy-paste the following to Claude Code to generate a fix PRD"
+- Added next steps with 3 options: paste to Claude Code, fade new bug, or fade run after fixing
+- Removed complex categorization - just shows raw error data from failed.log
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ On test failure, output includes: test name, assertion that failed, expected vs actual
+  - ✓ Output is formatted as markdown code block for easy copy
+  - ✓ Output suggests: 'Paste this to Claude Code to generate a fix PRD'
+  - ✓ Remove complex categorization logic - just show the error clearly
+- Files changed:
+  - bin/fade-cli (enhanced test failure output with copy-pasteable format)
+  - fade/prds/STAB-003-simplify-self-healing-workflow.json (US-001 passes: true)
+

@@ -1823,9 +1823,66 @@ run_regression_tests() {
         echo -e "${RED}❌ Regression Tests FAILED${NC}"
         echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
         echo ""
-        echo "Test failures detected. Iteration blocked until tests pass."
-        echo "See: fade/tests/failed.log for details"
-        echo ""
+
+        # Display clear error summary for copy-paste to Claude Code
+        local failed_log="$tests_dir/failed.log"
+        if [[ -f "$failed_log" ]]; then
+            echo -e "${YELLOW}Copy-paste the following to Claude Code to generate a fix PRD:${NC}"
+            echo ""
+            echo "\`\`\`"
+            echo "# Test Failure Summary"
+            echo ""
+
+            # Show failing test names
+            local failing_tests=$(grep "^\[FAILURE\]" "$failed_log" | sed 's/^\[FAILURE\] /  - /' | head -10)
+            if [[ -n "$failing_tests" ]]; then
+                echo "Failed Tests:"
+                echo "$failing_tests"
+                echo ""
+            fi
+
+            # Show expected vs actual for first few failures
+            local shown_count=0
+            local max_show=3
+            local current_test=""
+            local expected=""
+            local actual=""
+
+            while IFS= read -r line && [[ $shown_count -lt $max_show ]]; do
+                if [[ "$line" =~ ^\[FAILURE\] ]]; then
+                    current_test="${line#\[FAILURE\] }"
+                elif [[ "$line" =~ ^\[EXPECTED\] ]]; then
+                    expected="${line#\[EXPECTED\] }"
+                elif [[ "$line" =~ ^\[ACTUAL\] ]]; then
+                    actual="${line#\[ACTUAL\] }"
+                    if [[ -n "$expected" ]] && [[ -n "$actual" ]] && [[ -n "$current_test" ]]; then
+                        if [[ $shown_count -eq 0 ]]; then
+                            echo "Assertion Failures:"
+                        fi
+                        echo "  Test: $current_test"
+                        echo "    Expected: $expected"
+                        echo "    Actual:   $actual"
+                        echo ""
+                        ((shown_count++))
+                        expected=""
+                        actual=""
+                        current_test=""
+                    fi
+                fi
+            done < "$failed_log"
+
+            echo "\`\`\`"
+            echo ""
+            echo -e "${YELLOW}Next steps:${NC}"
+            echo "  1. Paste the above to Claude Code to analyze and create a fix PRD"
+            echo "  2. Or manually run: fade new bug"
+            echo "  3. After fixing, run: fade run"
+            echo ""
+        else
+            echo "See: fade/tests/failed.log for details"
+            echo ""
+        fi
+
         rm -f "$test_output_file"
         return 1
     fi
