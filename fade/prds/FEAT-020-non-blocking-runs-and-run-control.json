@@ -33,7 +33,7 @@
         "All commands print an execution header like: `FADE | repo=<name> | branch=<branch> | run=<run_id> | mode=<mode> | model=<model>` where applicable."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
@@ -45,7 +45,7 @@
         "All run artifacts remain inside `fade/` and do not pollute repo root."
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ]
 }

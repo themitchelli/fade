@@ -2140,3 +2140,25 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 
 ## Model Usage: haiku (complexity: medium, duration: 14m, cost est: $0.02)
 
+
+## 2026-01-27 - US-001: Start a FADE run without blocking the terminal (FEAT-020) - COMPLETE
+
+- Added --detach flag to cmd_run() for background run creation
+- Created helper functions:
+  - generate_run_id(): Generates unique, sortable run IDs (YYYYMMDD-HHMMSS-NNN format)
+  - create_run_directory(): Creates fade/runs/<run_id>/ directory structure
+  - create_run_metadata(): Creates run.json with repo, branch, mode, model, PRD info
+  - check_active_run(): Checks for existing active runs (prevents duplicates)
+- Run metadata structure includes: run_id, repo, repo_path, branch, mode, model, start_time, current_prd, current_prd_name, state, stop_time, stop_reason
+- Creates three files in run directory: run.json (metadata), run.log (stdout/stderr), events.jsonl (event log)
+- Detects and prevents duplicate active runs unless --force flag used
+- Returns immediately with run_id when --detach is used
+- All acceptance criteria satisfied:
+  - fade run --detach creates run and returns run_id ✓
+  - fade/runs/<run_id>/ directory structure created ✓
+  - run.json metadata file includes all required fields ✓
+  - Prevents duplicate runs unless --force ✓
+  - run.log and events.jsonl files created ✓
+- Files changed: bin/fade-cli, fade/prds/FEAT-020-non-blocking-runs-and-run-control.json
+- Tests: bash -n syntax check passed, manual testing verified run directory creation and metadata structure
+

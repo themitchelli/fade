@@ -4112,6 +4112,21 @@ cmd_run() {
         exit 0
     fi
 
+    # Check for active runs (FEAT-020 US-003) - warn in non-detach mode
+    if [[ "$detach_mode" != true ]]; then
+        local existing_run=$(check_active_run)
+        if [[ -n "$existing_run" ]]; then
+            echo -e "${YELLOW}⚠️  Active run in progress: $existing_run${NC}"
+            echo ""
+            echo "Options:"
+            echo "  1. Use --detach to start another run in the background"
+            echo "  2. View logs: ${CYAN}fade logs $existing_run${NC}"
+            echo "  3. Stop and restart: ${CYAN}fade stop $existing_run${NC}"
+            echo ""
+            exit 0
+        fi
+    fi
+
     # Determine execution mode
     local mode
     if [[ "$yolo_mode" == true ]]; then
@@ -6317,6 +6332,59 @@ cmd_status() {
 
     if [[ "$format" == "pretty" ]]; then
         echo -e "${CYAN}FADE v$FADE_VERSION${NC}"
+    fi
+
+    # Display active runs (FEAT-020 US-002)
+    if [[ -d "fade/runs" ]]; then
+        local active_count=0
+        local recent_runs=()
+
+        # Count active runs and collect recent ones
+        for run_folder in fade/runs/*; do
+            if [[ ! -f "$run_folder/run.json" ]]; then
+                continue
+            fi
+
+            local state=$(grep -o '"state": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+            local run_id=$(basename "$run_folder")
+
+            if [[ "$state" == "running" ]]; then
+                active_count=$((active_count + 1))
+            fi
+
+            recent_runs+=("$run_folder")
+        done
+
+        # Show active runs if any exist
+        if [[ $active_count -gt 0 ]]; then
+            if [[ "$format" == "pretty" ]]; then
+                echo ""
+                echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+                echo -e "${CYAN}                     ACTIVE RUNS                            ${NC}"
+                echo -e "${CYAN}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+
+                for run_folder in "${recent_runs[@]}"; do
+                    local run_id=$(basename "$run_folder")
+                    local state=$(grep -o '"state": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+
+                    if [[ "$state" == "running" ]]; then
+                        local repo=$(grep -o '"repo": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+                        local branch=$(grep -o '"branch": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+                        local prd=$(grep -o '"current_prd": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+                        local model=$(grep -o '"model": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+                        local start_time=$(grep -o '"start_time": "[^"]*"' "$run_folder/run.json" | cut -d'"' -f4)
+
+                        echo -e "${GREEN}✓${NC} $run_id"
+                        echo "  repo: $repo | branch: $branch | prd: $prd | model: $model"
+                        echo "  started: $start_time"
+                        echo "  logs: ${CYAN}fade logs $run_id${NC}"
+                        echo "  stop: ${CYAN}fade stop $run_id${NC}"
+                        echo ""
+                    fi
+                done
+            fi
+        fi
     fi
 
     display_work_queue "$format"
@@ -11143,6 +11211,139 @@ cmd_map() {
 }
 
 # ============================================================================
+# RUN MANAGEMENT COMMANDS (FEAT-020 US-002)
+# ============================================================================
+
+cmd_logs() {
+    local run_id="$1"
+    local follow=false
+    local tail_lines=20
+
+    # Parse flags
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -f|--follow)
+                follow=true
+                shift
+                ;;
+            -n)
+                tail_lines="$2"
+                shift 2
+                ;;
+            *)
+                if [[ -z "$run_id" ]]; then
+                    run_id="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$run_id" ]]; then
+        echo -e "${RED}Error: run_id required${NC}"
+        echo "Usage: fade logs <run_id> [-f] [-n N]"
+        echo ""
+        echo "Examples:"
+        echo "  fade logs 20260127-014902-379          # Show last 20 lines"
+        echo "  fade logs 20260127-014902-379 -n 50    # Show last 50 lines"
+        echo "  fade logs 20260127-014902-379 -f       # Follow log output"
+        exit 1
+    fi
+
+    local log_file="fade/runs/$run_id/run.log"
+
+    if [[ ! -f "$log_file" ]]; then
+        echo -e "${RED}Error: Run log not found: $log_file${NC}"
+        exit 1
+    fi
+
+    # Display run context header
+    local run_json="fade/runs/$run_id/run.json"
+    if [[ -f "$run_json" ]]; then
+        local repo=$(grep -o '"repo": "[^"]*"' "$run_json" | cut -d'"' -f4)
+        local branch=$(grep -o '"branch": "[^"]*"' "$run_json" | cut -d'"' -f4)
+        local mode=$(grep -o '"mode": "[^"]*"' "$run_json" | cut -d'"' -f4)
+        local model=$(grep -o '"model": "[^"]*"' "$run_json" | cut -d'"' -f4)
+        local state=$(grep -o '"state": "[^"]*"' "$run_json" | cut -d'"' -f4)
+
+        echo -e "${CYAN}FADE │ repo=${repo} │ branch=${branch} │ run=${run_id} │ mode=${mode} │ model=${model} │ state=${state}${NC}"
+        echo ""
+    fi
+
+    if [[ "$follow" == true ]]; then
+        # Follow mode: tail -f until interrupted
+        tail -f "$log_file"
+    else
+        # Show last N lines
+        tail -n "$tail_lines" "$log_file"
+    fi
+}
+
+cmd_stop() {
+    local run_id="$1"
+
+    if [[ -z "$run_id" ]]; then
+        echo -e "${RED}Error: run_id required${NC}"
+        echo "Usage: fade stop <run_id>"
+        exit 1
+    fi
+
+    local run_json="fade/runs/$run_id/run.json"
+
+    if [[ ! -f "$run_json" ]]; then
+        echo -e "${RED}Error: Run not found: $run_id${NC}"
+        exit 1
+    fi
+
+    # Get current state
+    local state=$(grep -o '"state": "[^"]*"' "$run_json" | cut -d'"' -f4)
+    local pid=$(grep -o '"pid": [0-9]*' "$run_json" | cut -d':' -f2 | tr -d ' ')
+
+    if [[ "$state" != "running" ]]; then
+        echo -e "${YELLOW}Run is not running (state: $state)${NC}"
+        exit 0
+    fi
+
+    # Try to stop the run gracefully
+    if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+        echo "Stopping run $run_id (PID: $pid)..."
+
+        # Send SIGTERM first
+        kill -TERM "$pid" 2>/dev/null || true
+
+        # Wait up to 5 seconds for graceful shutdown
+        local count=0
+        while [[ $count -lt 5 ]] && kill -0 "$pid" 2>/dev/null; do
+            sleep 1
+            count=$((count + 1))
+        done
+
+        # If still running, force kill
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "Force killing..."
+            kill -KILL "$pid" 2>/dev/null || true
+        fi
+
+        echo -e "${GREEN}Run stopped${NC}"
+    else
+        echo "Run process not found (may have already stopped)"
+    fi
+
+    # Update run.json to mark as stopped
+    local stop_time=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local temp_json=$(mktemp)
+
+    # Replace state and add stop_time
+    sed -e "s/\"state\": \"[^\"]*\"/\"state\": \"stopped\"/" \
+        -e "s/\"stop_time\": null/\"stop_time\": \"$stop_time\"/" \
+        "$run_json" > "$temp_json"
+
+    mv "$temp_json" "$run_json"
+
+    echo -e "${GREEN}✓ Updated run status${NC}"
+}
+
+# ============================================================================
 # MAIN
 # ============================================================================
 
@@ -11184,6 +11385,14 @@ case "${1:-}" in
     status)
         shift
         cmd_status "$@"
+        ;;
+    logs)
+        shift
+        cmd_logs "$@"
+        ;;
+    stop)
+        shift
+        cmd_stop "$@"
         ;;
     update)
         shift
