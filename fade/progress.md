@@ -2720,3 +2720,26 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - bin/fade-cli (added MAX_ITERATIONS constant and bounds check)
   - fade/prds/STAB-001-core-loop-audit-and-hardening.json (US-003 passes: true)
 
+
+## 2026-01-27 - US-001: Remove model selection learner integration from cmd_run (STAB-002) - COMPLETE
+
+- Removed display_model_recommendation() call from cmd_run() (previously at line ~4674)
+- Removed get_model_recommendation() integration from main execution flow
+- Removed --show-recommendation flag parsing and show_recommendation_only variable
+- Fixed model selection precedence order in both STOP mode and ALL mode loop:
+  * Priority 1: --model flag (highest - overrides everything)
+  * Priority 2: FADE_MODEL env var (overrides complexity)
+  * Priority 3: PRD complexity field (simple→haiku, complex→opus, medium→sonnet)
+  * Priority 4: sonnet default (lowest - when no PRD/env/flag)
+- Python scripts in fade/lib/ remain intact (not deleted) but are not called
+- Added clear inline comments documenting the precedence order
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ cmd_run() no longer calls get_model_recommendation()
+  - ✓ Model selection uses only: --model flag > FADE_MODEL env > complexity field > sonnet default
+  - ✓ fade/lib/ Python scripts remain (not deleted) but are not called from fade-cli
+  - ✓ bash -n syntax check passes
+- Files changed:
+  - bin/fade-cli (removed learner calls, fixed precedence in 2 locations, removed --show-recommendation flag)
+  - fade/prds/STAB-002-simplify-model-selection.json (US-001 passes: true)
+

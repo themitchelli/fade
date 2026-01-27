@@ -4598,7 +4598,6 @@ cmd_run() {
     local quiet_mode=false
     local model="${FADE_MODEL:-sonnet}"
     local model_override=false  # Track if --model flag was used
-    local show_recommendation_only=false  # Show recommendation without executing
     local detach_mode=false
     local force_detach=false
 
@@ -4617,10 +4616,6 @@ cmd_run() {
                 model="$2"
                 model_override=true  # User explicitly set model
                 shift 2
-                ;;
-            --show-recommendation)
-                show_recommendation_only=true
-                shift
                 ;;
             --detach)
                 detach_mode=true
@@ -4665,50 +4660,50 @@ cmd_run() {
         exit 0
     fi
 
-    # Get active PRD for recommendation
+    # Get active PRD for model selection
     local active_prd=$(get_active_prd)
 
-    # Show model recommendation if available (before complexity routing)
-    if [[ -n "$active_prd" ]] && [[ "$model_override" == false ]]; then
-        local prd_name=$(get_prd_name "$active_prd")
-        if display_model_recommendation "$active_prd" "$prd_name" 2>/dev/null; then
-            # If --show-recommendation flag was passed, display and exit
-            if [[ "$show_recommendation_only" == true ]]; then
-                exit 0
-            fi
-        fi
-    fi
-
-    # Apply complexity-based routing if --model flag was not used
+    # Model selection with clear precedence order:
+    # 1. --model flag (highest priority)
+    # 2. FADE_MODEL env var
+    # 3. PRD complexity field
+    # 4. sonnet default (lowest priority)
     local selected_model="$model"
     local routing_source="default"
-    if [[ "$model_override" == false ]]; then
-        if [[ -n "$active_prd" ]]; then
-            local complexity=$(get_prd_complexity "$active_prd")
 
-            # Apply routing logic based on complexity
-            case "$complexity" in
-                simple)
-                    selected_model="haiku"
-                    routing_source="complexity=simple"
-                    ;;
-                complex)
-                    selected_model="opus"
-                    routing_source="complexity=complex"
-                    ;;
-                medium|"")
-                    # Medium or missing defaults to sonnet
-                    selected_model="sonnet"
-                    if [[ -n "$complexity" ]]; then
-                        routing_source="complexity=medium"
-                    else
-                        routing_source="complexity=medium (default)"
-                    fi
-                    ;;
-            esac
-        fi
-    elif [[ "$model_override" == true ]]; then
+    if [[ "$model_override" == true ]]; then
+        # Priority 1: --model flag overrides everything
         routing_source="--model flag (override)"
+    elif [[ -n "${FADE_MODEL:-}" ]]; then
+        # Priority 2: FADE_MODEL env var overrides complexity
+        selected_model="$FADE_MODEL"
+        routing_source="FADE_MODEL env var"
+    elif [[ -n "$active_prd" ]]; then
+        # Priority 3: Use PRD complexity field for routing
+        local complexity=$(get_prd_complexity "$active_prd")
+        case "$complexity" in
+            simple)
+                selected_model="haiku"
+                routing_source="complexity=simple"
+                ;;
+            complex)
+                selected_model="opus"
+                routing_source="complexity=complex"
+                ;;
+            medium|"")
+                # Priority 4: Medium or missing complexity defaults to sonnet
+                selected_model="sonnet"
+                if [[ -n "$complexity" ]]; then
+                    routing_source="complexity=medium"
+                else
+                    routing_source="complexity=medium (default)"
+                fi
+                ;;
+        esac
+    else
+        # Priority 4: No PRD, no env, no flag - default to sonnet
+        selected_model="sonnet"
+        routing_source="default (no PRD)"
     fi
 
     # Display version banner (CLI version, prompt.md version, any warnings)
@@ -4860,15 +4855,25 @@ cmd_run() {
                 fi
             fi
 
-            # Apply complexity-based routing if --model flag was not used
+            # Model selection with clear precedence order:
+            # 1. --model flag (highest priority)
+            # 2. FADE_MODEL env var
+            # 3. PRD complexity field
+            # 4. sonnet default (lowest priority)
             local selected_model="$model"
             local routing_source="default"
             local complexity_rubric=""  # JSON with rubric scores
 
-            if [[ "$model_override" == false ]] && [[ -n "$active_prd" ]]; then
+            if [[ "$model_override" == true ]]; then
+                # Priority 1: --model flag overrides everything
+                routing_source="--model flag (override)"
+            elif [[ -n "${FADE_MODEL:-}" ]]; then
+                # Priority 2: FADE_MODEL env var overrides complexity
+                selected_model="$FADE_MODEL"
+                routing_source="FADE_MODEL env var"
+            elif [[ -n "$active_prd" ]]; then
+                # Priority 3: Use PRD complexity field for routing
                 local complexity=$(get_prd_complexity "$active_prd")
-
-                # Apply routing logic based on complexity
                 case "$complexity" in
                     simple)
                         selected_model="haiku"
@@ -4879,7 +4884,7 @@ cmd_run() {
                         routing_source="complexity=complex"
                         ;;
                     medium|"")
-                        # Medium or missing defaults to sonnet
+                        # Priority 4: Medium or missing complexity defaults to sonnet
                         selected_model="sonnet"
                         if [[ -n "$complexity" ]]; then
                             routing_source="complexity=medium"
@@ -4888,8 +4893,10 @@ cmd_run() {
                         fi
                         ;;
                 esac
-            elif [[ "$model_override" == true ]]; then
-                routing_source="--model flag (override)"
+            else
+                # Priority 4: No PRD, no env, no flag - default to sonnet
+                selected_model="sonnet"
+                routing_source="default (no PRD)"
             fi
 
             # Capture complexity rubric scores for telemetry (ENH-023 US-001)
