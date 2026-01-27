@@ -2483,6 +2483,74 @@ detect_interruption() {
     echo ""
 }
 
+# ============================================================================
+# Functions for detecting and handling escalation signals (model struggles)
+
+# Detect if current execution should be escalated to a higher model
+# Parameters: $1=iteration_count, $2=start_time, $3=current_model, $4=claude_output
+# Returns: "escalate" or "" (no escalation needed)
+detect_escalation() {
+    local iteration_count="$1"
+    local start_time="$2"
+    local current_model="$3"
+    local claude_output="$4"
+
+    # Don't escalate Opus (highest tier)
+    if [[ "$current_model" == "opus" ]]; then
+        return 1
+    fi
+
+    # Signal 1: Test failures or blocked state after session 1
+    if [[ "$iteration_count" -ge 2 ]]; then
+        if echo "$claude_output" | grep -q "^BLOCKED: \|test.*fail\|tests.*fail"; then
+            echo "escalate"
+            return 0
+        fi
+    fi
+
+    # Signal 2: Multiple STORY_DONE iterations without visible progress
+    # (tracked in main loop via iteration counter)
+    # This is detected by the caller when iteration > 3
+
+    # Signal 3: Duration-based escalation (checked by caller)
+    # Caller knows start_time and can compare with current time
+
+    return 1
+}
+
+# Get the recommended escalation model (one tier up)
+# Parameters: $1=current_model
+# Returns: "sonnet" (from haiku) or "opus" (from sonnet)
+get_escalation_model() {
+    local current_model="$1"
+
+    case "$current_model" in
+        haiku) echo "sonnet" ;;
+        sonnet) echo "opus" ;;
+        opus) echo "opus" ;; # Already at max
+    esac
+}
+
+# Display escalation suggestion banner
+display_escalation_suggestion() {
+    local current_model="$1"
+    local reason="$2"
+    local prd_id="$3"
+
+    local escalation_model=$(get_escalation_model "$current_model")
+
+    printf "%b\n" "${COLOR_WARNING}┌────────────────────────────────────────────────────┐${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ Auto-Escalation Suggested                           │${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ Initial model ($current_model) seems insufficient     │${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}├────────────────────────────────────────────────────┤${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ Reason: $reason${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ Suggested: --model $escalation_model${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}├────────────────────────────────────────────────────┤${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ To escalate: fade run --model $escalation_model --resume${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}│ (Your work will resume from where it left off)      │${COLOR_RESET}"
+    printf "%b\n" "${COLOR_WARNING}└────────────────────────────────────────────────────┘${COLOR_RESET}"
+}
+
 # Display session context (used by all interruption handlers)
 display_session_context() {
     local active_prd=$(get_active_prd)
@@ -4164,7 +4232,23 @@ cmd_run() {
                     echo -e "${RED}⛔ ITERATION BLOCKED - Regression tests failed${NC}"
                     echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                     echo ""
-                    echo "Fix the failing tests and run 'fade run' or 'fade yolo' to continue."
+
+                    # Check if escalation might help (test failures in early iterations suggest under-provisioned model)
+                    if [[ "$iteration" -le 2 ]] && [[ "$selected_model" != "opus" ]]; then
+                        echo ""
+                        display_escalation_suggestion "$selected_model" "Regression test failures in session 1 suggest model may be insufficient" "$prd_id"
+                        echo ""
+
+                        # Log escalation suggestion to progress.md
+                        if [[ -f "$progress_file" ]]; then
+                            {
+                                echo ""
+                                echo "**Auto-escalation suggested:** Regression test failures in session 1 indicate ${selected_model} may be insufficient. Consider: \`fade run --model $(get_escalation_model "$selected_model") --resume\`"
+                            } >> "$progress_file"
+                        fi
+                    else
+                        echo "Fix the failing tests and run 'fade run' or 'fade yolo' to continue."
+                    fi
                     echo ""
                     break
                 fi
@@ -4189,6 +4273,23 @@ cmd_run() {
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
                 echo -e "${RED}⛔ BLOCKED - Human intervention required${NC}"
                 echo -e "${RED}════════════════════════════════════════════════════════════${NC}"
+                echo ""
+
+                # Check if escalation might help (BLOCKED in early iterations suggests under-provisioned model)
+                if [[ "$iteration" -le 2 ]] && [[ "$selected_model" != "opus" ]] && echo "$blocked_reason" | grep -qi "test\|fail\|error"; then
+                    display_escalation_suggestion "$selected_model" "BLOCKED state in session 1 with errors suggests model may be insufficient" "$prd_id"
+                    echo ""
+
+                    # Log escalation suggestion to progress.md
+                    if [[ -f "$progress_file" ]]; then
+                        {
+                            echo ""
+                            echo "**Auto-escalation suggested:** BLOCKED state in session 1. Consider: \`fade run --model $(get_escalation_model "$selected_model") --resume\`"
+                            echo "Reason: $blocked_reason"
+                        } >> "$progress_file"
+                    fi
+                fi
+
                 break
             fi
 

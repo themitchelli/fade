@@ -199,7 +199,7 @@
         "Update history: Mark PRD as 'escalationNeeded: true, escalationPoint: \"session 1 test failures\"'"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-010",

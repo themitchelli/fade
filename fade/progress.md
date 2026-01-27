@@ -2036,3 +2036,33 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 
 ## Model Usage: haiku (complexity: medium, duration: 10m, cost est: $0.02)
 
+
+## 2026-01-27 - US-008: Dashboard display of learned insights (ENH-015) - COMPLETE
+
+- Added get_learning_metrics() helper function to dashboard-server.py to extract learning data from model-selection-history.json
+- Function supports both contained (fade/) and legacy (root) directory structures
+- Extracts accuracy stats, model usage counts, escalation patterns, decision tree rules, and recent escalations
+- Calculates recommendation confidence level (High/Medium/Low) based on history size
+- Calculates estimated cost savings vs all-Sonnet baseline using Anthropic pricing
+- Added /api/learning/{repoName} API endpoint for serving learning metrics as JSON
+- Added _serve_learning_api() handler method for extracting and parsing repository name from URL
+- Added Learning tab to dashboard modal with 4 sections
+- Added loadLearning() async method to fetch metrics from API endpoint
+- Added renderLearning() method to format metrics into HTML cards and sections
+- Renders model accuracy cards with accuracy percentage, PRD count, and escalation counts
+- Displays key patterns learned from decision tree rules with confidence levels
+- Shows recommendation confidence with color-coded level (High=green, Medium=yellow, Low=red)
+- Lists recent escalations (up to 3) with PRD ID, date, and reason
+- Displays estimated cost savings and timestamp of last update
+- Added comprehensive CSS styling for learning components:
+  - .learning-section with consistent spacing and borders
+  - .model-stats grid layout with responsive columns
+  - .model-stat-card with accuracy percentage and details
+  - .patterns-list with pattern-card styling and monospace conditions
+  - .confidence section with color-coded level badges
+  - .escalations-list with warning-colored left border
+  - .cost-info section with success-colored savings display
+  - Mobile-responsive adjustments for screens < 768px
+- All components use CSS variables for consistent theming
+- Files changed: fade/lib/dashboard-server.py, fade/templates/dashboard/index.html, fade/templates/dashboard/app.js, fade/templates/dashboard/styles.css, fade/prds/ENH-015-model-selection-learner.json
+- Tests: Python syntax check passed, HTML structure verified, CSS variables referenced correctly
