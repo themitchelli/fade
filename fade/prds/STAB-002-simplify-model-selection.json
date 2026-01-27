@@ -48,7 +48,7 @@
         "All tests in fade/tests/STAB-002/"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

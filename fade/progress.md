@@ -2769,3 +2769,29 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - bin/fade-cli (new function, replaced 2 duplicate logic blocks)
   - fade/prds/STAB-002-simplify-model-selection.json (US-002 passes: true)
 
+
+## 2026-01-27 - US-003: Add model selection test coverage (STAB-002) - COMPLETE
+
+- Created 5 comprehensive tests for model selection logic in fade/tests/STAB-002/
+- Updated fade/tests/run.sh to support both PRD-* and STAB-* test directories
+- All tests pass (23/23 total, 5 new STAB-002 tests)
+- Tests verify the complete precedence hierarchy:
+  * test_us003_01_model_flag_override.sh: Verifies --model flag overrides FADE_MODEL env and PRD complexity
+  * test_us003_02_fade_model_env_override.sh: Verifies FADE_MODEL env overrides PRD complexity=complex
+  * test_us003_03_complexity_simple_routes_haiku.sh: Verifies complexity=simple → haiku routing
+  * test_us003_04_complexity_complex_routes_opus.sh: Verifies complexity=complex → opus routing
+  * test_us003_05_missing_complexity_defaults_sonnet.sh: Verifies missing complexity → sonnet default
+- All tests use temp PRD files and verify both model name and routing source
+- Tests clean up temp files and restore environment state
+- All acceptance criteria satisfied:
+  - ✓ Test: --model flag overrides everything
+  - ✓ Test: FADE_MODEL env overrides complexity
+  - ✓ Test: complexity=simple routes to haiku
+  - ✓ Test: complexity=complex routes to opus
+  - ✓ Test: missing complexity defaults to sonnet
+  - ✓ All tests in fade/tests/STAB-002/
+- Files changed:
+  - fade/tests/STAB-002/*.sh (5 new test files)
+  - fade/tests/run.sh (added STAB-* pattern support)
+  - fade/prds/STAB-002-simplify-model-selection.json (US-003 passes: true)
+
