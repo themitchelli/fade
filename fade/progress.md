@@ -2680,3 +2680,22 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
 
+
+## 2026-01-27 - US-002: Verify signal detection is robust (STAB-001) - COMPLETE
+
+- Verified all 6 existing BUG-007 tests pass (test_us001_01, test_us001_02, test_us002_01, test_us003_01, test_us003_02, test_us003_03)
+- Created 2 new edge case tests for signal detection robustness:
+  - fade/tests/PRD-BUG-007/test_us002_02_signal_at_eof.sh: Verifies signals detected when at EOF with no trailing newline
+  - fade/tests/PRD-BUG-007/test_us002_03_signal_with_trailing_whitespace.sh: Verifies signals detected with trailing spaces/tabs
+- Both new tests verify all three signal types (STORY_DONE, ALL_COMPLETE, BLOCKED) in edge case scenarios
+- Signal patterns already documented in US-001 (comprehensive comment block at line ~5010 in bin/fade-cli)
+- Test suite now has 8 BUG-007 tests total, all passing (18/18 tests pass overall)
+- All acceptance criteria satisfied:
+  - ✓ Run all 6 BUG-007 tests and confirm they pass
+  - ✓ Add 2 additional edge case tests: signal at EOF, signal with trailing whitespace
+  - ✓ Document signal patterns in a comment block near detect logic (completed in US-001)
+- Files changed: 
+  - fade/tests/PRD-BUG-007/test_us002_02_signal_at_eof.sh (new)
+  - fade/tests/PRD-BUG-007/test_us002_03_signal_with_trailing_whitespace.sh (new)
+  - fade/prds/STAB-001-core-loop-audit-and-hardening.json (US-002 passes: true)
+

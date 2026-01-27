@@ -31,7 +31,7 @@
         "Document signal patterns in a comment block near detect logic"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",
