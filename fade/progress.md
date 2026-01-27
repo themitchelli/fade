@@ -2600,3 +2600,24 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 - Files changed: bin/fade-cli
 - Tests: Manual testing verified command works and accepts --model flag
 
+
+## 2026-01-27 - US-002: PRD generator supports 'council' second opinions (optional) (FEAT-025) - COMPLETE
+
+- Added --second-opinion flag to fade prd new command
+- When --second-opinion is used:
+  - Generates PRD via cmd_discover --prd as normal
+  - Automatically finds the newly created PRD (latest FEAT-*.json)
+  - Generates council brief using cmd_council function
+  - Saves brief to fade/prds/_notes/{PRD_ID}-council.md
+  - Displays confirmation message with brief location
+- Implementation gracefully degrades if council generation fails (error handling with || true)
+- Non-blocking: PRD generation completes even if second opinion fails
+- Acceptance criteria satisfied:
+  - ✓ Optional --second-opinion flag added (not stub, fully functional)
+  - ✓ Output stored in fade/prds/_notes/ (recommended location)
+  - ✓ Never blocks PRD generation; degrades gracefully on error
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, help text updated with examples
+
+FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
+
