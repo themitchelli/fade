@@ -22,6 +22,33 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-27 - US-001, US-002, US-003, US-004: Model Selection Learning System (ENH-015) - IN PROGRESS
+
+- Created fade/lib/detect-sessions.sh: Script to count distinct work sessions for a PRD
+  - Parses progress.md for ALL_COMPLETE and BLOCKED signals matching PRD ID
+  - Checks for incomplete stories in PRD JSON to detect ongoing sessions
+  - Returns total sessions = (ALL_COMPLETE count) + (BLOCKED count) + (1 if incomplete, else 0)
+  - Logs reasoning to stderr for transparency
+  - Tested on ENH-014 (6 sessions) and ENH-015 (1 ongoing session)
+- Created fade/lib/extract-features.py: Script to extract quantifiable features from PRD JSON
+  - Extracts metrics: storyCount, acCount, type, integrationSurface (1-6 range)
+  - Detects keywords: architecture, integrate, migrate, ui, stateful via regex patterns
+  - Estimates integration surface by counting component mentions (parser, engine, storage, API, etc.)
+  - Outputs JSON structure conforming to US-002 spec
+  - Tested on ENH-015 (10 stories, 117 ACs, heavy integration) and BUG-001 (2 stories, 7 ACs, light integration)
+- Created fade/model-selection-history.json: Initial database with 10 completed PRDs from archive
+  - Backfilled with features and outcomes from: BUG-001, ENH-008, FEAT-006, FEAT-007, ENH-009, FEAT-008, FEAT-009, FEAT-010, FEAT-011, ENH-014
+  - Each record includes: id, date, features (story/AC/type/surface/keywords), actualOutcome (sessions, model, success, errors)
+  - LearnedHeuristics section initialized with decision tree rules and accuracy stats
+- Created fade/recommend-model.py: Recommends model (Haiku/Sonnet/Opus) for a PRD
+  - Extracts features from target PRD using same logic as extract-features.py
+  - Finds similar PRDs from history by story count ±20%, keyword match, integration surface ±1
+  - Applies decision tree: Haiku for simple (<7 stories, <50 ACs), Sonnet for moderate, Opus for complex (architecture/heavy integration)
+  - Outputs: model recommendation, confidence percentage, reasoning, citation of similar PRD
+  - Tested on ENH-015 (recommends OPUS, 90% confidence) and BUG-001 (recommends HAIKU, 80% confidence)
+- Files changed: fade/lib/detect-sessions.sh, fade/lib/extract-features.py, fade/model-selection-history.json, fade/recommend-model.py
+- Tests: All scripts working correctly with proper output formatting and error handling
+
 ## 2026-01-25 22:22 - BUG-007: Signal detection false positive on BLOCKED - COMPLETE
 
 - Fixed signal detection in cmd_run() to use strict pattern matching
@@ -1925,3 +1952,6 @@ For blocked stories, use:
 - Mobile-responsive design for analytics tab with grid layout adjustments
 - Files changed: bin/fade-cli, fade/lib/dashboard-server.py, fade/templates/dashboard/index.html, fade/templates/dashboard/app.js, fade/templates/dashboard/styles.css
 - Tests: bash -n syntax check passed, Python syntax check passed
+
+## Model Usage: haiku (complexity: simple, duration: 12m, cost est: $0.02)
+

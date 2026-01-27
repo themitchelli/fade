@@ -2,7 +2,48 @@
 
 **Framework for Agentic Development and Engineering**
 
-FADE provides session memory, context management, and execution orchestration for AI coding agents like Claude Code. It solves the problem of starting every session with zero context by automatically loading project standards, progress history, and learnings from previous sessions.
+**Make AI improve your codebase, not just your tasks.**
+
+AI coding tools are excellent at fixing bugs, writing functions, and refactoring files. They optimise **micro-level productivity**.
+
+But software systems are improved through **coordinated, standards-driven work over time** — consistent architecture, shared conventions, regression discipline, and accumulated learnings.
+
+FADE exists to bring those qualities into autonomous AI development by injecting **enterprise context, standards, strategic direction, and session memory** into every run — so AI output is not just “correct”, but **directionally aligned** with how you want the codebase to evolve.
+
+> **AI tools optimise tasks. FADE optimises the codebase.**
+
+---
+
+## Why FADE Exists
+
+When you run agentic coding tools repeatedly, the bottleneck isn’t “can the model write code?” — it’s that each run can be context-light and locally optimal:
+
+- Standards and architectural intent can be missed or inconsistently applied
+- Cross-session learnings are lost
+- Progress history is hard to reconstruct
+- The codebase can drift even while tasks are completed
+
+FADE solves this by ensuring every run starts with the same “enterprise brain”:
+
+- Project context (what matters here)
+- Standards (what “good” looks like)
+- Progress history (what’s already been done)
+- Learned insights (what we now know)
+- PRD-driven intent (what we are trying to achieve)
+
+---
+
+## What FADE Is (and Is Not)
+
+**FADE is not** a chatbot wrapper, prompt paste, or one-off convenience script.
+
+**FADE is** a lightweight governance and execution framework that:
+- Loads and maintains structured project context for each run
+- Guides work through PRDs and story loops
+- Captures progress and learnings over time
+- Encourages rigor via regression testing and disciplined iteration
+
+---
 
 ## Quick Start
 

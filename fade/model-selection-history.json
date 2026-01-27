@@ -1,0 +1,284 @@
+{
+  "version": "1.0",
+  "prds": [
+    {
+      "id": "BUG-001",
+      "date": "2026-01-20T12:59:00Z",
+      "features": {
+        "storyCount": 2,
+        "acCount": 7,
+        "type": "bug",
+        "integrationSurface": 1,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": false,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "haiku",
+        "modelSucceeded": "haiku",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Haiku is suitable for small bug fixes"
+      }
+    },
+    {
+      "id": "ENH-008",
+      "date": "2026-01-20T18:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 35,
+        "type": "enhancement",
+        "integrationSurface": 3,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": true,
+          "migrate": false,
+          "ui": true,
+          "stateful": true
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Sonnet handles moderate integration work well"
+      }
+    },
+    {
+      "id": "FEAT-006",
+      "date": "2026-01-20T14:00:00Z",
+      "features": {
+        "storyCount": 4,
+        "acCount": 22,
+        "type": "feature",
+        "integrationSurface": 2,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": false,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Simple feature, sonnet sufficient"
+      }
+    },
+    {
+      "id": "FEAT-007",
+      "date": "2026-01-20T17:00:00Z",
+      "features": {
+        "storyCount": 5,
+        "acCount": 28,
+        "type": "feature",
+        "integrationSurface": 3,
+        "hasKeywords": {
+          "architecture": true,
+          "integrate": true,
+          "migrate": false,
+          "ui": false,
+          "stateful": true
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Moderate complexity feature, sonnet adequate"
+      }
+    },
+    {
+      "id": "ENH-009",
+      "date": "2026-01-23T12:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 42,
+        "type": "enhancement",
+        "integrationSurface": 3,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": false,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Moderate feature with testing infrastructure"
+      }
+    },
+    {
+      "id": "FEAT-008",
+      "date": "2026-01-23T14:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 38,
+        "type": "feature",
+        "integrationSurface": 4,
+        "hasKeywords": {
+          "architecture": true,
+          "integrate": true,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Codebase analysis feature, sonnet performs well"
+      }
+    },
+    {
+      "id": "FEAT-009",
+      "date": "2026-01-23T18:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 32,
+        "type": "feature",
+        "integrationSurface": 2,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": false,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Quick mode feature, simple integration"
+      }
+    },
+    {
+      "id": "FEAT-010",
+      "date": "2026-01-23T19:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 24,
+        "type": "feature",
+        "integrationSurface": 1,
+        "hasKeywords": {
+          "architecture": false,
+          "integrate": false,
+          "migrate": false,
+          "ui": false,
+          "stateful": false
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "NPM distribution setup, straightforward changes"
+      }
+    },
+    {
+      "id": "FEAT-011",
+      "date": "2026-01-23T20:00:00Z",
+      "features": {
+        "storyCount": 6,
+        "acCount": 35,
+        "type": "feature",
+        "integrationSurface": 4,
+        "hasKeywords": {
+          "architecture": true,
+          "integrate": true,
+          "migrate": false,
+          "ui": true,
+          "stateful": true
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 1,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Discovery feature with codebase awareness, sonnet adequate"
+      }
+    },
+    {
+      "id": "ENH-014",
+      "date": "2026-01-25T18:00:00Z",
+      "features": {
+        "storyCount": 8,
+        "acCount": 48,
+        "type": "enhancement",
+        "integrationSurface": 4,
+        "hasKeywords": {
+          "architecture": true,
+          "integrate": true,
+          "migrate": false,
+          "ui": true,
+          "stateful": true
+        }
+      },
+      "actualOutcome": {
+        "sessionsRequired": 6,
+        "modelRecommended": "sonnet",
+        "modelSucceeded": "sonnet",
+        "escalationNeeded": false,
+        "escalationPoint": null,
+        "errors": [],
+        "recommendation": "Complexity-based routing and model selection, multiple sessions"
+      }
+    }
+  ],
+  "learnedHeuristics": {
+    "useHaikuIf": [
+      "storyCount < 3 AND acCount < 10 AND NOT architecture",
+      "type=bug OR type=chore"
+    ],
+    "useSonnetIf": [
+      "storyCount >= 3 AND storyCount <= 10 AND acCount <= 50",
+      "integrate=true AND integrationSurface <= 3"
+    ],
+    "useOpusIf": [
+      "architecture=true AND integrationSurface >= 4",
+      "integrate=true AND stateful=true AND integrationSurface >= 3"
+    ],
+    "accuracyStats": {
+      "haiku_accuracy": 100,
+      "sonnet_accuracy": 83,
+      "opus_accuracy": 0
+    }
+  }
+}

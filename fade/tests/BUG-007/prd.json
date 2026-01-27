@@ -1,0 +1,120 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "BUG-007",
+  "name": "Signal detection false positive on BLOCKED",
+  "description": "Exit signal detection in cmd_run() matches 'BLOCKED' anywhere in Claude's output, not just as an actual exit signal. This causes false positives when Claude's response contains 'BLOCKED' in other contexts (e.g., discussing blocked repos, session outcomes showing BLOCKED status, or other feature descriptions).",
+  "complexity": "simple",
+  "context": {
+    "problem": "FADE's signal detection for BLOCKED uses loose grep matching (grep -q 'BLOCKED') instead of pattern matching for the actual signal format. When Claude implements features that discuss or display 'blocked' states (like the dashboard showing blocked repos), the word 'BLOCKED' in the response text triggers false positive BLOCKED detection.",
+    "rootCause": "Three issues in bin/fade-cli cmd_run() around lines 3935-4077:\n1. BLOCKED check uses 'grep -q \"BLOCKED\"' which matches any occurrence\n2. Signal detection order is wrong: BLOCKED is checked before STORY_DONE\n3. ALL_COMPLETE uses -qx (exact line match) but BLOCKED and STORY_DONE don't, causing inconsistent matching behavior",
+    "triggeredBy": "US-006 (Session history and analytics) for FEAT-013. Claude's response included phrases like 'outcome (COMPLETE/BLOCKED)' and 'blocked repos' when describing the analytics feature. The loose BLOCKED pattern matched this context text, not an actual exit signal.",
+    "impact": "FADE sessions terminate prematurely with 'Human intervention required' even when work is progressing normally. This breaks autonomous execution (YOLO mode) and defeats the self-healing capability."
+  },
+  "solution": "Fix signal detection to use strict pattern matching that only matches actual exit signals, and reorder detection priority so STORY_DONE is checked before BLOCKED.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Use strict pattern matching for BLOCKED signal",
+      "description": "As FADE, I need to detect only actual BLOCKED signals (format: 'BLOCKED: reason') and not match the word 'blocked' appearing in other contexts.",
+      "acceptanceCriteria": [
+        "Change BLOCKED detection from 'grep -q \"BLOCKED\"' to match the signal format 'BLOCKED:' specifically",
+        "Pattern should match: 'BLOCKED: reason text' or 'BLOCKED:reason'",
+        "Pattern should NOT match: 'blocked repos', 'BLOCKED status', 'outcome (COMPLETE/BLOCKED)', etc.",
+        "Test case: output containing 'shows blocked repos in dashboard' should NOT trigger BLOCKED detection",
+        "Test case: output containing 'BLOCKED: Cannot find dependency' should trigger BLOCKED detection"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Reorder signal detection priority",
+      "description": "As FADE, I need to check for STORY_DONE before BLOCKED to ensure successful story completions aren't incorrectly classified.",
+      "acceptanceCriteria": [
+        "Move STORY_DONE detection check before BLOCKED detection check in the if-elseif chain",
+        "Detection order should be: 1. ALL_COMPLETE, 2. STORY_DONE, 3. BLOCKED",
+        "If both STORY_DONE and BLOCKED appear in output, STORY_DONE should take precedence",
+        "STORY_DONE detection should also use strict pattern matching ('STORY_DONE: US-XXX' format)"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Consistent signal pattern matching",
+      "description": "As FADE, I need all exit signals to use consistent pattern matching to prevent similar issues in the future.",
+      "acceptanceCriteria": [
+        "ALL_COMPLETE detection: match '^ALL_COMPLETE$' on its own line (already using -qx, verify working)",
+        "STORY_DONE detection: match '^STORY_DONE: ' at start of line",
+        "BLOCKED detection: match '^BLOCKED: ' at start of line",
+        "Add code comments explaining the signal format requirements",
+        "Update the EXIT SIGNALS comment block (around line 3017-3047) to document the strict patterns used"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Add regression tests for signal detection",
+      "description": "As a maintainer, I need tests that verify signal detection works correctly with various input patterns.",
+      "acceptanceCriteria": [
+        "Create test that verifies 'BLOCKED' in context text does not trigger BLOCKED detection",
+        "Create test that verifies 'STORY_DONE: US-001' triggers STORY_DONE detection",
+        "Create test that verifies 'BLOCKED: reason' triggers BLOCKED detection correctly",
+        "Create test that verifies mixed output (STORY_DONE with 'blocked' in context) detects STORY_DONE",
+        "All tests should use shell scripting only (no external dependencies)"
+      ],
+      "priority": 2,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "affectedFiles": ["bin/fade-cli"],
+    "affectedFunctions": ["cmd_run() ALL mode loop, specifically lines 3935-4077"],
+    "patternExamples": {
+      "validBlockedSignal": "BLOCKED: Cannot find required file",
+      "falsePositiveExamples": [
+        "Session timeline shows outcome (COMPLETE/BLOCKED)",
+        "shows blocked repos in dashboard",
+        "filter for BLOCKED status repos",
+        "Check if session is blocked"
+      ]
+    },
+    "suggestedPatterns": {
+      "allComplete": "grep -qx 'ALL_COMPLETE' (existing, working)",
+      "storyDone": "grep -q '^STORY_DONE: '",
+      "blocked": "grep -q '^BLOCKED: '"
+    }
+  },
+  "testScenarios": [
+    {
+      "scenario": "Claude implements feature discussing blocked repos",
+      "input": "Output containing: 'Dashboard shows blocked repos with red indicator' followed by 'STORY_DONE: US-006'",
+      "expected": "STORY_DONE detected, iteration continues",
+      "actual_before_fix": "BLOCKED detected, session terminates"
+    },
+    {
+      "scenario": "Claude actually gets blocked",
+      "input": "Output containing: 'BLOCKED: Cannot resolve merge conflict in file X'",
+      "expected": "BLOCKED detected, session terminates with reason",
+      "actual_before_fix": "Same (working correctly)"
+    }
+  ],
+  "risks": [
+    {
+      "risk": "Pattern too strict might miss legitimate BLOCKED signals",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Test with actual BLOCKED outputs from previous sessions. The '^BLOCKED: ' pattern is what prompt.md specifies."
+    }
+  ],
+  "estimatedEffort": "30-60 minutes",
+  "definitionOfDone": [
+    "BLOCKED signal detection uses strict pattern matching",
+    "STORY_DONE is checked before BLOCKED in detection order",
+    "All signal patterns are consistent and documented",
+    "Regression tests verify correct behavior",
+    "bash -n syntax check passes"
+  ]
+}

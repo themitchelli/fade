@@ -1,0 +1,317 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-015",
+  "name": "Self-Improving Model Selection Learner",
+  "description": "Builds a feedback loop that learns which models succeed on which types of work by analyzing actual PRD outcomes and session counts. Instead of binary heuristic scoring, maintains a history of PRD features (stories, ACs, keywords, integration surface) vs. actual model performance. Recommends models proactively before execution, escalates gracefully if needed, and improves recommendations automatically with each completed PRD.",
+  "dependsOn": ["ENH-014"],
+  "context": {
+    "problem": "Current complexity heuristic marks most work 'medium', losing nuance. No feedback loop when estimates are wrong. Examples: PRD-LC-010 (9 stories, 60 ACs, distributed system) took 3 sessions and required Opus escalation from Sonnet, but heuristic gave no warning. PRD-LC-002 (6 stories, 37 ACs) completed in 1 session on Haiku, but heuristic would score it as medium. We're flying blind.",
+    "rootCause": "Effort estimates from PRD schema are unreliable (4-6x too conservative) and not normalized by story count. Story count and AC count alone don't correlate with actual complexity—architectural keywords (architecture, integrate, distribute) and integration surface (how many subsystems touched) are 2-15x more predictive. No mechanism captures when models fail or succeed.",
+    "impact": "Suboptimal model selection: Sonnet only succeeds 40% of time on truly complex work (requires Opus escalation), but heuristic never recommends starting with Opus. Opus overkill for simple work. No learning = same mistakes repeat. Costs trend upward instead of improving.",
+    "opportunity": "Track actual PRD features vs. actual session count and model success in history database. Recommend model upfront with 85%+ confidence. Escalate gracefully when needed. Each completed PRD teaches system—by month 3, recommendations should be highly accurate."
+  },
+  "solution": "Create fade/model-selection-history.json that logs each PRD's features (stories, ACs, keywords, integration surface) and actual outcomes (sessions required, model recommended vs. model succeeded, errors, escalations). Build fade/recommend-model.py that extracts PRD features, compares to history using decision tree, and recommends Haiku/Sonnet/Opus. Automatically parse progress.md to detect session boundaries (same-day work = 1 session, date boundary or >4h gap = new session). Wire into FADE workflow: on PRD completion, auto-update history. On new PRD, show recommendation banner.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Session detection from exit signals and PRD state",
+      "description": "As FADE, I need to automatically detect how many distinct work sessions each PRD required by counting exit signals (ALL_COMPLETE, BLOCKED) and checking for incomplete work, so I don't depend on timestamp guessing.",
+      "acceptanceCriteria": [
+        "Create fade/lib/detect-sessions.sh taking PRD_ID, progress.md path, PRD JSON path as arguments",
+        "Count terminal conditions in progress.md matching PRD ID:",
+        "  - completed_sessions = count of '## ... - PRD_ID:... - COMPLETE' (grep -c matches)",
+        "  - blocked_sessions = count of '## ... - PRD_ID:... - BLOCKED' (grep -c matches)",
+        "Read PRD JSON and check for incomplete user stories: userStories[].passes == false",
+        "Calculate total sessions:",
+        "  - If has_incomplete (resumed work with unfinished stories): sessions = (completed + blocked) + 1",
+        "  - Else: sessions = completed + blocked",
+        "Handle edge cases:",
+        "  - Ongoing PRD (not yet ALL_COMPLETE, has incomplete stories) = 1 session (current)",
+        "  - PRD with 1 ALL_COMPLETE, restarted later = 2 sessions minimum",
+        "  - PRD that was BLOCKED then resumed and completed = 2 sessions",
+        "Return: integer >= 1",
+        "Log reasoning to stderr: 'PRD-001: 1 ALL_COMPLETE + 0 BLOCKED + 0 incomplete = 1 session' or similar",
+        "Exit code 0 on success, show warning if PRD JSON unreachable but continue with signal-only count"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Extract PRD features for analysis",
+      "description": "As FADE, I need to extract quantifiable features from PRD JSON so I can compare new PRDs to historical patterns.",
+      "acceptanceCriteria": [
+        "Create fade/lib/extract-features.py that reads PRD JSON",
+        "Extract basic metrics: storyCount (count userStories), acCount (sum acceptanceCriteria across all stories)",
+        "Detect keywords via regex in PRD JSON text:",
+        "  - architecture: /architecture|bus|protocol|dag|pipeline|distributed|sync|lock|race|multi-threaded/",
+        "  - integrate: /integrate|connect|bridge|handoff|api|endpoint|interface|import|export/",
+        "  - migrate: /migrate|refactor|rewrite|transform|convert|upgrade/",
+        "  - ui: /webview|panel|ui|visualization|display|results|render|browser/",
+        "  - stateful: /state|cache|persist|memory|buffer|synchron|lock|atomic/",
+        "Extract type: feature/bug/chore/spike/docs",
+        "Estimate integrationSurface: 1-2 (light - single subsystem), 3-5 (moderate - 2-3 subsystems), 6+ (heavy - 4+ subsystems) by counting mentions of different system components",
+        "Output JSON structure: {storyCount, acCount, type, integrationSurface, hasKeywords: {architecture, integrate, migrate, ui, stateful}}",
+        "Validate all numeric fields > 0"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Initialize model-selection-history.json database",
+      "description": "As FADE, I need a persistent database tracking each PRD's features and outcomes so the system can learn from history.",
+      "acceptanceCriteria": [
+        "Create fade/model-selection-history.json with schema:",
+        "  - version: \"1.0\"",
+        "  - prds: [] (array of completed PRD records)",
+        "  - learnedHeuristics: {} (decision tree derived from prds)",
+        "Each PRD record contains:",
+        "  - id: PRD identifier (e.g., 'PRD-LC-010')",
+        "  - date: ISO 8601 completion date",
+        "  - features: {storyCount, acCount, type, integrationSurface, hasKeywords}",
+        "  - actualOutcome: {sessionsRequired, modelRecommended, modelSucceeded, escalationNeeded, escalationPoint, errors[], recommendation}",
+        "Backfill with data from fade/prd-archive: Extract features and outcomes for all completed PRDs",
+        "Initialize learnedHeuristics with empty decision tree",
+        "File is valid JSON, loadable without errors"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-004",
+      "title": "Build model recommender with decision tree logic",
+      "description": "As FADE, I need to recommend models (Haiku/Sonnet/Opus) before execution based on learned patterns so I start with right model.",
+      "acceptanceCriteria": [
+        "Create fade/recommend-model.py taking PRD ID as argument",
+        "Load PRD JSON and extract features (use US-002 extractor)",
+        "Load fade/model-selection-history.json",
+        "Find similar PRDs: score by feature similarity (story count ±20%, keywords match, integration surface ±1 level)",
+        "Sort similar PRDs by recency (recent ones weighted higher)",
+        "Apply decision tree logic:",
+        "  - If storyCount < 7 AND acCount < 50 AND NOT hasKeywords.architecture → Recommend HAIKU",
+        "  - Else if storyCount <= 9 AND hasKeywords.integrate AND integrationSurface <= 2 → Recommend SONNET",
+        "  - Else if hasKeywords.architecture OR (hasKeywords.integrate AND integrationSurface >= 3) → Recommend OPUS",
+        "  - Else if hasKeywords.stateful AND integrationSurface >= 2 → Recommend OPUS",
+        "  - Else default SONNET",
+        "Output format: 'Recommend: {MODEL}' + confidence % + reasoning line + citation of similar PRD",
+        "Example output: 'Recommend: SONNET\\nConfidence: 85%\\nReasoning: Similar to PRD-LC-003 (8 stories, ui=true, architecture=false)\\nBased on: PRD-LC-003 succeeded on Sonnet in 1 session'",
+        "Exit code 0 on success"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-005",
+      "title": "Auto-update history after PRD completion",
+      "description": "As FADE, I need to automatically log actual outcomes (sessions, model, errors) when PRD completes so history grows without manual entry.",
+      "acceptanceCriteria": [
+        "Create fade/lib/log-outcome.sh taking: PRD_ID MODEL_USED ESCALATED_TO",
+        "Call fade/lib/detect-sessions.sh to get actual session count",
+        "Extract which model was actually used from progress.md model logs",
+        "Extract error types if multiple sessions (look for test failures, blocked notes in progress.md)",
+        "Determine accuracy: 'succeeded' (1 session), 'needed_escalation' (multiple sessions or escalation), 'over_provisioned' (1 session but could use cheaper model)",
+        "Append to model-selection-history.json prds array:",
+        "  - id, date, features (from extracted PRD), actualOutcome (sessionsRequired, modelRecommended, modelSucceeded, escalationNeeded, errors, recommendation)",
+        "Recalculate learnedHeuristics decision tree based on updated history",
+        "Verify JSON is valid after update"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Integrate recommender into fade run workflow",
+      "description": "As a FADE user, I want to see model recommendation before execution starts so I can make informed decisions or let FADE choose automatically.",
+      "acceptanceCriteria": [
+        "When fade run starts with a PRD, call fade/recommend-model.py PRD_ID",
+        "Display recommendation banner before Claude Code launches:",
+        "  ┌────────────────────────────────────────┐",
+        "  │ Model Recommendation for PRD-LC-015    │",
+        "  │ ✅ Recommend: SONNET (85% confidence)  │",
+        "  │ Similar to PRD-LC-003 (succeeded 1 session on Sonnet) │",
+        "  │ [Press Enter to proceed with Sonnet, or --model opus] │",
+        "  └────────────────────────────────────────┘",
+        "If --model flag provided, skip recommendation (user override)",
+        "Log recommendation to progress.md header: '## Model Recommendation: SONNET (confidence: 85%, based on PRD-LC-003)'",
+        "Capture what model was actually used and log to outcome",
+        "Support --show-recommendation flag to display without executing"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Recalculate learned heuristics from history",
+      "description": "As FADE, I need to update decision tree logic after each PRD completes so recommendations improve over time.",
+      "acceptanceCriteria": [
+        "Create fade/lib/update-heuristics.py",
+        "Read fade/model-selection-history.json prds array",
+        "For each model type (Haiku, Sonnet, Opus), calculate:",
+        "  - Success rate: (succeeded outcomes) / (total uses)",
+        "  - Feature patterns: Which feature combinations led to success",
+        "  - Common error types when model failed",
+        "Generate decision tree rules using simple thresholds:",
+        "  - If 80%+ of Haiku PRDs with certain features succeeded → add to useHaikuIf[]",
+        "  - If 60%+ of Sonnet PRDs need escalation with certain features → add to useSonnetIf[] with warning",
+        "  - If 100% of Opus PRDs succeeded → add to useOpusIf[] with high confidence",
+        "Output updated learnedHeuristics with:",
+        "  - useHaikuIf: [] (conditions)",
+        "  - useSonnetIf: [] (conditions with risk if escalation common)",
+        "  - useOpusIf: [] (conditions)",
+        "  - accuracyStats: {haiku_accuracy, sonnet_accuracy, opus_accuracy} (percentages)",
+        "Call this automatically after fade/lib/log-outcome.sh updates history"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Dashboard display of learned insights",
+      "description": "As a FADE user, I want to see what the system has learned about model selection so I can trust the recommendations.",
+      "acceptanceCriteria": [
+        "Add 'Learning' section to dashboard with:",
+        "  - Model accuracy stats: 'Haiku: 95% (12 PRDs), Sonnet: 75% (18 PRDs), Opus: 100% (5 PRDs)'",
+        "  - Key patterns learned: 'Architecture + integration_surface=heavy → Opus (100% success)'",
+        "  - Recommendation confidence: Show 85% or 'Low confidence, limited history' if <10 similar PRDs",
+        "  - Recent escalations: List last 3 PRDs that needed escalation with reason",
+        "  - Cost savings so far: Compare 'all-Sonnet' cost vs actual model mix used",
+        "Click on model accuracy → see breakdown: 'Haiku: 12 succeeded, 0 escalated, 0 wasted, accuracy 100%'",
+        "Display date last learned: 'Learned from 47 PRDs, updated 2026-01-25 18:45'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Graceful escalation handling",
+      "description": "As FADE, I need to detect when a model is struggling and suggest escalation so we don't waste time on insufficient models.",
+      "acceptanceCriteria": [
+        "In cmd_run() loop, detect escalation signals:",
+        "  - Model takes >1.5x estimated duration for similar PRD",
+        "  - Test failures or blocked state after session 1",
+        "  - Multiple STORY_DONE iterations without progressing",
+        "When escalation detected, output: 'ESCALATE: Initial model (Sonnet) seems insufficient. Try with --model opus'",
+        "Suggest: 'fade run PRD-LC-010 --model opus --resume'",
+        "Log escalation reason to progress.md: 'Auto-escalation suggested: Test failures in session 1 suggest Sonnet insufficient'",
+        "Do NOT automatically escalate without user approval (avoid infinite retries)",
+        "Update history: Mark PRD as 'escalationNeeded: true, escalationPoint: \"session 1 test failures\"'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-010",
+      "title": "Export and review learning metrics",
+      "description": "As a FADE user, I want to export learning data for quarterly review so I can see long-term trends and validate the system.",
+      "acceptanceCriteria": [
+        "Create 'fade export-learning' command",
+        "Generate report: fade/learning-report.json containing:",
+        "  - Summary: Total PRDs analyzed, success rates by model, average sessions by type",
+        "  - PRD list: id, features, outcome, confidence of recommendation",
+        "  - Accuracy over time: Month-by-month improvement in recommendation accuracy",
+        "  - Error catalog: Common failure reasons, which models recover from them",
+        "  - Cost analysis: Estimated savings if recommendations had been perfect",
+        "  - Recommendations for tuning: 'Consider lowering opus threshold: acCount >= 50 PRDs succeeded on Sonnet'",
+        "Generate human-readable summary: 'Learning Report: ENH-015 Quarterly Review'",
+        "Output formats: JSON for data analysis, Markdown for human review"
+      ],
+      "priority": 3,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "architecture": "File-based learning loop: progress.md → session detection → outcome logging → history.json → decision tree recalculation → recommendation. No external dependencies, all logic in bash/python.",
+    "sessionBoundary": "Session = bounded unit of work terminated by exit signal (ALL_COMPLETE or BLOCKED). Count = completed_signals + blocked_signals + (1 if has_incomplete_stories else 0). Handles midnight crossings (22:30-00:30 run = 1 session), PRD interruptions, and resumptions elegantly. Incomplete stories signal ongoing session even if no recent exit signals.",
+    "featureExtraction": "Keywords matched via regex to catch contextual use, not just exact matches. Integration surface estimated by counting distinct subsystem mentions (parser, engine, storage, etc.). Conservative estimate better than over-estimate.",
+    "decisionTree": "Simple threshold-based rules, not ML. Thresholds derived from historical data. If history contradicts rules (e.g., 80% of high-AC PRDs succeeded on Haiku), heuristics auto-update.",
+    "escalationLogic": "Detects multi-session PRDs and test failures as signals of insufficient model. Offers upgrade path but doesn't force it. Learns which error types each model handles.",
+    "dataFormats": "PRD features stored as JSON in history for easy querying. Decision tree exported as human-readable rules for quarterly review. Outcomes include error types for pattern analysis.",
+    "falsePositives": "If heuristic recommends Haiku and it fails, mark as misclassification. Track false positive rate. If >20% of Haiku recommendations fail, lower Haiku threshold in decision tree."
+  },
+  "filesToCreate": [
+    "fade/lib/detect-sessions.sh",
+    "fade/lib/extract-features.py",
+    "fade/lib/log-outcome.sh",
+    "fade/lib/update-heuristics.py",
+    "fade/recommend-model.py",
+    "fade/model-selection-history.json"
+  ],
+  "filesToModify": [
+    {
+      "file": "bin/fade-cli",
+      "changes": "Update cmd_run() to call fade/recommend-model.py before execution, display recommendation banner. After ALL_COMPLETE signal, call fade/lib/log-outcome.sh to update history. Add 'fade export-learning' command."
+    },
+    {
+      "file": "fade/prompt.md",
+      "changes": "Document model recommendation workflow: 'FADE will display recommended model before execution. You may override with --model flag. After completion, your outcome (sessions, model success/failure) is logged to improve future recommendations.'"
+    },
+    {
+      "file": "fade/dashboard-server.py",
+      "changes": "Add 'Learning' dashboard section showing accuracy stats, learned patterns, recent escalations, cost analysis."
+    }
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Session detection works: Parse progress.md, count distinct sessions correctly for 90%+ of PRDs",
+      "Feature extraction works: Extract stories, ACs, keywords, integration surface from any PRD JSON",
+      "History database initialized: fade/model-selection-history.json created and backfilled with FADE repo data",
+      "Recommender script works: fade/recommend-model.py outputs recommendation with 80%+ confidence on known PRDs",
+      "Auto-logging works: PRD completion automatically updates history without manual entry",
+      "Decision tree improves: After 10+ PRDs logged, next recommendation has better accuracy than heuristic baseline",
+      "Integration works: fade run displays recommendation banner, user can proceed or override with --model",
+      "Graceful escalation: System detects when model struggling and suggests upgrade (does not auto-upgrade)"
+    ],
+    "niceToHave": [
+      "Dashboard displays learning metrics and accuracy stats",
+      "Export command generates quarterly review report",
+      "Recommendation confidence threshold: Hide recommendations if <60% confidence (insufficient history)",
+      "Cost analysis: Dashboard shows projected savings vs all-Sonnet baseline",
+      "Error catalog: Dashboard categorizes error types and which models recover"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Session detection misses actual session boundaries, logs false positives (splits 1 session into 2 or merges 2 into 1)",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Manual audit first 20 PRDs to verify session counting logic. Provide fade --audit-sessions command for manual review. Conservative approach: >5h gap always triggers new session."
+    },
+    {
+      "risk": "Decision tree becomes overfit to small history (e.g., 5 PRDs), makes bad recommendations",
+      "likelihood": "high",
+      "impact": "medium",
+      "mitigation": "Start with conservative defaults (Sonnet for unknowns). Only use learned rules when 10+ similar PRDs in history. Confidence score shows when history is insufficient."
+    },
+    {
+      "risk": "Recommender suggests Haiku for complex work, wastes time debugging instead of escalating",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Include built-in safeguards: Never recommend Haiku if architecture keyword present. Escalation detection catches this early and suggests upgrade."
+    },
+    {
+      "risk": "History file grows unbounded, becomes slow to search",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Archive old entries (>6 months) to separate file. Limit active history to last 100 PRDs. Recalculate heuristics on weekly basis."
+    }
+  ],
+  "estimatedEffort": "10-13 hours (1-2 FADE sessions)",
+  "definitionOfDone": [
+    "All 10 user stories have passing acceptance criteria",
+    "Session detection correctly identifies 90%+ of session boundaries on test data",
+    "Feature extraction handles all PRD keyword types and integration surface estimation",
+    "fade/model-selection-history.json backfilled with FADE repo historical data",
+    "fade/recommend-model.py recommends models with 80%+ accuracy on known PRDs",
+    "PRD completion automatically updates history.json without manual logging",
+    "fade run displays recommendation banner before execution",
+    "Decision tree recalculation works after each PRD completes",
+    "Dashboard shows learning metrics (accuracy stats, patterns, escalations)",
+    "fade export-learning generates quarterly review report (JSON + Markdown)",
+    "Graceful escalation detected and suggested (not auto-executed)",
+    "All test cases pass",
+    "Documentation updated: prompt.md, README, dashboard usage guide",
+    "bash -n syntax check passes on all new scripts"
+  ]
+}

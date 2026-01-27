@@ -1,0 +1,38 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-025",
+  "name": "Repo-aware interactive PRD generator",
+  "description": "Operators currently generate PRDs using web LLMs because it is fast, but those tools are not repo-aware and produce vague or misaligned work breakdowns. FADE should be the primary PRD authoring interface: contextual, standards-aligned, and consistent.",
+  "complexity": "medium",
+  "dependsOn": [
+    "FEAT-024"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Interactive PRD creation that uses repo context",
+      "description": "FADE asks context-aware questions and produces a PRD that matches FADE's schema and style.",
+      "acceptanceCriteria": [
+        "Command `fade prd new` launches an interview flow that asks clarifying questions before writing a PRD.",
+        "The flow automatically references: repo structure, `FADE.md`, relevant standards, and (if present) `fade/map.md` or existing docs.",
+        "Output is a valid PRD JSON file in `fade/prds/` with properly numbered US items and acceptance criteria.",
+        "PRD includes an explicit `complexity` recommendation and stores the estimator rationale (brief) in the PRD description or a sidecar file."
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "PRD generator supports 'council' second opinions (optional)",
+      "description": "For high-risk items, the operator can request second opinions from other models/providers.",
+      "acceptanceCriteria": [
+        "PRD generator offers an optional `--second-opinion` flag (stub OK) that captures at least one alternative approach and risks.",
+        "Second-opinion output is stored alongside PRD in `fade/prds/_notes/` or similar.",
+        "PRD generator never blocks if second-opinion is unavailable; it degrades gracefully."
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-022",
+  "name": "Self-healing for regression failures and BLOCKED",
+  "description": "FADE currently halts when regression tests fail or when the agent reports BLOCKED. This breaks autonomous flow. This PRD introduces a controlled self-healing loop: on common failure modes, FADE creates corrective bug work, selects an appropriate model, attempts fixes, re-runs regression, and resumes work. The goal is autonomy with guardrails\u2014not chaos.",
+  "complexity": "complex",
+  "dependsOn": [
+    "FEAT-020",
+    "ENH-021"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Auto-heal regression test failures",
+      "description": "When regression fails, FADE should switch into a bug-fix loop rather than stopping.",
+      "acceptanceCriteria": [
+        "When regression tests fail, FADE emits `regression_end` with `success=false` and captures failure summary (paths + failing assertions).",
+        "FADE generates a Bug PRD (type `bug`) into `fade/prds/` or a dedicated `fade/prds/auto/` folder with clear description and acceptance criteria.",
+        "FADE runs a 'bug-fix agent' pass to address the failure using a model chosen by the complexity estimator (ENH-023).",
+        "After a fix attempt, FADE re-runs regression tests automatically.",
+        "If tests pass, FADE returns to the original PRD/story and continues.",
+        "If tests fail after K attempts (configurable; default 2), FADE stops with a clear summary and leaves the bug PRD queued for human review."
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Auto-triage and retry BLOCKED states",
+      "description": "When the agent signals BLOCKED, FADE should attempt resolution steps before requiring human input.",
+      "acceptanceCriteria": [
+        "FADE detects BLOCKED signals and records a `blocked` event with reason.",
+        "FADE categorizes BLOCKED reasons into at least: missing dependency/command, unclear requirement, failing tests, environmental issue, permission issue.",
+        "For recoverable categories (e.g., failing tests, missing command), FADE automatically attempts a resolution step (install guidance, alternative command, or bug-fix loop).",
+        "If still BLOCKED, FADE creates a short 'operator question' artifact in `fade/runs/<run_id>/operator_questions.md` that you can answer, then resume via `fade resume <run_id>`."
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}

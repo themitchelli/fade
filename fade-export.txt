@@ -1,5 +1,5 @@
 # FADE Project Export
-# Generated: 2026-01-23 18:22:14
+# Generated: 2026-01-26 23:10:54
 
 ## Versions
 
@@ -12,13 +12,16 @@
 ./bin/fade-cli
 ./fade-export.txt
 ./fade/discoveries/README.md
+./fade/healing-log.md
 ./fade/learned.md
+./fade/model-usage.md
 ./fade/prd-archive/BUG-001-macos-head-compatibility.json
 ./fade/prd-archive/BUG-002-yolo-exit-signal-mismatch.json
 ./fade/prd-archive/BUG-003-prd-completion-integrity.json
 ./fade/prd-archive/BUG-004-test-generation-broken.json
 ./fade/prd-archive/BUG-005-all-mode-iteration-bugs-prd-mismatch-and-output-ca.json
 ./fade/prd-archive/BUG-006-test-generation-output-still-leaking-into-count-va.json
+./fade/prd-archive/BUG-007-signal-detection-false-positive.json
 ./fade/prd-archive/CHORE-001-release-031.json
 ./fade/prd-archive/ENH-001-architecture-standards-file.json
 ./fade/prd-archive/ENH-006-incremental-checkpointing.json
@@ -30,33 +33,30 @@
 ./fade/prd-archive/ENH-009-standards-folder.json
 ./fade/prd-archive/ENH-010-idempotent-update.json
 ./fade/prd-archive/ENH-011-strategic-context.json
+./fade/prd-archive/ENH-013-c4-diagram-generation.json
+./fade/prd-archive/ENH-014-complexity-based-model-selection.json
 ./fade/prd-archive/FEAT-006-fade-update.json
 ./fade/prd-archive/FEAT-007-contained-structure.json
 ./fade/prd-archive/FEAT-008-codebase-mapping.json
 ./fade/prd-archive/FEAT-009-quick-mode.json
-./fade/tests/BUG-006/prd.json
-./fade/tests/BUG-006/SKIP_us001_01_identify_echo_statements.md
-./fade/tests/BUG-006/SKIP_us001_02_identify_other_functions.md
-./fade/tests/BUG-006/SKIP_us003_01_run_fade_yolo.md
-./fade/tests/BUG-006/test_us001_03_redirect_display_to_stderr.sh
-./fade/tests/BUG-006/test_us001_04_numeric_return_value.sh
-./fade/tests/BUG-006/test_us001_05_comparison_no_syntax_error.sh
-./fade/tests/BUG-006/test_us002_01_validate_numeric.sh
-./fade/tests/BUG-006/test_us002_02_default_to_zero.sh
-./fade/tests/BUG-006/test_us002_03_no_syntax_error_on_leak.sh
-./fade/tests/BUG-006/test_us002_04_flow_completes.sh
-./fade/tests/BUG-006/test_us003_02_no_syntax_error_possible.sh
-./fade/tests/BUG-006/test_us003_03_archive_count_message.sh
-./fade/tests/BUG-006/test_us003_04_no_error_tokens.sh
-./fade/tests/PRD-BUG-006/prd.json
-./fade/tests/PRD-BUG-006/SKIP_us003_02_end_to_end.md
-./fade/tests/PRD-BUG-006/SKIP_us003_03_archive_count.md
-./fade/tests/PRD-BUG-006/SKIP_us003_04_no_error_tokens.md
-./fade/tests/PRD-BUG-006/test_us001_01_stderr_redirect_block.sh
-./fade/tests/PRD-BUG-006/test_us001_02_only_count_to_stdout.sh
-./fade/tests/PRD-BUG-006/test_us002_01_numeric_validation.sh
-./fade/tests/PRD-BUG-006/test_us002_02_default_to_zero.sh
-./fade/tests/PRD-BUG-006/test_us003_01_syntax_valid.sh
+./fade/prd-archive/FEAT-010-npm-distribution.json
+./fade/prd-archive/FEAT-011-discovery-phase.json
+./fade/prd-archive/FEAT-012-autonomous-shell-portability-healer.json
+./fade/prd-archive/FEAT-013-multi-repo-dashboard.json
+./fade/prd-archive/SPIKE-001-context-isolation.json
+./fade/tests/FEAT-012/SKIP_us002_04_tail_portable.md
+./fade/tests/FEAT-012/SKIP_us004_04_time_saved_estimate.md
+./fade/tests/FEAT-012/test_us001_01_capture_test_output.sh
+./fade/tests/FEAT-012/test_us001_04_tail_illegal_offset.sh
+./fade/tests/FEAT-012/test_us002_01_whitelist_exists.sh
+./fade/tests/FEAT-012/test_us002_05_fix_sed_i.sh
+./fade/tests/FEAT-012/test_us002_08_log_fix_application.sh
+./fade/tests/FEAT-012/test_us003_02_commit_on_success.sh
+./fade/tests/FEAT-012/test_us003_05_max_healing_cycles.sh
+./fade/tests/FEAT-012/test_us003_08_display_summary.sh
+./fade/tests/FEAT-012/test_us004_03_log_includes_details.sh
+./fade/tests/FEAT-012/test_us004_07_log_on_failure.sh
+./fade/tests/FEAT-012/test_us005_02_blocks_src_lib_bin.sh
 ./LICENSE
 ./version-manifest.json
 ```
@@ -111,6 +111,7 @@ FADE (Framework for Agentic Development and Engineering) provides session memory
 | [Coding](fade/standards/coding.md) | Naming, formatting, error handling, code organization |
 | [Testing](fade/standards/testing.md) | Test pyramid, AAA pattern, mocking, coverage requirements |
 | [Documentation](fade/standards/documentation.md) | README structure, API docs, code comments, what NOT to document |
+| [Shell Portability](fade/standards/shell-portability.md) | BSD/GNU compatibility, portable alternatives for head/sed/tail |
 
 ---
 
@@ -245,6 +246,7 @@ When releasing:
 - FADE dogfoods itself - this repo uses FADE for development
 - The `fade/` folder contains FADE's own context files
 - PRDs drive all feature development
+- **Complexity-based model routing:** See [fade/docs/architecture.md](fade/docs/architecture.md) for decision tree and heuristics. PRDs can specify `complexity` field (simple/medium/complex) to optimize Claude model selection (haiku/sonnet/opus)
 
 ---
 
@@ -1256,6 +1258,630 @@ Read this document when:
 - Working on spike PRDs
 ```
 
+### prd-template.md
+
+```markdown
+# PRD Template
+
+Reference template for creating Product Requirement Documents in FADE.
+
+---
+
+## JSON Structure
+
+All PRDs follow this JSON schema:
+
+```json
+{
+  "type": "feature|bug|enhancement|chore|spike",
+  "project": "Project Name",
+  "id": "TYPE-NNN",
+  "name": "Human-readable PRD name",
+  "description": "Brief summary of what this PRD accomplishes and why it matters",
+  "complexity": "simple|medium|complex",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Story title describing the capability",
+      "description": "Detailed explanation of what this story delivers",
+      "acceptanceCriteria": [
+        "Criterion 1: Specific, measurable, testable requirement",
+        "Criterion 2: Another specific requirement",
+        "Criterion 3: Edge case or validation requirement"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+```
+
+### Spike PRD Structure
+
+Spikes include additional fields:
+
+```json
+{
+  "type": "spike",
+  "project": "Project Name",
+  "id": "SPIKE-NNN",
+  "name": "Research spike name",
+  "description": "What needs to be researched and why",
+  "complexity": "medium",
+  "branchName": "spike/research-name",
+  "outputArtifact": "docs/spike-research-name.md",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Investigation and documentation",
+      "description": "Research and document findings",
+      "acceptanceCriteria": [
+        "Research completed",
+        "Findings documented in output artifact",
+        "Recommendations provided"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+```
+
+---
+
+## Field Definitions
+
+### Required Fields
+
+| Field | Type | Description | Example |
+|-------|------|-------------|---------|
+| `type` | string | PRD type (feature, bug, enhancement, chore, spike) | `"feature"` |
+| `project` | string | Project name | `"FADE"` |
+| `id` | string | Unique identifier (TYPE-NUMBER) | `"FEAT-042"` |
+| `name` | string | Human-readable name | `"Multi-repo dashboard"` |
+| `description` | string | What and why (2-3 sentences) | `"Implements centralized monitoring for multiple FADE repos. Provides real-time visibility into progress."` |
+| `userStories` | array | List of user stories (at least one) | See User Story Structure below |
+
+### Optional Fields
+
+| Field | Type | Description | Default |
+|-------|------|-------------|---------|
+| `complexity` | string | simple, medium, or complex | `"medium"` |
+| `dependsOn` | array | IDs of PRDs that must complete first | `[]` |
+| `branchName` | string | Feature branch name (spikes only) | `"spike/{slug}"` |
+| `outputArtifact` | string | Deliverable location (spikes only) | `"docs/spike-{slug}.md"` |
+
+---
+
+## Complexity Field
+
+**Purpose:** Determines which Claude model is used for execution.
+
+| Complexity | Model | Use Case | Example PRDs |
+|------------|-------|----------|--------------|
+| `simple` | haiku | Quick fixes, typos, docs, single-file changes | Fix typo in README, Add logging statement, Update config value |
+| `medium` | sonnet | Standard features, new endpoints, refactors | New API endpoint, UI component, Module refactor |
+| `complex` | opus | Architecture changes, multi-system work | Multi-service integration, Framework migration, Cross-cutting refactor |
+
+**How to set:**
+
+```bash
+# Explicit complexity during creation
+fade new feature "User auth" --complexity=complex
+
+# Interactive prompt (with heuristic suggestion)
+fade new feature "User authentication"
+# → Suggested complexity: complex (contains "authentication", estimated >1 week)
+# → Complexity? [simple/Medium/complex]:
+
+# Classify existing PRDs
+fade classify
+```
+
+**When to omit:** If missing, defaults to `"medium"` (sonnet). Only omit if you're fine with the default.
+
+---
+
+## User Story Structure
+
+Each user story must have:
+
+```json
+{
+  "id": "US-001",
+  "title": "Brief capability description",
+  "description": "Detailed explanation of what gets built and why",
+  "acceptanceCriteria": [
+    "Specific, testable requirement 1",
+    "Specific, testable requirement 2"
+  ],
+  "priority": 1,
+  "passes": false
+}
+```
+
+### User Story Guidelines
+
+#### Good Story Titles
+- "Add complexity field to PRD schema"
+- "Heuristic complexity analyzer"
+- "Intelligent model routing"
+
+#### Bad Story Titles
+- "Do the thing" (too vague)
+- "Implement US-001" (circular reference)
+- "Code changes" (not descriptive)
+
+#### Good Acceptance Criteria
+- "Add optional 'complexity' field to PRD JSON schema (values: 'simple', 'medium', 'complex')"
+- "If missing, defaults to 'medium' (current behavior preserved)"
+- "fade new --complexity=simple creates PRD with complexity field"
+
+#### Bad Acceptance Criteria
+- "Make it work" (not testable)
+- "Do it right" (subjective)
+- "Code is clean" (belongs in coding standards, not AC)
+
+---
+
+## Dependency Management
+
+Use `dependsOn` to sequence PRDs when order matters:
+
+```json
+{
+  "id": "FEAT-012",
+  "name": "Dashboard authentication",
+  "dependsOn": ["FEAT-010"],  // Must complete FEAT-010 first
+  ...
+}
+```
+
+**When to use dependencies:**
+- Feature requires infrastructure from another PRD
+- Bug fix needs architectural change from different PRD
+- Enhancement builds on another enhancement
+
+**When NOT to use:**
+- General sequence preference (use priority instead)
+- Same-PRD story ordering (use story priority)
+- Soft preferences (document in description instead)
+
+---
+
+## Examples
+
+### Example: Simple PRD
+
+```json
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-042",
+  "name": "Fix typo in README",
+  "description": "Correct spelling error in installation section. Improves first-run experience.",
+  "complexity": "simple",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Fix typo in README installation section",
+      "description": "Change 'instal' to 'install' in README.md line 45",
+      "acceptanceCriteria": [
+        "Typo corrected in README.md",
+        "No other text changed",
+        "Markdown syntax still valid"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ]
+}
+```
+
+### Example: Medium PRD
+
+```json
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-005",
+  "name": "Add API endpoint for repo status",
+  "description": "Implements /api/status endpoint for dashboard. Returns JSON with current PRD, work queue, and session status.",
+  "complexity": "medium",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Create status API endpoint",
+      "description": "Implement GET /api/status that returns current FADE session state",
+      "acceptanceCriteria": [
+        "Endpoint returns 200 with valid JSON",
+        "JSON includes: currentPRD, workQueue, sessionStatus",
+        "Authentication required (basic auth)",
+        "Rate limited to 100 req/min per IP"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Add error handling",
+      "description": "Handle edge cases: no active PRD, empty queue, etc.",
+      "acceptanceCriteria": [
+        "Returns 404 if no FADE repo found",
+        "Returns empty queue array if no PRDs",
+        "Returns 500 with error message on server error"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}
+```
+
+### Example: Complex PRD
+
+```json
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-010",
+  "name": "Multi-service integration framework",
+  "description": "Implements plugin system for integrating external services (GitHub, Jira, Slack). Provides standardized auth, event handling, and error recovery across all integrations.",
+  "complexity": "complex",
+  "dependsOn": ["FEAT-008", "FEAT-009"],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Design plugin architecture",
+      "description": "Define plugin interface, lifecycle hooks, and service discovery pattern",
+      "acceptanceCriteria": [
+        "Plugin interface supports auth, webhooks, API calls",
+        "Lifecycle hooks: init, connect, disconnect, error",
+        "Service discovery via config.json + auto-detection",
+        "Architecture documented in docs/architecture.md"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Implement plugin loader",
+      "description": "Create dynamic plugin loading system with error isolation",
+      "acceptanceCriteria": [
+        "Loads plugins from fade/plugins/ directory",
+        "Plugin failures don't crash main process",
+        "Validation: schema check before loading",
+        "Error reporting: logs to fade/plugin-errors.log"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ]
+}
+```
+
+---
+
+## Creation Workflow
+
+### Using fade new
+
+```bash
+# 1. Create PRD with interactive prompts
+fade new feature "User authentication"
+# → Suggested complexity: complex (contains "authentication")
+# → Complexity? [simple/Medium/complex]: complex
+
+# 2. Edit generated file
+vim fade/prds/FEAT-042-user-authentication.json
+
+# 3. Fill in description and user stories
+
+# 4. Validate with fade status
+fade status
+# Should show new PRD in queue
+```
+
+### Manual Creation
+
+If creating PRD manually (not recommended, use `fade new`):
+
+1. Copy template above
+2. Replace all placeholders
+3. Ensure valid JSON (use `jq . < your-prd.json`)
+4. Place in `fade/prds/` with correct naming: `TYPE-NNN-slug.json`
+5. Validate with `fade status`
+
+---
+
+## Validation Checklist
+
+Before running a PRD:
+
+- [ ] All required fields present (type, project, id, name, description, userStories)
+- [ ] `id` follows TYPE-NNN format (e.g., FEAT-042, BUG-003)
+- [ ] Complexity set (simple/medium/complex) or omitted (defaults to medium)
+- [ ] At least one user story with `passes: false`
+- [ ] All acceptance criteria are specific and testable
+- [ ] Dependencies exist and are complete (if `dependsOn` used)
+- [ ] Valid JSON (run through `jq` or JSON validator)
+- [ ] File named correctly: `{TYPE}-{NNN}-{slug}.json`
+
+---
+
+## Anti-Patterns to Avoid
+
+### ❌ Bad: Vague acceptance criteria
+```json
+"acceptanceCriteria": [
+  "Code works",
+  "Make it fast",
+  "Do it right"
+]
+```
+
+### ✅ Good: Specific, testable criteria
+```json
+"acceptanceCriteria": [
+  "Endpoint responds in < 200ms for queries with 1000 records",
+  "Returns proper HTTP status codes (200, 404, 500)",
+  "Input validation rejects malformed JSON with 400 error"
+]
+```
+
+### ❌ Bad: Story per line of code
+```json
+{
+  "id": "US-001",
+  "title": "Add function declaration"
+},
+{
+  "id": "US-002",
+  "title": "Add function body"
+}
+```
+
+### ✅ Good: Story per logical capability
+```json
+{
+  "id": "US-001",
+  "title": "Implement complexity analyzer",
+  "description": "Create function that scores PRDs based on heuristics"
+}
+```
+
+---
+
+## When to Read This Standard
+
+- Before creating a new PRD manually
+- When `fade new` generated template needs customization
+- When reviewing PRD quality before execution
+- When adding new PRD types to the system
+
+For automated PRD creation, use `fade new` which applies this template automatically.
+```
+
+### shell-portability.md
+
+```markdown
+# Shell Portability Standard
+
+Guidelines for writing shell scripts that work across BSD and GNU environments. Apply these when writing bash scripts or shell tests.
+
+---
+
+## The Portability Problem
+
+Shell scripts written on macOS (BSD utilities) often fail on Linux (GNU utilities), and vice versa. The most common issues involve different command-line flags between BSD and GNU versions of core utilities.
+
+**Why it matters:**
+- Tests written on macOS may fail in CI/CD (often Linux)
+- Scripts fail overnight on different developer machines
+- Portability errors block automated workflows unnecessarily
+
+---
+
+## Common Portability Issues
+
+### head -n -X (Remove Last X Lines)
+
+**Problem:** GNU `head` supports negative line counts (`head -n -1` removes last line), but BSD `head` does not.
+
+**Error:** `head: illegal line count -- -1`
+
+**Portable solution:** Use `sed` instead.
+
+```bash
+# Bad - works on Linux, fails on macOS
+cat file.txt | head -n -1
+
+# Good - works everywhere
+cat file.txt | sed '$d'           # Remove last line
+cat file.txt | sed -e :a -e '$d;N;2,3ba' -e 'P;D'  # Remove last 3 lines (complex)
+```
+
+**Simple rule:** Never use `head -n -X` with negative counts. Use `sed '$d'` for removing the last line.
+
+### sed -i (In-Place Editing)
+
+**Problem:** BSD `sed` requires a backup extension argument, GNU `sed` makes it optional.
+
+**Error:** `sed: 1: "file.txt": invalid command code f`
+
+**Portable solution:** Always provide a backup extension (use empty string if you don't want backup files).
+
+```bash
+# Bad - works on Linux, fails on macOS
+sed -i 's/foo/bar/' file.txt
+
+# Good - works everywhere
+sed -i.bak 's/foo/bar/' file.txt     # Creates file.txt.bak
+sed -i '' 's/foo/bar/' file.txt      # macOS only, no backup (NOT portable to older GNU)
+
+# Best - portable with cleanup
+sed -i.bak 's/foo/bar/' file.txt && rm -f file.txt.bak
+```
+
+**Simple rule:** Always use `sed -i.bak`, then remove `.bak` files if unwanted.
+
+### tail -n +X (Start from Line X)
+
+**Status:** Already portable! Both BSD and GNU support this syntax.
+
+```bash
+# Good - works everywhere
+tail -n +5 file.txt    # Skip first 4 lines, show from line 5 onward
+tail -n 10 file.txt    # Show last 10 lines
+```
+
+**Note:** If you see a `tail: illegal offset` error, it's likely a different syntax issue, not the `-n +X` pattern.
+
+---
+
+## Portable Alternatives for Common Operations
+
+### Remove Last N Lines
+
+| Operation | Portable Command |
+|-----------|------------------|
+| Remove last line | `sed '$d'` |
+| Remove last 2 lines | `sed -e '$d' -e '$d'` or `head -n -2` (GNU only) |
+| Remove last N lines | Use `awk` or process line count manually |
+
+```bash
+# Portable: Remove last line
+sed '$d' input.txt > output.txt
+
+# Portable: Remove last 2 lines
+sed -e '$d' -e '$d' input.txt > output.txt
+```
+
+### In-Place File Editing
+
+| Operation | Portable Command |
+|-----------|------------------|
+| Simple substitution | `sed -i.bak 's/old/new/g' file.txt && rm -f file.txt.bak` |
+| Multiple files | `find . -name "*.txt" -exec sed -i.bak 's/old/new/g' {} \; && find . -name "*.bak" -delete` |
+
+```bash
+# Portable: Replace text in file
+sed -i.bak 's/foo/bar/g' myfile.txt
+rm -f myfile.txt.bak
+
+# Portable: Replace in multiple files
+for file in *.sh; do
+  sed -i.bak 's/old/new/g' "$file"
+  rm -f "$file.bak"
+done
+```
+
+### Line Extraction
+
+| Operation | Portable Command |
+|-----------|------------------|
+| First N lines | `head -n N file.txt` |
+| Last N lines | `tail -n N file.txt` |
+| Lines M to N | `sed -n 'M,Np' file.txt` |
+| Skip first N lines | `tail -n +$((N+1)) file.txt` |
+
+```bash
+# Portable: Extract lines 10-20
+sed -n '10,20p' file.txt
+
+# Portable: Skip first 5 lines
+tail -n +6 file.txt
+
+# Portable: Get line 42
+sed -n '42p' file.txt
+```
+
+---
+
+## Testing for Portability
+
+### Detect Your Environment
+
+```bash
+# Check if running BSD or GNU
+if head --version 2>&1 | grep -q "GNU"; then
+  echo "GNU utilities (Linux)"
+else
+  echo "BSD utilities (macOS)"
+fi
+```
+
+### Test Matrix
+
+Test scripts on both environments:
+- **macOS:** BSD coreutils (default)
+- **Linux:** GNU coreutils (Ubuntu, Debian, CI/CD)
+
+### Common Test Patterns
+
+```bash
+# Portable test assertion pattern
+expected="foo"
+actual=$(command_that_might_fail)
+
+if [[ "$actual" != "$expected" ]]; then
+  echo "FAIL: Expected '$expected', got '$actual'"
+  exit 1
+fi
+
+# Use sed instead of head for last-line removal
+output=$(cat results.txt | sed '$d')  # Remove last line portably
+```
+
+---
+
+## Auto-Healing Whitelist
+
+FADE's auto-healing system (FEAT-012) applies these portable fixes automatically when tests fail:
+
+| Detected Error | Auto-Fix Applied |
+|----------------|------------------|
+| `head: illegal line count` | Replace `head -n -X` with `sed` alternative |
+| `sed: -i needs an argument` | Add `.bak` extension: `sed -i.bak` |
+| `tail: illegal offset` | Manual review (pattern already portable) |
+
+**Note:** Auto-healing only applies to files in `fade/tests/` directory for safety.
+
+---
+
+## Quick Reference
+
+| Task | Portable Command | Avoid |
+|------|------------------|-------|
+| Remove last line | `sed '$d'` | `head -n -1` |
+| In-place edit | `sed -i.bak 's/old/new/' file` | `sed -i 's/old/new/' file` |
+| Skip first N lines | `tail -n +$((N+1))` | None (already portable) |
+| Extract line range | `sed -n 'M,Np'` | Complex `head | tail` chains |
+
+---
+
+## When to Read This Standard
+
+Read this document when:
+- Writing shell scripts or bash tests
+- Fixing test failures with "illegal" or "invalid" errors
+- Setting up CI/CD pipelines across different OS environments
+- Contributing to FADE test suite (`fade/tests/`)
+- Reviewing shell portability auto-healing logs
+
+---
+
+## References
+
+- [GNU Coreutils Manual](https://www.gnu.org/software/coreutils/manual/)
+- [FreeBSD Manual Pages](https://www.freebsd.org/cgi/man.cgi)
+- [Shellcheck](https://www.shellcheck.net/) - Detects some portability issues
+```
+
 ### testing.md
 
 ```markdown
@@ -1482,414 +2108,325 @@ Read this document when:
 
 ## PRD Queue
 
-### ENH-013-c4-diagram-generation.json
+### ENH-015-model-selection-learner.json
 
 ```json
 {
   "type": "enhancement",
   "project": "FADE",
-  "id": "ENH-013",
-  "name": "C4 Architecture Diagram Generation",
-  "description": "Extend 'fade map' to generate interactive C4 architecture diagrams as a self-contained HTML file. Uses Mermaid.js for rendering, requiring no external dependencies at view time. Provides visual representation of system context, containers, and components detected during codebase analysis.",
-  "dependsOn": ["FEAT-008"],
+  "id": "ENH-015",
+  "name": "Self-Improving Model Selection Learner",
+  "description": "Builds a feedback loop that learns which models succeed on which types of work by analyzing actual PRD outcomes and session counts. Instead of binary heuristic scoring, maintains a history of PRD features (stories, ACs, keywords, integration surface) vs. actual model performance. Recommends models proactively before execution, escalates gracefully if needed, and improves recommendations automatically with each completed PRD.",
+  "dependsOn": ["ENH-014"],
+  "context": {
+    "problem": "Current complexity heuristic marks most work 'medium', losing nuance. No feedback loop when estimates are wrong. Examples: PRD-LC-010 (9 stories, 60 ACs, distributed system) took 3 sessions and required Opus escalation from Sonnet, but heuristic gave no warning. PRD-LC-002 (6 stories, 37 ACs) completed in 1 session on Haiku, but heuristic would score it as medium. We're flying blind.",
+    "rootCause": "Effort estimates from PRD schema are unreliable (4-6x too conservative) and not normalized by story count. Story count and AC count alone don't correlate with actual complexity—architectural keywords (architecture, integrate, distribute) and integration surface (how many subsystems touched) are 2-15x more predictive. No mechanism captures when models fail or succeed.",
+    "impact": "Suboptimal model selection: Sonnet only succeeds 40% of time on truly complex work (requires Opus escalation), but heuristic never recommends starting with Opus. Opus overkill for simple work. No learning = same mistakes repeat. Costs trend upward instead of improving.",
+    "opportunity": "Track actual PRD features vs. actual session count and model success in history database. Recommend model upfront with 85%+ confidence. Escalate gracefully when needed. Each completed PRD teaches system—by month 3, recommendations should be highly accurate."
+  },
+  "solution": "Create fade/model-selection-history.json that logs each PRD's features (stories, ACs, keywords, integration surface) and actual outcomes (sessions required, model recommended vs. model succeeded, errors, escalations). Build fade/recommend-model.py that extracts PRD features, compares to history using decision tree, and recommends Haiku/Sonnet/Opus. Automatically parse progress.md to detect session boundaries (same-day work = 1 session, date boundary or >4h gap = new session). Wire into FADE workflow: on PRD completion, auto-update history. On new PRD, show recommendation banner.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Generate System Context diagram",
-      "description": "As a developer, I want fade map to generate a C4 System Context diagram showing my system and its external dependencies",
+      "title": "Session detection from exit signals and PRD state",
+      "description": "As FADE, I need to automatically detect how many distinct work sessions each PRD required by counting exit signals (ALL_COMPLETE, BLOCKED) and checking for incomplete work, so I don't depend on timestamp guessing.",
       "acceptanceCriteria": [
-        "fade map --diagram generates architecture.html in project root",
-        "HTML file is self-contained with embedded Mermaid.js CDN link",
-        "Diagram shows the system as central element",
-        "External systems detected from dependencies (databases, APIs, auth providers) shown as external actors",
-        "Users/actors inferred from framework type (web app, CLI, API server)",
-        "Relationships labeled with interaction type (uses, reads, writes)"
+        "Create fade/lib/detect-sessions.sh taking PRD_ID, progress.md path, PRD JSON path as arguments",
+        "Count terminal conditions in progress.md matching PRD ID:",
+        "  - completed_sessions = count of '## ... - PRD_ID:... - COMPLETE' (grep -c matches)",
+        "  - blocked_sessions = count of '## ... - PRD_ID:... - BLOCKED' (grep -c matches)",
+        "Read PRD JSON and check for incomplete user stories: userStories[].passes == false",
+        "Calculate total sessions:",
+        "  - If has_incomplete (resumed work with unfinished stories): sessions = (completed + blocked) + 1",
+        "  - Else: sessions = completed + blocked",
+        "Handle edge cases:",
+        "  - Ongoing PRD (not yet ALL_COMPLETE, has incomplete stories) = 1 session (current)",
+        "  - PRD with 1 ALL_COMPLETE, restarted later = 2 sessions minimum",
+        "  - PRD that was BLOCKED then resumed and completed = 2 sessions",
+        "Return: integer >= 1",
+        "Log reasoning to stderr: 'PRD-001: 1 ALL_COMPLETE + 0 BLOCKED + 0 incomplete = 1 session' or similar",
+        "Exit code 0 on success, show warning if PRD JSON unreachable but continue with signal-only count"
       ],
       "priority": 1,
-      "passes": true
+      "passes": false
     },
     {
       "id": "US-002",
-      "title": "Generate Container diagram",
-      "description": "As a developer, I want a C4 Container diagram showing the major containers in my application",
+      "title": "Extract PRD features for analysis",
+      "description": "As FADE, I need to extract quantifiable features from PRD JSON so I can compare new PRDs to historical patterns.",
       "acceptanceCriteria": [
-        "Container diagram shows application containers (web app, API, workers, etc.)",
-        "Database containers detected from ORM/driver dependencies",
-        "Message queues detected from queue dependencies (Redis, RabbitMQ, SQS)",
-        "External service integrations shown as external containers",
-        "Technology labels included (Node.js, PostgreSQL, Redis, etc.)",
-        "Container diagram accessible via tab/toggle in HTML output"
+        "Create fade/lib/extract-features.py that reads PRD JSON",
+        "Extract basic metrics: storyCount (count userStories), acCount (sum acceptanceCriteria across all stories)",
+        "Detect keywords via regex in PRD JSON text:",
+        "  - architecture: /architecture|bus|protocol|dag|pipeline|distributed|sync|lock|race|multi-threaded/",
+        "  - integrate: /integrate|connect|bridge|handoff|api|endpoint|interface|import|export/",
+        "  - migrate: /migrate|refactor|rewrite|transform|convert|upgrade/",
+        "  - ui: /webview|panel|ui|visualization|display|results|render|browser/",
+        "  - stateful: /state|cache|persist|memory|buffer|synchron|lock|atomic/",
+        "Extract type: feature/bug/chore/spike/docs",
+        "Estimate integrationSurface: 1-2 (light - single subsystem), 3-5 (moderate - 2-3 subsystems), 6+ (heavy - 4+ subsystems) by counting mentions of different system components",
+        "Output JSON structure: {storyCount, acCount, type, integrationSurface, hasKeywords: {architecture, integrate, migrate, ui, stateful}}",
+        "Validate all numeric fields > 0"
       ],
-      "priority": 2,
-      "passes": true
+      "priority": 1,
+      "passes": false
     },
     {
       "id": "US-003",
-      "title": "Generate Component diagram",
-      "description": "As a developer, I want a C4 Component diagram showing the major components within my application",
+      "title": "Initialize model-selection-history.json database",
+      "description": "As FADE, I need a persistent database tracking each PRD's features and outcomes so the system can learn from history.",
       "acceptanceCriteria": [
-        "Components detected from directory structure (routes/, controllers/, services/, models/)",
-        "Component relationships inferred from import patterns where detectable",
-        "Components grouped by architectural layer (presentation, business, data)",
-        "Each component labeled with its responsibility based on directory/file naming",
-        "Component diagram accessible via tab/toggle in HTML output"
+        "Create fade/model-selection-history.json with schema:",
+        "  - version: \"1.0\"",
+        "  - prds: [] (array of completed PRD records)",
+        "  - learnedHeuristics: {} (decision tree derived from prds)",
+        "Each PRD record contains:",
+        "  - id: PRD identifier (e.g., 'PRD-LC-010')",
+        "  - date: ISO 8601 completion date",
+        "  - features: {storyCount, acCount, type, integrationSurface, hasKeywords}",
+        "  - actualOutcome: {sessionsRequired, modelRecommended, modelSucceeded, escalationNeeded, escalationPoint, errors[], recommendation}",
+        "Backfill with data from fade/prd-archive: Extract features and outcomes for all completed PRDs",
+        "Initialize learnedHeuristics with empty decision tree",
+        "File is valid JSON, loadable without errors"
       ],
-      "priority": 3,
-      "passes": true
+      "priority": 1,
+      "passes": false
     },
     {
       "id": "US-004",
-      "title": "Interactive HTML output",
-      "description": "As a developer, I want the HTML diagram to be interactive and self-contained for easy sharing",
+      "title": "Build model recommender with decision tree logic",
+      "description": "As FADE, I need to recommend models (Haiku/Sonnet/Opus) before execution based on learned patterns so I start with right model.",
       "acceptanceCriteria": [
-        "Single HTML file with no external dependencies except CDN (works offline after first load)",
-        "Tabs or buttons to switch between Context, Container, and Component views",
-        "Zoom and pan controls for large diagrams",
-        "Dark/light mode toggle",
-        "Export to PNG button using Mermaid's built-in export",
-        "Generated timestamp and FADE version shown in footer"
+        "Create fade/recommend-model.py taking PRD ID as argument",
+        "Load PRD JSON and extract features (use US-002 extractor)",
+        "Load fade/model-selection-history.json",
+        "Find similar PRDs: score by feature similarity (story count ±20%, keywords match, integration surface ±1 level)",
+        "Sort similar PRDs by recency (recent ones weighted higher)",
+        "Apply decision tree logic:",
+        "  - If storyCount < 7 AND acCount < 50 AND NOT hasKeywords.architecture → Recommend HAIKU",
+        "  - Else if storyCount <= 9 AND hasKeywords.integrate AND integrationSurface <= 2 → Recommend SONNET",
+        "  - Else if hasKeywords.architecture OR (hasKeywords.integrate AND integrationSurface >= 3) → Recommend OPUS",
+        "  - Else if hasKeywords.stateful AND integrationSurface >= 2 → Recommend OPUS",
+        "  - Else default SONNET",
+        "Output format: 'Recommend: {MODEL}' + confidence % + reasoning line + citation of similar PRD",
+        "Example output: 'Recommend: SONNET\\nConfidence: 85%\\nReasoning: Similar to PRD-LC-003 (8 stories, ui=true, architecture=false)\\nBased on: PRD-LC-003 succeeded on Sonnet in 1 session'",
+        "Exit code 0 on success"
       ],
-      "priority": 4,
-      "passes": true
+      "priority": 1,
+      "passes": false
     },
     {
       "id": "US-005",
-      "title": "Diagram customization options",
-      "description": "As a developer, I want to customize what's included in the generated diagrams",
+      "title": "Auto-update history after PRD completion",
+      "description": "As FADE, I need to automatically log actual outcomes (sessions, model, errors) when PRD completes so history grows without manual entry.",
       "acceptanceCriteria": [
-        "--diagram=context generates only System Context diagram",
-        "--diagram=container generates Context + Container diagrams",
-        "--diagram=component generates all three levels (default)",
-        "--diagram-output=PATH allows custom output location",
-        "--diagram-title='My System' sets custom system name",
-        "Options documented in fade map --help"
+        "Create fade/lib/log-outcome.sh taking: PRD_ID MODEL_USED ESCALATED_TO",
+        "Call fade/lib/detect-sessions.sh to get actual session count",
+        "Extract which model was actually used from progress.md model logs",
+        "Extract error types if multiple sessions (look for test failures, blocked notes in progress.md)",
+        "Determine accuracy: 'succeeded' (1 session), 'needed_escalation' (multiple sessions or escalation), 'over_provisioned' (1 session but could use cheaper model)",
+        "Append to model-selection-history.json prds array:",
+        "  - id, date, features (from extracted PRD), actualOutcome (sessionsRequired, modelRecommended, modelSucceeded, escalationNeeded, errors, recommendation)",
+        "Recalculate learnedHeuristics decision tree based on updated history",
+        "Verify JSON is valid after update"
       ],
-      "priority": 5,
-      "passes": true
+      "priority": 1,
+      "passes": false
     },
     {
       "id": "US-006",
-      "title": "Mermaid DSL export",
-      "description": "As a developer, I want to export the raw Mermaid diagram code for use in documentation",
+      "title": "Integrate recommender into fade run workflow",
+      "description": "As a FADE user, I want to see model recommendation before execution starts so I can make informed decisions or let FADE choose automatically.",
       "acceptanceCriteria": [
-        "--diagram-format=mermaid outputs .mmd files instead of HTML",
-        "Generates context.mmd, container.mmd, component.mmd as separate files",
-        "Files can be embedded in README.md or other markdown docs",
-        "Includes comments in .mmd files explaining each section",
-        "Format documented in fade map --help"
-      ],
-      "priority": 6,
-      "passes": true
-    }
-  ],
-  "technicalNotes": {
-    "approach": "Generate Mermaid C4 diagram syntax from codebase analysis results. Use Mermaid's native C4 diagram support (C4Context, C4Container, C4Component).",
-    "mermaidC4Syntax": "Mermaid supports C4 natively: Person(), System(), Container(), Component(), Rel(), SystemDb(), SystemQueue()",
-    "htmlTemplate": "Embed Mermaid via CDN, include tab switching logic, zoom controls via CSS transform. Single file ~50KB uncompressed.",
-    "detectionHeuristics": {
-      "databases": "Look for pg, mysql, mongodb, prisma, sequelize, typeorm, mongoose in dependencies",
-      "queues": "Look for redis, ioredis, bull, amqplib, sqs in dependencies",
-      "auth": "Look for passport, auth0, firebase-admin, jsonwebtoken in dependencies",
-      "storage": "Look for aws-sdk, @google-cloud/storage, multer in dependencies"
-    },
-    "limitations": "Component relationships are best-effort based on directory structure. Deep import analysis would require AST parsing which is out of scope for shell-based approach.",
-    "futureEnhancement": "Could add --deep-diagram flag that uses Claude to analyze actual code relationships for more accurate component diagrams."
-  }
-}
-```
-
-### FEAT-010-npm-distribution.json
-
-```json
-{
-  "type": "feature",
-  "project": "FADE",
-  "id": "FEAT-010",
-  "name": "NPM Package Distribution",
-  "description": "Package FADE CLI as an NPM package for easier installation and updates. Instead of downloading a shell script manually, users can run 'npx fade-cli' or 'npm install -g fade-cli'. Inspired by GSD's 'npx get-shit-done-cc' which dramatically simplifies adoption.",
-  "dependsOn": [],
-  "userStories": [
-    {
-      "id": "US-001",
-      "title": "NPM package structure",
-      "description": "As a maintainer, I want FADE packaged as a valid NPM package so it can be published to npmjs.com",
-      "acceptanceCriteria": [
-        "package.json exists with name, version, description, bin, repository fields",
-        "Package name is 'fade-cli' (or similar available name)",
-        "bin field points to the fade shell script",
-        "files field includes only necessary files (bin/, prompts, templates)",
-        "License field matches LICENSE file"
-      ],
-      "priority": 1,
-      "passes": true
-    },
-    {
-      "id": "US-002",
-      "title": "npx execution",
-      "description": "As a developer, I want to run 'npx fade-cli init' without installing anything globally",
-      "acceptanceCriteria": [
-        "npx fade-cli runs the CLI without global install",
-        "All fade commands work via npx (init, run, status, etc.)",
-        "First run downloads package, subsequent runs use cache",
-        "Works on macOS, Linux, and Windows (via WSL/Git Bash)"
-      ],
-      "priority": 2,
-      "passes": true
-    },
-    {
-      "id": "US-003",
-      "title": "Global installation",
-      "description": "As a developer, I want to install FADE globally so I can run 'fade' directly",
-      "acceptanceCriteria": [
-        "npm install -g fade-cli works",
-        "After install, 'fade' command is available in PATH",
-        "Global install doesn't conflict with local installs",
-        "Uninstall works: npm uninstall -g fade-cli"
-      ],
-      "priority": 3,
-      "passes": true
-    },
-    {
-      "id": "US-004",
-      "title": "Version management via npm",
-      "description": "As a developer, I want npm update to update FADE so I don't need 'fade update'",
-      "acceptanceCriteria": [
-        "npm update -g fade-cli updates to latest version",
-        "npx fade-cli@latest always runs latest version",
-        "Version in package.json matches FADE_VERSION in script",
-        "fade version shows npm package version"
-      ],
-      "priority": 4,
-      "passes": true
-    },
-    {
-      "id": "US-005",
-      "title": "Preserve fade update for artifacts",
-      "description": "As a developer, I want 'fade update' to still update prompt.md and standards even when using npm",
-      "acceptanceCriteria": [
-        "fade update still updates local prompt.md from latest template",
-        "fade update still syncs standards/ folder",
-        "fade update --check still works for artifact version checking",
-        "npm handles CLI binary, fade update handles project artifacts"
-      ],
-      "priority": 5,
-      "passes": true
-    },
-    {
-      "id": "US-006",
-      "title": "Documentation for npm installation",
-      "description": "As a new user, I want clear docs on how to install and use FADE via npm",
-      "acceptanceCriteria": [
-        "README.md has Installation section with npm commands",
-        "Shows both npx (no install) and global install options",
-        "Documents upgrade path: npx fade-cli@latest or npm update -g",
-        "Notes that fade update is still needed for project artifact updates"
-      ],
-      "priority": 6,
-      "passes": true
-    }
-  ],
-  "technicalNotes": {
-    "packageName": "Check npm registry for availability. Options: fade-cli, fade-dev, fade-framework",
-    "binWrapper": "May need a small node wrapper that calls the shell script, or convert entire CLI to node",
-    "windowsSupport": "Shell script works in Git Bash/WSL. Could add .cmd wrapper for native Windows later.",
-    "publishWorkflow": "Add GitHub Action to publish to npm on release tag",
-    "gsdComparison": "GSD uses npx get-shit-done-cc with interactive installer. FADE can start simpler - just the CLI, no installer wizard."
-  }
-}
-```
-
-### FEAT-011-discovery-phase.json
-
-```json
-{
-  "type": "feature",
-  "project": "FADE",
-  "id": "FEAT-011",
-  "name": "Discovery Phase for PRD Authoring",
-  "description": "Add 'fade discover' command that captures implementation preferences and context before PRD writing. GSD's /gsd:discuss-phase asks about layout, interactions, API structure, and content tone BEFORE planning. This helps write better PRDs by surfacing decisions upfront.",
-  "dependsOn": [],
-  "userStories": [
-    {
-      "id": "US-001",
-      "title": "Interactive discovery session",
-      "description": "As a developer planning a feature, I want an interactive discovery session that helps me think through implementation details",
-      "acceptanceCriteria": [
-        "fade discover command launches interactive Claude session",
-        "Session asks about: goals, constraints, tech preferences, edge cases",
-        "Questions are contextual based on project type (from FADE.md)",
-        "Session can be exited early with Ctrl+C",
-        "Documented in fade help"
-      ],
-      "priority": 1,
-      "passes": true
-    },
-    {
-      "id": "US-002",
-      "title": "Discovery output format",
-      "description": "As a developer, I want discovery session output saved in a format useful for PRD writing",
-      "acceptanceCriteria": [
-        "Output saved to fade/discoveries/{slug}.md",
-        "Format includes: Summary, Decisions, Open Questions, Suggested Stories",
-        "Slug derived from feature name provided at start of session",
-        "Output is markdown suitable for reference when writing PRD"
-      ],
-      "priority": 2,
-      "passes": true
-    },
-    {
-      "id": "US-003",
-      "title": "Domain-specific questions",
-      "description": "As a developer, I want discovery to ask relevant questions based on what I'm building",
-      "acceptanceCriteria": [
-        "If building API endpoint: asks about auth, validation, error handling, response format",
-        "If building UI component: asks about layout, interactions, states, accessibility",
-        "If building data feature: asks about schema, validation, migrations, backwards compat",
-        "Question sets defined in standards/ or embedded in prompt"
-      ],
-      "priority": 3,
-      "passes": true
-    },
-    {
-      "id": "US-004",
-      "title": "Generate PRD draft from discovery",
-      "description": "As a developer, I want to optionally generate a PRD draft from my discovery session",
-      "acceptanceCriteria": [
-        "fade discover --prd generates PRD JSON after discovery session",
-        "PRD includes user stories derived from discussed features",
-        "Acceptance criteria derived from decisions made in discovery",
-        "PRD marked as draft for human review before activation",
-        "Output path: fade/prds/FEAT-NNN-{slug}.json"
-      ],
-      "priority": 4,
-      "passes": true
-    },
-    {
-      "id": "US-005",
-      "title": "Codebase-aware discovery",
-      "description": "As a developer, I want discovery to understand my existing code so questions are relevant",
-      "acceptanceCriteria": [
-        "Discovery reads FADE.md for project context",
-        "If fade map was run, discovery references its output",
-        "Questions reference actual patterns in codebase ('I see you use Express, should this endpoint follow the same pattern as /api/users?')",
-        "Flags if proposed feature might conflict with existing code"
-      ],
-      "priority": 5,
-      "passes": true
-    },
-    {
-      "id": "US-006",
-      "title": "Reference discovery in PRD execution",
-      "description": "As a developer executing a PRD, I want Claude to reference the discovery doc for context",
-      "acceptanceCriteria": [
-        "PRD JSON can include 'discoveryDoc' field pointing to discoveries/*.md",
-        "fade run includes referenced discovery doc in context",
-        "Discovery doc provides implementation intent beyond acceptance criteria",
-        "Optional field - PRDs work fine without discovery docs"
-      ],
-      "priority": 6,
-      "passes": true
-    }
-  ],
-  "technicalNotes": {
-    "gsdComparison": "GSD's discuss-phase captures preferences before planning. FADE's discovery is similar but outputs to file for async PRD writing.",
-    "sessionMode": "Discovery is interactive by nature - not automated like fade run. Could use claude without --print.",
-    "integrationWithMap": "fade map analyzes code structure. fade discover captures human intent. Together they provide complete context for PRD.",
-    "questionBank": "Consider making question sets extensible via standards/discovery-*.md files"
-  }
-}
-```
-
-### SPIKE-001-context-isolation.json
-
-```json
-{
-  "type": "spike",
-  "project": "FADE",
-  "id": "SPIKE-001",
-  "name": "Context Isolation via Sub-Agents",
-  "description": "Experiment with spawning fresh Claude sessions for story execution to prevent context degradation. GSD's core insight is that Claude quality degrades as context fills ('context rot'). Their solution: each executor gets an isolated 200k-token window. This ENH explores whether FADE can benefit from similar isolation.",
-  "dependsOn": [],
-  "branchName": "spike/context-isolation",
-  "outputArtifact": "docs/spike-context-isolation.md",
-  "userStories": [
-    {
-      "id": "US-001",
-      "title": "Research context rot in FADE sessions",
-      "description": "As a maintainer, I want to understand if/when context rot affects FADE sessions so we can decide if isolation is needed",
-      "acceptanceCriteria": [
-        "Document typical context size after N stories (measure with real PRDs)",
-        "Identify at what context size quality noticeably degrades",
-        "Compare output quality: story 1 vs story 5 vs story 10 in same session",
-        "Document findings in learned.md or spike output"
+        "When fade run starts with a PRD, call fade/recommend-model.py PRD_ID",
+        "Display recommendation banner before Claude Code launches:",
+        "  ┌────────────────────────────────────────┐",
+        "  │ Model Recommendation for PRD-LC-015    │",
+        "  │ ✅ Recommend: SONNET (85% confidence)  │",
+        "  │ Similar to PRD-LC-003 (succeeded 1 session on Sonnet) │",
+        "  │ [Press Enter to proceed with Sonnet, or --model opus] │",
+        "  └────────────────────────────────────────┘",
+        "If --model flag provided, skip recommendation (user override)",
+        "Log recommendation to progress.md header: '## Model Recommendation: SONNET (confidence: 85%, based on PRD-LC-003)'",
+        "Capture what model was actually used and log to outcome",
+        "Support --show-recommendation flag to display without executing"
       ],
       "priority": 1,
       "passes": false
     },
     {
-      "id": "US-002",
-      "title": "Design isolation architecture",
-      "description": "As a maintainer, I want a design doc for how sub-agent isolation would work in FADE",
+      "id": "US-007",
+      "title": "Recalculate learned heuristics from history",
+      "description": "As FADE, I need to update decision tree logic after each PRD completes so recommendations improve over time.",
       "acceptanceCriteria": [
-        "Document how parent orchestrator would spawn child executors",
-        "Define what context each executor receives (PRD, FADE.md, relevant files)",
-        "Define how executor reports completion back to orchestrator",
-        "Address: how does learned.md propagate between sessions?",
-        "Address: how are git commits coordinated across executors?",
-        "Output is a design doc, not implementation"
+        "Create fade/lib/update-heuristics.py",
+        "Read fade/model-selection-history.json prds array",
+        "For each model type (Haiku, Sonnet, Opus), calculate:",
+        "  - Success rate: (succeeded outcomes) / (total uses)",
+        "  - Feature patterns: Which feature combinations led to success",
+        "  - Common error types when model failed",
+        "Generate decision tree rules using simple thresholds:",
+        "  - If 80%+ of Haiku PRDs with certain features succeeded → add to useHaikuIf[]",
+        "  - If 60%+ of Sonnet PRDs need escalation with certain features → add to useSonnetIf[] with warning",
+        "  - If 100% of Opus PRDs succeeded → add to useOpusIf[] with high confidence",
+        "Output updated learnedHeuristics with:",
+        "  - useHaikuIf: [] (conditions)",
+        "  - useSonnetIf: [] (conditions with risk if escalation common)",
+        "  - useOpusIf: [] (conditions)",
+        "  - accuracyStats: {haiku_accuracy, sonnet_accuracy, opus_accuracy} (percentages)",
+        "Call this automatically after fade/lib/log-outcome.sh updates history"
       ],
       "priority": 2,
       "passes": false
     },
     {
-      "id": "US-003",
-      "title": "Prototype isolated story execution",
-      "description": "As a maintainer, I want a minimal prototype of spawning a fresh Claude session per story",
+      "id": "US-008",
+      "title": "Dashboard display of learned insights",
+      "description": "As a FADE user, I want to see what the system has learned about model selection so I can trust the recommendations.",
       "acceptanceCriteria": [
-        "fade run --isolated flag triggers new execution mode",
-        "Each story spawns: claude --print with story-specific context",
-        "Context includes: FADE.md, current story from PRD, relevant standards",
-        "Context excludes: progress.md history, previous story details",
-        "Prototype can execute single story, report success/failure"
+        "Add 'Learning' section to dashboard with:",
+        "  - Model accuracy stats: 'Haiku: 95% (12 PRDs), Sonnet: 75% (18 PRDs), Opus: 100% (5 PRDs)'",
+        "  - Key patterns learned: 'Architecture + integration_surface=heavy → Opus (100% success)'",
+        "  - Recommendation confidence: Show 85% or 'Low confidence, limited history' if <10 similar PRDs",
+        "  - Recent escalations: List last 3 PRDs that needed escalation with reason",
+        "  - Cost savings so far: Compare 'all-Sonnet' cost vs actual model mix used",
+        "Click on model accuracy → see breakdown: 'Haiku: 12 succeeded, 0 escalated, 0 wasted, accuracy 100%'",
+        "Display date last learned: 'Learned from 47 PRDs, updated 2026-01-25 18:45'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-009",
+      "title": "Graceful escalation handling",
+      "description": "As FADE, I need to detect when a model is struggling and suggest escalation so we don't waste time on insufficient models.",
+      "acceptanceCriteria": [
+        "In cmd_run() loop, detect escalation signals:",
+        "  - Model takes >1.5x estimated duration for similar PRD",
+        "  - Test failures or blocked state after session 1",
+        "  - Multiple STORY_DONE iterations without progressing",
+        "When escalation detected, output: 'ESCALATE: Initial model (Sonnet) seems insufficient. Try with --model opus'",
+        "Suggest: 'fade run PRD-LC-010 --model opus --resume'",
+        "Log escalation reason to progress.md: 'Auto-escalation suggested: Test failures in session 1 suggest Sonnet insufficient'",
+        "Do NOT automatically escalate without user approval (avoid infinite retries)",
+        "Update history: Mark PRD as 'escalationNeeded: true, escalationPoint: \"session 1 test failures\"'"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-010",
+      "title": "Export and review learning metrics",
+      "description": "As a FADE user, I want to export learning data for quarterly review so I can see long-term trends and validate the system.",
+      "acceptanceCriteria": [
+        "Create 'fade export-learning' command",
+        "Generate report: fade/learning-report.json containing:",
+        "  - Summary: Total PRDs analyzed, success rates by model, average sessions by type",
+        "  - PRD list: id, features, outcome, confidence of recommendation",
+        "  - Accuracy over time: Month-by-month improvement in recommendation accuracy",
+        "  - Error catalog: Common failure reasons, which models recover from them",
+        "  - Cost analysis: Estimated savings if recommendations had been perfect",
+        "  - Recommendations for tuning: 'Consider lowering opus threshold: acCount >= 50 PRDs succeeded on Sonnet'",
+        "Generate human-readable summary: 'Learning Report: ENH-015 Quarterly Review'",
+        "Output formats: JSON for data analysis, Markdown for human review"
       ],
       "priority": 3,
-      "passes": false
-    },
-    {
-      "id": "US-004",
-      "title": "Compare isolated vs continuous execution",
-      "description": "As a maintainer, I want to compare quality and speed of isolated vs continuous modes",
-      "acceptanceCriteria": [
-        "Run same PRD (5+ stories) in both modes",
-        "Measure: total time, token usage, output quality",
-        "Quality assessment: code correctness, test pass rate, style consistency",
-        "Document trade-offs: isolation overhead vs context rot prevention",
-        "Make recommendation: default mode, when to use each"
-      ],
-      "priority": 4,
-      "passes": false
-    },
-    {
-      "id": "US-005",
-      "title": "Learned.md synchronization",
-      "description": "As a developer using isolated mode, I want learnings from each story to be available to subsequent stories",
-      "acceptanceCriteria": [
-        "After each isolated story completes, orchestrator reads its learned.md additions",
-        "Learnings are injected into context for next story",
-        "Handles case where executor adds to learned.md mid-story",
-        "Learnings persist even if session is interrupted"
-      ],
-      "priority": 5,
       "passes": false
     }
   ],
   "technicalNotes": {
-    "gsdApproach": "GSD spawns 'executors' with fresh 200k windows. They can run in parallel when tasks are independent.",
-    "fadeConstraint": "FADE is serial by design (one story at a time). Isolation benefits us for long PRDs, not parallelism.",
-    "implementation": "Could use claude --print with context file, or explore Claude Code's Task tool for sub-agents.",
-    "riskOfOverengineering": "This may not be needed if FADE's checkpoint-and-restart pattern already mitigates context rot. US-001 should determine if this is a real problem before building solutions.",
-    "spikeFirst": "Consider making this a SPIKE type PRD if US-001 reveals context rot isn't a significant issue."
-  }
+    "architecture": "File-based learning loop: progress.md → session detection → outcome logging → history.json → decision tree recalculation → recommendation. No external dependencies, all logic in bash/python.",
+    "sessionBoundary": "Session = bounded unit of work terminated by exit signal (ALL_COMPLETE or BLOCKED). Count = completed_signals + blocked_signals + (1 if has_incomplete_stories else 0). Handles midnight crossings (22:30-00:30 run = 1 session), PRD interruptions, and resumptions elegantly. Incomplete stories signal ongoing session even if no recent exit signals.",
+    "featureExtraction": "Keywords matched via regex to catch contextual use, not just exact matches. Integration surface estimated by counting distinct subsystem mentions (parser, engine, storage, etc.). Conservative estimate better than over-estimate.",
+    "decisionTree": "Simple threshold-based rules, not ML. Thresholds derived from historical data. If history contradicts rules (e.g., 80% of high-AC PRDs succeeded on Haiku), heuristics auto-update.",
+    "escalationLogic": "Detects multi-session PRDs and test failures as signals of insufficient model. Offers upgrade path but doesn't force it. Learns which error types each model handles.",
+    "dataFormats": "PRD features stored as JSON in history for easy querying. Decision tree exported as human-readable rules for quarterly review. Outcomes include error types for pattern analysis.",
+    "falsePositives": "If heuristic recommends Haiku and it fails, mark as misclassification. Track false positive rate. If >20% of Haiku recommendations fail, lower Haiku threshold in decision tree."
+  },
+  "filesToCreate": [
+    "fade/lib/detect-sessions.sh",
+    "fade/lib/extract-features.py",
+    "fade/lib/log-outcome.sh",
+    "fade/lib/update-heuristics.py",
+    "fade/recommend-model.py",
+    "fade/model-selection-history.json"
+  ],
+  "filesToModify": [
+    {
+      "file": "bin/fade-cli",
+      "changes": "Update cmd_run() to call fade/recommend-model.py before execution, display recommendation banner. After ALL_COMPLETE signal, call fade/lib/log-outcome.sh to update history. Add 'fade export-learning' command."
+    },
+    {
+      "file": "fade/prompt.md",
+      "changes": "Document model recommendation workflow: 'FADE will display recommended model before execution. You may override with --model flag. After completion, your outcome (sessions, model success/failure) is logged to improve future recommendations.'"
+    },
+    {
+      "file": "fade/dashboard-server.py",
+      "changes": "Add 'Learning' dashboard section showing accuracy stats, learned patterns, recent escalations, cost analysis."
+    }
+  ],
+  "successCriteria": {
+    "mustHave": [
+      "Session detection works: Parse progress.md, count distinct sessions correctly for 90%+ of PRDs",
+      "Feature extraction works: Extract stories, ACs, keywords, integration surface from any PRD JSON",
+      "History database initialized: fade/model-selection-history.json created and backfilled with FADE repo data",
+      "Recommender script works: fade/recommend-model.py outputs recommendation with 80%+ confidence on known PRDs",
+      "Auto-logging works: PRD completion automatically updates history without manual entry",
+      "Decision tree improves: After 10+ PRDs logged, next recommendation has better accuracy than heuristic baseline",
+      "Integration works: fade run displays recommendation banner, user can proceed or override with --model",
+      "Graceful escalation: System detects when model struggling and suggests upgrade (does not auto-upgrade)"
+    ],
+    "niceToHave": [
+      "Dashboard displays learning metrics and accuracy stats",
+      "Export command generates quarterly review report",
+      "Recommendation confidence threshold: Hide recommendations if <60% confidence (insufficient history)",
+      "Cost analysis: Dashboard shows projected savings vs all-Sonnet baseline",
+      "Error catalog: Dashboard categorizes error types and which models recover"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "Session detection misses actual session boundaries, logs false positives (splits 1 session into 2 or merges 2 into 1)",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Manual audit first 20 PRDs to verify session counting logic. Provide fade --audit-sessions command for manual review. Conservative approach: >5h gap always triggers new session."
+    },
+    {
+      "risk": "Decision tree becomes overfit to small history (e.g., 5 PRDs), makes bad recommendations",
+      "likelihood": "high",
+      "impact": "medium",
+      "mitigation": "Start with conservative defaults (Sonnet for unknowns). Only use learned rules when 10+ similar PRDs in history. Confidence score shows when history is insufficient."
+    },
+    {
+      "risk": "Recommender suggests Haiku for complex work, wastes time debugging instead of escalating",
+      "likelihood": "medium",
+      "impact": "high",
+      "mitigation": "Include built-in safeguards: Never recommend Haiku if architecture keyword present. Escalation detection catches this early and suggests upgrade."
+    },
+    {
+      "risk": "History file grows unbounded, becomes slow to search",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Archive old entries (>6 months) to separate file. Limit active history to last 100 PRDs. Recalculate heuristics on weekly basis."
+    }
+  ],
+  "estimatedEffort": "10-13 hours (1-2 FADE sessions)",
+  "definitionOfDone": [
+    "All 10 user stories have passing acceptance criteria",
+    "Session detection correctly identifies 90%+ of session boundaries on test data",
+    "Feature extraction handles all PRD keyword types and integration surface estimation",
+    "fade/model-selection-history.json backfilled with FADE repo historical data",
+    "fade/recommend-model.py recommends models with 80%+ accuracy on known PRDs",
+    "PRD completion automatically updates history.json without manual logging",
+    "fade run displays recommendation banner before execution",
+    "Decision tree recalculation works after each PRD completes",
+    "Dashboard shows learning metrics (accuracy stats, patterns, escalations)",
+    "fade export-learning generates quarterly review report (JSON + Markdown)",
+    "Graceful escalation detected and suggested (not auto-executed)",
+    "All test cases pass",
+    "Documentation updated: prompt.md, README, dashboard usage guide",
+    "bash -n syntax check passes on all new scripts"
+  ]
 }
 ```
 
@@ -1901,6 +2438,7 @@ Read this document when:
 - BUG-004-test-generation-broken.json
 - BUG-005-all-mode-iteration-bugs-prd-mismatch-and-output-ca.json
 - BUG-006-test-generation-output-still-leaking-into-count-va.json
+- BUG-007-signal-detection-false-positive.json
 - CHORE-001-release-031.json
 - ENH-001-architecture-standards-file.json
 - ENH-006-incremental-checkpointing.json
@@ -1912,8 +2450,15 @@ Read this document when:
 - ENH-009-standards-folder.json
 - ENH-010-idempotent-update.json
 - ENH-011-strategic-context.json
+- ENH-013-c4-diagram-generation.json
+- ENH-014-complexity-based-model-selection.json
 - FEAT-006-fade-update.json
 - FEAT-007-contained-structure.json
 - FEAT-008-codebase-mapping.json
 - FEAT-009-quick-mode.json
+- FEAT-010-npm-distribution.json
+- FEAT-011-discovery-phase.json
+- FEAT-012-autonomous-shell-portability-healer.json
+- FEAT-013-multi-repo-dashboard.json
+- SPIKE-001-context-isolation.json
 
