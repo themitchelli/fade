@@ -5880,6 +5880,169 @@ cmd_classify() {
     echo ""
 }
 
+cmd_export_learning() {
+    # Export learning metrics and generate report
+    # Usage: fade export-learning [--format json|markdown|both]
+
+    local format="both"
+    local output_dir="${FADE_DIR:-.}"
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    # Find model-selection-history.json
+    local history_file=""
+    if [[ -f "${FADE_DIR}/model-selection-history.json" ]]; then
+        history_file="${FADE_DIR}/model-selection-history.json"
+    elif [[ -f "model-selection-history.json" ]]; then
+        history_file="model-selection-history.json"
+    else
+        echo -e "${RED}Error: model-selection-history.json not found${NC}"
+        echo "Run some PRDs to build learning history first."
+        return 1
+    fi
+
+    # Extract data from history file using jq or python
+    if command -v jq &> /dev/null; then
+        # Use jq for data extraction
+        local total_prds=$(jq '.prds | length' "$history_file")
+        local accuracy_stats=$(jq '.learnedHeuristics.accuracyStats' "$history_file")
+
+        # Build JSON report
+        local json_report=$(cat <<EOF
+{
+  "generated": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "summary": {
+    "totalPrds": $total_prds,
+    "accuracyStats": $accuracy_stats
+  },
+  "prdList": $(jq '.prds[] | {id: .id, date: .date, features: .features, outcome: .actualOutcome, confidence: ("High" | if .confidence < 60 then "Low" else if .confidence < 80 then "Medium" else . end)}' "$history_file" | jq -s '.'),
+  "patterns": $(jq '.learnedHeuristics' "$history_file")
+}
+EOF
+        )
+    else
+        # Fallback: use python
+        local json_report=$(python3 << 'PYTHON_SCRIPT'
+import json
+import sys
+from datetime import datetime
+
+try:
+    with open(sys.argv[1], 'r') as f:
+        history = json.load(f)
+
+    report = {
+        "generated": datetime.utcnow().isoformat() + "Z",
+        "summary": {
+            "totalPrds": len(history.get("prds", [])),
+            "accuracyStats": history.get("learnedHeuristics", {}).get("accuracyStats", {})
+        },
+        "prdList": history.get("prds", []),
+        "patterns": history.get("learnedHeuristics", {})
+    }
+    print(json.dumps(report, indent=2))
+except Exception as e:
+    print(f"Error: {e}", file=sys.stderr)
+    sys.exit(1)
+PYTHON_SCRIPT
+        )
+    fi
+
+    # Write JSON report
+    if [[ "$format" == "json" ]] || [[ "$format" == "both" ]]; then
+        local json_path="${output_dir}/learning-report.json"
+        echo "$json_report" > "$json_path"
+        echo -e "${GREEN}✓ JSON report written to: $json_path${NC}"
+    fi
+
+    # Generate and write Markdown report
+    if [[ "$format" == "markdown" ]] || [[ "$format" == "both" ]]; then
+        local markdown_path="${output_dir}/learning-report.md"
+        cat > "$markdown_path" << 'EOF'
+# Learning Report: Quarterly Model Selection Review
+
+## Summary
+
+This report analyzes the model selection learning system over time.
+
+### Key Metrics
+- Total PRDs Analyzed: {TOTAL_PRDS}
+- Haiku Accuracy: {HAIKU_ACCURACY}%
+- Sonnet Accuracy: {SONNET_ACCURACY}%
+- Opus Accuracy: {OPUS_ACCURACY}%
+
+## Model Performance
+
+### Haiku (Fastest, Cheapest)
+- Use for: Simple bugs, small features, documentation updates
+- Success Rate: {HAIKU_ACCURACY}%
+
+### Sonnet (Balanced)
+- Use for: Medium features, moderate integration
+- Success Rate: {SONNET_ACCURACY}%
+
+### Opus (Most Capable)
+- Use for: Architecture, heavy integration, complex systems
+- Success Rate: {OPUS_ACCURACY}%
+
+## Recommendations for Tuning
+
+- Monitor false positive rate for each model tier
+- If any model has <75% success rate, lower its recommendation threshold
+- Review PRDs that needed escalation - identify common patterns
+
+## Decision Tree Rules
+
+The system uses these rules to recommend models:
+
+{DECISION_RULES}
+
+## Next Steps
+
+- Review escalations: Which PRDs needed model upgrade?
+- Analyze errors: Are certain error types only handled by higher models?
+- Validate recommendations: Do actual outcomes match predictions?
+
+---
+Generated: {GENERATED_TIME}
+EOF
+
+        # Fill in template placeholders (if jq available for data extraction)
+        if command -v jq &> /dev/null; then
+            local total_prds=$(jq '.prds | length' "$history_file")
+            local haiku_acc=$(jq '.learnedHeuristics.accuracyStats.haiku_accuracy // 0' "$history_file")
+            local sonnet_acc=$(jq '.learnedHeuristics.accuracyStats.sonnet_accuracy // 0' "$history_file")
+            local opus_acc=$(jq '.learnedHeuristics.accuracyStats.opus_accuracy // 0' "$history_file")
+
+            sed -i.bak \
+                -e "s/{TOTAL_PRDS}/$total_prds/g" \
+                -e "s/{HAIKU_ACCURACY}/$haiku_acc/g" \
+                -e "s/{SONNET_ACCURACY}/$sonnet_acc/g" \
+                -e "s/{OPUS_ACCURACY}/$opus_acc/g" \
+                -e "s/{GENERATED_TIME}/$(date)/g" \
+                "$markdown_path"
+            rm -f "${markdown_path}.bak"
+        fi
+
+        echo -e "${GREEN}✓ Markdown report written to: $markdown_path${NC}"
+    fi
+
+    echo ""
+    echo "Learning metrics exported successfully."
+    echo "Use these reports for quarterly review and tuning."
+}
+
 cmd_dashboard() {
     local action=""
     local repo_path=""
@@ -10856,6 +11019,10 @@ case "${1:-}" in
         ;;
     classify)
         cmd_classify
+        ;;
+    export-learning)
+        shift
+        cmd_export_learning "$@"
         ;;
     dashboard)
         shift

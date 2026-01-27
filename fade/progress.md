@@ -2066,3 +2066,25 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - All components use CSS variables for consistent theming
 - Files changed: fade/lib/dashboard-server.py, fade/templates/dashboard/index.html, fade/templates/dashboard/app.js, fade/templates/dashboard/styles.css, fade/prds/ENH-015-model-selection-learner.json
 - Tests: Python syntax check passed, HTML structure verified, CSS variables referenced correctly
+
+## 2026-01-27 - US-009: Graceful escalation handling (ENH-015) - COMPLETE
+
+- Added detect_escalation() helper function to identify when model is struggling
+- Function checks for test failures or blocked state after session 1 (iteration ≥2)
+- Added get_escalation_model() helper to determine next tier model (haiku→sonnet, sonnet→opus)
+- Added display_escalation_suggestion() banner function to guide user on escalation
+- Integrated escalation detection into test failure handling in cmd_run() loop
+  - When tests fail and iteration ≤2 and model is not Opus: displays escalation suggestion
+  - Shows escalation model recommendation and command to resume with new model
+  - Logs escalation suggestion to progress.md with automatic model recommendation
+- Integrated escalation detection into BLOCKED signal handler
+  - When BLOCKED state occurs with iteration ≤2 and error indicators detected
+  - Displays escalation suggestion banner with recommended model
+  - Logs reason from blocked message to progress.md
+  - Shows clear command to resume: fade run --model {next} --resume
+- Does NOT automatically escalate without user approval (requires explicit --model flag)
+- Does NOT escalate Opus (already highest tier)
+- Provides clear user guidance: either fix tests or escalate with new model
+- All escalation logic respects user override (--model flag takes precedence)
+- Files changed: bin/fade-cli, fade/prds/ENH-015-model-selection-learner.json
+- Tests: bash -n syntax check passed

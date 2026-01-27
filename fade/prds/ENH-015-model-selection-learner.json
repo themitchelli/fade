@@ -218,7 +218,7 @@
         "Output formats: JSON for data analysis, Markdown for human review"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {
