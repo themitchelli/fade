@@ -2307,3 +2307,31 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - Tests: bash -n syntax check passed, get_complexity_rubric() tested with various parameters producing correct JSON output
 
 ## Model Usage: haiku (complexity: medium, duration: 8m, cost est: $0.01)
+
+## 2026-01-27 - US-002: Learn from outcomes to reduce cost and failures (ENH-023) - COMPLETE
+
+- Created `cmd_estimator()` command to explain complexity estimation rubric for PRDs
+  - Syntax: `fade estimator explain [PRD_ID]` or `fade estimator explain` for active PRD
+  - Searches for PRD by ID or name across all locations (fade/prds, prds, prd-archive)
+- Command displays detailed rubric explanation including:
+  - PRD metadata (ID, name, type, stored complexity)
+  - Calculated complexity and total score
+  - Individual factor scores with explanations:
+    * Acceptance Criteria count (>15 = +2 complex, <5 = -1 simple)
+    * Complex keywords (architecture, refactor, integrate, migrate = +2)
+    * Simple keywords (typo, fix, update docs, add test = -2)
+    * Estimated effort (>1 week = +2, <4 hours = -1)
+    * Dependencies (>2 = +1)
+  - Estimation rules showing score thresholds (>=3 complex, <=-2 simple, else medium)
+  - Model recommendation based on complexity (Haiku/Sonnet/Opus)
+  - Warning if stored complexity differs from calculated complexity
+- Leverages existing infrastructure:
+  - Uses `model-selection-history.json` (ENH-015) for per-model outcomes
+  - Uses `detect_escalation()`, `get_escalation_model()`, `display_escalation_suggestion()` (already in code)
+  - Escalation suggestions are already logged to progress.md on test failures and BLOCKED state
+- Added estimator command to help text and main case statement
+- Tested command manually: correctly shows rubric factors and recommendations
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed, manual testing of estimator explain ENH-023 verified output
+
+## Model Usage: haiku (complexity: medium, duration: 15m, cost est: $0.02)

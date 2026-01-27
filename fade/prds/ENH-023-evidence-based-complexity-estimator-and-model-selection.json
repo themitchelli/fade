@@ -31,7 +31,7 @@
         "Provide `fade estimator explain` to print the rubric decision for a given PRD."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
