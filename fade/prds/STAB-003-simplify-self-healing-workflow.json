@@ -45,7 +45,7 @@
         "FADE exits with clear status: 'Regression failed. Fix and re-run.'"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

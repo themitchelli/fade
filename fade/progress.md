@@ -2841,3 +2841,26 @@ FEAT-025: Repo-aware interactive PRD generator - ALL COMPLETE
   - bin/fade-cli (removed 300+ lines of auto-generation/healing code)
   - fade/prds/STAB-003-simplify-self-healing-workflow.json (US-002 passes: true)
 
+
+## 2026-01-27 - US-003: Remove retry loop for self-healing (STAB-003) - COMPLETE
+
+- Removed portability error healing retry loop from run_regression_tests()
+- Removed max_healing_attempts and healing_attempt loop variables
+- Removed healing_log.md logging logic
+- Tests now fail immediately without automatic retry
+- Deleted ~190 lines of healing retry logic (lines 1634-1820)
+- User workflow: test fails → copy error → fix manually → fade run
+- Exit message already set to "⛔ Regression failed. Fix and re-run." (from US-002)
+- bash -n syntax check passes
+- All acceptance criteria satisfied:
+  - ✓ No automatic retry after failure
+  - ✓ User explicitly runs `fade run` to retry after fix
+  - ✓ Remove MAX_HEAL_ATTEMPTS and related loop logic
+  - ✓ FADE exits with clear status: 'Regression failed. Fix and re-run.'
+- Files changed:
+  - bin/fade-cli (removed 190 lines of healing retry loop)
+  - fade/prds/STAB-003-simplify-self-healing-workflow.json (US-003 passes: true)
+
+All STAB-003 user stories now complete (US-001, US-002, US-003).
+Self-healing workflow simplified to match manual debugging pattern.
+
