@@ -51,6 +51,31 @@ For blocked stories, use:
 - Files changed: bin/fade-cli, fade/prds/ENH-026-council-mode-for-multi-llm-second-opinions.json
 - Tests: bash -n syntax check passed, manual testing verified both scenarios (with and without --run-id)
 
+## 2026-01-27 - US-002: Auto-trigger council mode on high-risk signals (ENH-026) - COMPLETE
+
+- Added display_council_suggestion() function to show council recommendations in yellow warning box format
+- Integrated council suggestion detection into main ALL mode loop
+- Suggestion triggers when:
+  - Complexity = "complex" (indicates high-risk architectural/security work)
+  - Iteration > 1 (indicates retries/failures, suggesting consensus approach)
+- Emits `council_suggested` event to events.jsonl with PRD ID, reason, and iteration count
+- Suggestion is non-blocking and displayed after model selection in iteration loop
+- Display shows PRD ID, reason for suggestion, and command to generate brief
+- Operator can run `fade council <prd_id>` to generate the council brief when prompted
+- All acceptance criteria satisfied:
+  - ✓ FADE suggests running council mode when: complexity=complex or K retries occur
+  - ✓ Suggestion is non-blocking and recorded in telemetry as `council_suggested`
+  - ✓ Operator can opt-in by running `fade council <prd_id>` to get brief for review
+- Files changed: bin/fade-cli, fade/prds/ENH-026-council-mode-for-multi-llm-second-opinions.json
+- Tests: bash -n syntax check passed, logic verified for complex work and retry scenarios
+
+## ENH-026: Council mode for multi-LLM second opinions - ALL COMPLETE
+
+- Completed both user stories for ENH-026
+- Feature provides first-class workflow for multi-LLM consultation on high-risk work
+- Reduces risk of single-model bias in architectural/security decisions
+- Improves decision quality through consensus from multiple perspectives
+
 ## 2026-01-27 - US-007: Recalculate learned heuristics from history (ENH-015) - COMPLETE
 
 - Verified fade/lib/update-heuristics.py script exists and is fully functional

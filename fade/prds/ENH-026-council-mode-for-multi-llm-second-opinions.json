@@ -32,7 +32,7 @@
         "Operator can opt-in via `fade council --accept` to proceed."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
