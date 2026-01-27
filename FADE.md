@@ -49,6 +49,81 @@ FADE (Framework for Agentic Development and Engineering) provides session memory
 
 ---
 
+## Feature Stability
+
+This section documents which features are production-ready and which are experimental or deferred.
+
+### Stable (Recommended for Production)
+
+These features are thoroughly tested, well-documented, and recommended for regular use:
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| `fade init` | Initialize FADE structure in a project | ✅ Stable |
+| `fade new` | Create new PRD files with templates | ✅ Stable |
+| `fade status` | Display work queue and active runs | ✅ Stable |
+| `fade run` | Execute Claude Code with FADE context (ALL mode) | ✅ Stable |
+| `fade yolo` | Autonomous execution mode (skip permissions) | ✅ Stable |
+| `fade update` | Self-update mechanism for CLI and artifacts | ✅ Stable |
+| Checkpoint Protocol | Story completion, PRD archiving, test generation | ✅ Stable |
+
+### Optional (Use as Needed)
+
+These features are fully functional but represent optional workflows:
+
+| Feature | Description | Status |
+|---------|-------------|--------|
+| `fade dashboard` | Multi-repo status dashboard (localhost:8080) | ✅ Optional |
+| `fade council` | Generate second-opinion briefs for PRDs | ✅ Optional |
+| `fade workspace` | Manage multiple FADE repositories | ✅ Optional |
+| `fade migrate` | Migrate legacy file structure | ✅ Optional |
+| `fade map` | Analyze codebase for auto-generated FADE.md | ✅ Optional |
+
+### Deferred (Not in v0.3.x)
+
+These features have been explicitly deferred to future releases:
+
+| Feature | Reason | Target |
+|---------|--------|--------|
+| Model selection learning system | Deferred after stabilization assessment | v0.4.x |
+| Automatic council suggestions | Reduces output noise during autonomous runs | v0.4.x |
+| Automatic model recommendations | Simplified to static complexity routing | v0.4.x |
+| Context isolation via sub-agents | Spike found existing design prevents context rot | Future |
+
+### Recommended Configuration for Production
+
+For reliable autonomous operation, configure FADE with these settings:
+
+```bash
+# Enable telemetry for observability (default: disabled)
+export FADE_TELEMETRY=1
+
+# Optional: Set preferred model (default: routes by complexity)
+# export FADE_MODEL=sonnet
+
+# Optional: Use specific model for all work (overrides complexity routing)
+# fade run --model opus
+
+# Recommended: Run with --detach for background execution
+fade run --detach
+
+# Check status and logs for monitoring
+fade status
+fade logs <run_id>
+```
+
+### Signal Detection
+
+FADE's loop relies on strict detection of completion signals:
+
+- **`STORY_DONE: US-XXX`** — Story complete, continue to next iteration
+- **`ALL_COMPLETE`** — All stories done, exit successfully
+- **`BLOCKED: <reason>`** — Cannot proceed, exit with reason
+
+These signals MUST appear on their own line with no additional commentary or variants. The fade script uses exact string matching for loop control.
+
+---
+
 ## Architecture References
 
 ### System Overview
