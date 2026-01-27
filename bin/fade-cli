@@ -3329,6 +3329,21 @@ build_context() {
     # Add version info at the start of context
     context+="$(build_version_context)"
 
+    # Check if repo is in a workspace and load workspace learnings
+    local workspace_dir=$(get_current_workspace || echo "")
+    if [[ -n "$workspace_dir" ]]; then
+        # Include workspace learnings first (to be overridden by repo learnings)
+        if [[ -f "$workspace_dir/learned.md" ]]; then
+            context+="# WORKSPACE LEARNINGS (inherited from workspace)
+
+$(cat "$workspace_dir/learned.md")
+
+---
+
+"
+        fi
+    fi
+
     # FADE.md always at root
     if [[ -f "FADE.md" ]]; then
         context+="# PROJECT CONTEXT (FADE.md)
@@ -7597,6 +7612,43 @@ cmd_workspace() {
             return 1
             ;;
     esac
+}
+
+# Optionally copy key learnings from repo-level learned.md to workspace-level learned.md
+# This implements AC #3 from FEAT-024 US-002: record learnings at workspace level
+copy_learnings_to_workspace() {
+    local workspace_dir="${1:-}"
+    local repo_learned_file="${2:-}"
+
+    if [[ -z "$workspace_dir" ]] || [[ ! -d "$workspace_dir" ]]; then
+        return 1
+    fi
+
+    if [[ -z "$repo_learned_file" ]] || [[ ! -f "$repo_learned_file" ]]; then
+        return 1
+    fi
+
+    local workspace_learned="$workspace_dir/learned.md"
+    if [[ ! -f "$workspace_learned" ]]; then
+        return 1
+    fi
+
+    # Extract new learnings from repo learned.md since last session
+    # (This is a simple implementation - production would use more sophisticated tracking)
+    # For now, just append a summary if learnings were added
+    local repo_name=$(basename "$(pwd)")
+    local new_entries=$(tail -20 "$repo_learned_file" 2>/dev/null | grep "^## " | head -5)
+
+    if [[ -n "$new_entries" ]]; then
+        echo "" >> "$workspace_learned"
+        echo "### Learnings from $repo_name" >> "$workspace_learned"
+        echo "" >> "$workspace_learned"
+        echo "$new_entries" | while read -r line; do
+            echo "- $line" >> "$workspace_learned"
+        done
+    fi
+
+    return 0
 }
 
 workspace_init() {

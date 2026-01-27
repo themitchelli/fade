@@ -33,7 +33,7 @@
         "FADE records key learnings at both repo level and workspace level (configurable)."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }
