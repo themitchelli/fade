@@ -2542,3 +2542,21 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 
 ## Model Usage: sonnet (complexity: complex, duration: 9m, cost est: $0.25)
 
+
+## 2026-01-27 - US-001: Create and manage a workspace with multiple repos (FEAT-024) - COMPLETE
+
+- Implemented global `--repo` flag support for workspace-aware command targeting
+- Added resolve_repo_name_to_path() function to search all workspaces and find repos by name
+- Integrated flag parsing in main entry point before case statement
+- On --repo flag: resolves repo path and cd's into that directory before executing command
+- Supports all commands: fade --repo FADE status, fade --repo FADE run, fade --repo FADE metrics, etc.
+- Error handling: shows available repos when specified repo not found
+- Workspace and repo commands already existed, added missing --repo flag to complete US-001
+- All acceptance criteria verified:
+  - ✓ `fade workspace init <name>` creates workspace at ~/.fade/workspaces/<name>/
+  - ✓ `fade repo add <path>` registers repo in workspace.json
+  - ✓ `fade repo list` shows repos (from existing implementation)
+  - ✓ `fade --repo <name> status|run|metrics` now works without cd-ing
+- Files changed: bin/fade-cli
+- Tests: Manual testing verified all AC pass, syntax check: bash -n passed
+
