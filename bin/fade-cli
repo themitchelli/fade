@@ -6227,6 +6227,170 @@ cmd_classify() {
     echo ""
 }
 
+cmd_estimator() {
+    # Print detailed rubric explanation for a PRD
+    # Usage: fade estimator explain [PRD_NAME_OR_ID]
+
+    local action="${1:-}"
+    local prd_query="${2:-}"
+
+    if [[ -z "$action" ]] || [[ "$action" != "explain" ]]; then
+        echo "Usage: fade estimator explain [PRD_ID_or_name]"
+        echo ""
+        echo "Explain the complexity estimation rubric for a PRD."
+        echo ""
+        echo "Examples:"
+        echo "  fade estimator explain ENH-023"
+        echo "  fade estimator explain"
+        echo ""
+        exit 0
+    fi
+
+    # Find the PRD file to analyze
+    local prd_file=""
+    local prd_id=""
+    local prd_name=""
+
+    if [[ -z "$prd_query" ]]; then
+        # If no query provided, use active PRD
+        prd_file=$(get_active_prd)
+        if [[ -z "$prd_file" ]]; then
+            echo -e "${RED}Error: No active PRD found and no PRD specified${NC}"
+            echo "Run 'fade estimator explain {PRD_ID}' with a specific PRD"
+            exit 1
+        fi
+    else
+        # Search for the PRD by ID or name
+        local search_query="$prd_query"
+
+        # Check contained structure first
+        for prd in fade/prd.json fade/prds/*.json fade/prd-archive/*.json; do
+            [[ -f "$prd" ]] || continue
+            local id=$(get_prd_id "$prd")
+            local name=$(get_prd_name "$prd")
+            if [[ "$id" == "$search_query" ]] || [[ "$name" == *"$search_query"* ]]; then
+                prd_file="$prd"
+                break
+            fi
+        done
+
+        # Check legacy structure if not found
+        if [[ -z "$prd_file" ]]; then
+            for prd in prd.json prds/*.json prd-archive/*.json; do
+                [[ -f "$prd" ]] || continue
+                local id=$(get_prd_id "$prd")
+                local name=$(get_prd_name "$prd")
+                if [[ "$id" == "$search_query" ]] || [[ "$name" == *"$search_query"* ]]; then
+                    prd_file="$prd"
+                    break
+                fi
+            done
+        fi
+
+        if [[ -z "$prd_file" ]]; then
+            echo -e "${RED}Error: PRD not found: $search_query${NC}"
+            exit 1
+        fi
+    fi
+
+    # Extract PRD information
+    prd_id=$(get_prd_id "$prd_file")
+    prd_name=$(get_prd_name "$prd_file")
+    local prd_description=$(grep -o '"description"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" | head -1 | sed 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    local prd_type=$(grep -o '"type"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" | head -1 | sed 's/.*"type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    local ac_count=$(grep -o '"acceptanceCriteria"[[:space:]]*:\[[^\]]*\]' "$prd_file" | grep -o '"[^"]*"' | wc -l)
+    local stored_complexity=$(get_prd_complexity "$prd_file")
+
+    # Calculate rubric
+    local rubric=$(get_complexity_rubric "$prd_name" "$prd_description" "$ac_count" "" "0" 2>/dev/null)
+    local calculated_complexity=$(echo "$rubric" | jq -r '.complexity' 2>/dev/null || echo "unknown")
+    local total_score=$(echo "$rubric" | jq -r '.totalScore' 2>/dev/null || echo "0")
+    local factors=$(echo "$rubric" | jq -r '.factors' 2>/dev/null || echo "{}")
+
+    # Display the explanation
+    echo -e "${BOLD}Complexity Estimation Rubric${NC}"
+    echo -e "${BOLD}═══════════════════════════════════════════════════════════${NC}"
+    echo ""
+
+    echo -e "${BOLD}PRD Information:${NC}"
+    echo "  ID:          ${CYAN}${prd_id}${NC}"
+    echo "  Name:        ${CYAN}${prd_name}${NC}"
+    echo "  Type:        ${CYAN}${prd_type}${NC}"
+    echo "  Stored:      ${CYAN}${stored_complexity:-not set}${NC}"
+    echo ""
+
+    echo -e "${BOLD}Complexity Calculation:${NC}"
+    echo "  Estimated:   ${CYAN}${calculated_complexity}${NC}"
+    echo "  Total Score: ${CYAN}${total_score}${NC}"
+    echo ""
+
+    echo -e "${BOLD}Scoring Factors:${NC}"
+
+    # Parse and display each factor
+    local ac_score=$(echo "$factors" | jq -r '.acceptanceCriteria' 2>/dev/null || echo "0")
+    local complex_keywords=$(echo "$factors" | jq -r '.complexKeywords' 2>/dev/null || echo "0")
+    local simple_keywords=$(echo "$factors" | jq -r '.simpleKeywords' 2>/dev/null || echo "0")
+    local effort_score=$(echo "$factors" | jq -r '.estimatedEffort' 2>/dev/null || echo "0")
+    local deps_score=$(echo "$factors" | jq -r '.dependencies' 2>/dev/null || echo "0")
+
+    # Display factors with explanations
+    printf "  %-25s %3d   " "Acceptance Criteria (AC count)" "$ac_score"
+    if [[ $ac_count -gt 15 ]]; then
+        echo "${YELLOW}${ac_count} ACs > 15 threshold${NC}"
+    elif [[ $ac_count -lt 5 && $ac_count -gt 0 ]]; then
+        echo "${YELLOW}${ac_count} ACs < 5 threshold${NC}"
+    else
+        echo "(${ac_count} ACs, no impact)"
+    fi
+
+    printf "  %-25s %3d   " "Complex Keywords" "$complex_keywords"
+    if [[ $complex_keywords -ne 0 ]]; then
+        echo "${YELLOW}Found architecture/refactor/integrate/migrate keywords${NC}"
+    else
+        echo "(no complex keywords)"
+    fi
+
+    printf "  %-25s %3d   " "Simple Keywords" "$simple_keywords"
+    if [[ $simple_keywords -ne 0 ]]; then
+        echo "${YELLOW}Found typo/fix/add test/update docs keywords${NC}"
+    else
+        echo "(no simple keywords)"
+    fi
+
+    printf "  %-25s %3d   " "Estimated Effort" "$effort_score"
+    echo "(effort estimate not provided)"
+
+    printf "  %-25s %3d   " "Dependencies" "$deps_score"
+    echo "(dependency count < threshold)"
+
+    echo ""
+
+    echo -e "${BOLD}Estimation Rules:${NC}"
+    echo "  • score ≥ 3  → complex  (use Opus model)"
+    echo "  • score ≤ -2 → simple   (use Haiku model)"
+    echo "  • else       → medium   (use Sonnet model)"
+    echo ""
+
+    echo -e "${BOLD}Recommendation:${NC}"
+    case "$calculated_complexity" in
+        simple)
+            echo "  Model: ${CYAN}Haiku${NC} (cost-optimized, suitable for simple bugs/fixes)"
+            ;;
+        complex)
+            echo "  Model: ${CYAN}Opus${NC} (most capable, for complex architectural work)"
+            ;;
+        *)
+            echo "  Model: ${CYAN}Sonnet${NC} (balanced, for moderate features/refactoring)"
+            ;;
+    esac
+    echo ""
+
+    if [[ -n "$stored_complexity" ]] && [[ "$stored_complexity" != "$calculated_complexity" ]]; then
+        echo -e "${YELLOW}⚠ Note: Stored complexity (${stored_complexity}) differs from calculated (${calculated_complexity})${NC}"
+        echo ""
+    fi
+}
+
 cmd_export_learning() {
     # Export learning metrics and generate report
     # Usage: fade export-learning [--format json|markdown|both]
@@ -6669,6 +6833,7 @@ ${YELLOW}Commands:${NC}
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
   quick         Run a quick task without PRD (fade quick "<task>")
   classify      Analyze and classify existing PRDs by complexity
+  estimator     Explain complexity estimation rubric for a PRD (fade estimator explain [ID])
   dashboard     Configure and list repositories for multi-repo monitoring
   logs          View logs from background runs (fade logs <run_id> [-f] [-n N])
   stop          Stop a background run (fade stop <run_id>)
@@ -6752,6 +6917,20 @@ ${YELLOW}Classify Command:${NC}
   - Prompts for confirmation before updating each PRD
   - Logs all classifications to learned.md for review
   - Creates summary report showing counts by complexity
+
+${YELLOW}Estimator Command:${NC}
+  fade estimator explain [PRD_ID]
+
+  Print detailed rubric explanation for complexity estimation of a PRD.
+  - Shows all scoring factors and their individual scores
+  - Explains how final complexity is calculated
+  - Shows recommended model (Haiku, Sonnet, or Opus)
+  - Highlights discrepancies between stored and calculated complexity
+  - Useful for understanding why a PRD got a particular complexity classification
+
+  Examples:
+    fade estimator explain ENH-023
+    fade estimator explain              # Use active PRD
 
 ${YELLOW}Dashboard Command:${NC}
   fade dashboard --add /path/to/repo [--name "Display Name"]
@@ -11754,6 +11933,10 @@ case "${1:-}" in
         ;;
     classify)
         cmd_classify
+        ;;
+    estimator)
+        shift
+        cmd_estimator "$@"
         ;;
     export-learning)
         shift
