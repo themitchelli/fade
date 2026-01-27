@@ -2886,3 +2886,49 @@ Self-healing workflow simplified to match manual debugging pattern.
   - bin/fade-cli (reduced 384 lines, added source statement)
   - fade/prds/STAB-004-reduce-fade-cli-bloat.json (US-001 passes: true)
 
+
+## 2026-01-27 - US-002: Extract cmd_council to fade/lib/council.sh (STAB-004) - COMPLETE
+
+- Created fade/lib/council.sh (178 lines) with council brief generation:
+  * cmd_council main command for generating structured council briefs
+  * Accepts PRD ID as argument
+  * Supports --run-id flag for saving to detached run directories
+  * Generates timestamped council brief markdown files
+- Modified bin/fade-cli to source council library at startup
+- Removed 161 lines from fade-cli (12810 → 12649 lines)
+- Council functions now loaded from external library on demand
+- bash -n syntax check passes on both files
+- All acceptance criteria satisfied:
+  - ✓ fade/lib/council.sh contains all council brief generation
+  - ✓ fade-cli cmd_council() becomes thin wrapper (sourced at startup)
+  - ✓ fade council still works identically (functions available after source)
+  - ✓ bash -n passes on both files
+- Files changed:
+  - fade/lib/council.sh (new, 178 lines)
+  - bin/fade-cli (reduced 161 lines, added source statement)
+  - fade/prds/STAB-004-reduce-fade-cli-bloat.json (US-002 passes: true)
+
+
+## 2026-01-27 - US-003: Extract cmd_workspace to fade/lib/workspace.sh (STAB-004) - COMPLETE
+
+- Created fade/lib/workspace.sh (211 lines) with workspace/multi-repo management:
+  * copy_learnings_to_workspace function for workspace-level learnings
+  * workspace_init for creating new workspaces
+  * workspace_list for listing configured workspaces
+  * workspace_path for showing current workspace path
+  * get_current_workspace for finding workspace by repo path
+  * cmd_workspace main command for workspace operations
+- Modified bin/fade-cli to source workspace library at startup
+- Removed 190 lines from fade-cli (12649 → 12459 lines)
+- Workspace functions now loaded from external library on demand
+- bash -n syntax check passes on both files
+- All acceptance criteria satisfied:
+  - ✓ fade/lib/workspace.sh contains workspace registry logic
+  - ✓ fade-cli cmd_workspace() becomes thin wrapper (sourced at startup)
+  - ✓ fade workspace still works identically (functions available after source)
+  - ✓ bash -n passes on both files
+- Files changed:
+  - fade/lib/workspace.sh (new, 211 lines)
+  - bin/fade-cli (reduced 190 lines, added source statement)
+  - fade/prds/STAB-004-reduce-fade-cli-bloat.json (US-003 passes: true)
+
