@@ -22,6 +22,35 @@ For blocked stories, use:
 
 ---
 
+## 2026-01-27 - US-001: Generate a second-opinion brief for a PRD or story (ENH-026) - COMPLETE
+
+- Created cmd_council() function to generate structured council briefs for PRDs
+  - Accepts PRD ID as argument: `fade council ENH-026`
+  - Supports optional --run-id flag for saving to detached run directories
+  - Extracts PRD metadata: name, type, description from PRD JSON
+  - Includes project context from FADE.md (first 50 lines of Architecture References)
+  - Generates timestamped council brief markdown file
+- Council brief structure includes:
+  - Executive summary with PRD metadata
+  - Project context section (from FADE.md)
+  - Council request section with 4 key questions:
+    * Recommended approach (architecture, tech, sequence, mitigation)
+    * Alternative approaches (pros/cons, trade-offs, when to use)
+    * Key risks (technical, integration, security, backwards compat, test coverage)
+    * What to watch for (early warnings, validation, inflection points, pitfalls)
+  - Implementation notes linking to full PRD file
+- Default save location: fade/council/{PRD_ID}-{timestamp}.md
+- With --run-id flag: fade/runs/{run_id}/council/{PRD_ID}-{timestamp}.md
+- Works with both active PRDs (fade/prds/, prds/) and archived PRDs (fade/prd-archive/, prd-archive/)
+- Integrated into help text with usage examples
+- All acceptance criteria satisfied:
+  - ✓ Command `fade council <prd_id>` generates council brief
+  - ✓ Brief saved to `fade/council/` or `fade/runs/<run_id>/council/` with timestamp
+  - ✓ Brief stored for manual paste into multiple LLMs (ChatGPT, Gemini, etc.)
+  - ✓ Output includes recommended approach, alternatives, risks, watch-fors
+- Files changed: bin/fade-cli, fade/prds/ENH-026-council-mode-for-multi-llm-second-opinions.json
+- Tests: bash -n syntax check passed, manual testing verified both scenarios (with and without --run-id)
+
 ## 2026-01-27 - US-007: Recalculate learned heuristics from history (ENH-015) - COMPLETE
 
 - Verified fade/lib/update-heuristics.py script exists and is fully functional
