@@ -44,7 +44,7 @@
         "Reduces output noise during autonomous operation"
       ],
       "priority": 3,
-      "passes": false
+      "passes": true
     }
   ],
   "technicalNotes": {

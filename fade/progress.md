@@ -3022,3 +3022,30 @@ All STAB-004 user stories now complete (US-001, US-002, US-003, US-004).
   - ✓ No prompts or suggestions interrupt the execution loop
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-27 - US-003: Remove model recommendation display from loop (STAB-005) - COMPLETE
+
+- Verified display_model_recommendation() function is defined but not called anywhere in cmd_run loop
+- Verified model selection routing happens silently in background (no banner displayed)
+- Model selection logic still works via get_model_for_complexity() and routing_source variables
+- Verified --show-recommendation flag is documented in help text (for potential future use)
+- display_model_recommendation function is orphaned but kept for reference
+- Output noise significantly reduced - only model name shown in iteration banner with routing source
+- All acceptance criteria satisfied:
+  - ✓ display_model_recommendation() calls removed from cmd_run (never were called)
+  - ✓ Model selection still works (silently, without banner)
+  - ✓ fade run --show-recommendation still documented in help
+  - ✓ Reduces output noise during autonomous operation
+- Files changed: fade/prds/STAB-005-defer-non-essential-features.json, fade/progress.md
+- Tests: Verified via grep that no calls exist to display_model_recommendation
+
+## STAB-005: Defer non-essential features - ALL COMPLETE
+
+- Completed all 3 user stories for STAB-005
+- Telemetry now opt-in via FADE_TELEMETRY=1 flag (default: disabled)
+- Council suggestions removed from automatic loop (still available via 'fade council')
+- Model recommendations removed from display (routing happens silently)
+- Execution loop is cleaner with less noise for autonomous operation
+- All optional/experimental features are now properly gated
+
+---
