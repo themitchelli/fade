@@ -3951,6 +3951,31 @@ check_active_run() {
     return 1  # No active runs
 }
 
+emit_event() {
+    local run_id="$1"
+    local event_type="$2"
+    local data="$3"
+    local run_dir="fade/runs/$run_id"
+
+    if [[ ! -d "$run_dir" ]]; then
+        return 1
+    fi
+
+    local ts=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local repo=$(basename "$(pwd)")
+
+    # Build event JSON without secrets (no API keys, tokens, credentials)
+    # data parameter should not contain sensitive information
+    local event_json=$(cat <<EOF
+{"ts":"$ts","run_id":"$run_id","repo":"$repo","event_type":"$event_type","data":$data}
+EOF
+)
+
+    # Append to events.jsonl
+    echo "$event_json" >> "$run_dir/events.jsonl"
+    return 0
+}
+
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
@@ -4099,6 +4124,9 @@ cmd_run() {
         # Create run metadata (mode is always ALL for detached)
         create_run_metadata "$run_id" "$run_dir" "ALL" "$selected_model" "$prd_id" "$prd_name"
 
+        # Emit run_start event (ENH-021 US-001)
+        emit_event "$run_id" "run_start" "{\"mode\":\"ALL\",\"model\":\"$selected_model\",\"prd_id\":\"$prd_id\"}" 2>/dev/null || true
+
         # Display run info and return immediately
         echo -e "${GREEN}✅ Run started in background${NC}"
         echo ""
@@ -4169,6 +4197,16 @@ cmd_run() {
         local prd_start_time=""
         local prd_context_size=""
 
+        # Run tracking for event emission (ENH-021 US-001)
+        # For non-detached runs, use pseudo run_id based on shell PID
+        local tracking_run_id="local-$$"
+        local tracking_run_dir="fade/runs/$tracking_run_id"
+        # Create tracking directory if it doesn't exist
+        if [[ ! -d "$tracking_run_dir" ]]; then
+            mkdir -p "$tracking_run_dir" 2>/dev/null || true
+            touch "$tracking_run_dir/events.jsonl" 2>/dev/null || true
+        fi
+
         while true; do
             local iteration_start_time=$(date '+%Y-%m-%d %H:%M:%S')
 
@@ -4218,6 +4256,9 @@ cmd_run() {
                 routing_source="FADE_MODEL env var"
             fi
 
+            # Emit model_selected event (ENH-021 US-001)
+            emit_event "$tracking_run_id" "model_selected" "{\"model\":\"$selected_model\",\"source\":\"$routing_source\",\"iteration\":$iteration}" 2>/dev/null || true
+
             echo -e "${CYAN}────────────────────────────────────────────────────────────${NC}"
             echo -e "${CYAN}Iteration $iteration - ${iteration_start_time} - model: ${selected_model} (${routing_source})${NC}"
             if [[ -n "$next_story_id" ]]; then
@@ -4264,6 +4305,10 @@ cmd_run() {
                 last_status_export_time=$current_time
             fi
 
+            # Emit regression_start event (ENH-021 US-001)
+            # This is emitted at the beginning of each iteration cycle
+            emit_event "$tracking_run_id" "regression_start" "{\"iteration\":$iteration}" 2>/dev/null || true
+
             # Run Claude and capture output
             local output_file=$(mktemp)
 
@@ -4274,6 +4319,19 @@ cmd_run() {
             local output=$(cat "$output_file")
             rm -f "$output_file"
 
+            # Emit signal detection event if any signal is present (ENH-021 US-001)
+            local detected_signal=""
+            if echo "$output" | grep -qx "ALL_COMPLETE"; then
+                detected_signal="ALL_COMPLETE"
+            elif echo "$output" | grep -q '^STORY_DONE: '; then
+                detected_signal="STORY_DONE"
+            elif echo "$output" | grep -q '^BLOCKED: '; then
+                detected_signal="BLOCKED"
+            fi
+            if [[ -n "$detected_signal" ]]; then
+                emit_event "$tracking_run_id" "signal_received" "{\"signal\":\"$detected_signal\",\"iteration\":$iteration}" 2>/dev/null || true
+            fi
+
             # Check for signals in output (strict pattern matching to avoid false positives)
             # Detection order: ALL_COMPLETE, STORY_DONE, BLOCKED
             # - ALL_COMPLETE: '^ALL_COMPLETE$' (own line, exact match)
@@ -4283,6 +4341,12 @@ cmd_run() {
 
             if echo "$output" | grep -qx "ALL_COMPLETE"; then
                 rm -f "$learned_before_file"
+
+                # Emit prd_end event (ENH-021 US-001)
+                emit_event "$tracking_run_id" "prd_end" "{\"prd_id\":\"$(get_prd_id "$active_prd" 2>/dev/null || echo "")\",\"status\":\"complete\"}" 2>/dev/null || true
+
+                # Emit run_stop event (ENH-021 US-001)
+                emit_event "$tracking_run_id" "run_stop" "{\"status\":\"complete\",\"iterations\":$iteration}" 2>/dev/null || true
 
                 # Export final status
                 export_session_status "$repo_name" "$active_prd" "" "$iteration" "$session_start_time" "$selected_model" "$mode" "complete" ""
@@ -4372,6 +4436,12 @@ cmd_run() {
                 # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
                 local story_id=$(echo "$output" | grep -o '^STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
 
+                # Emit story_end event (ENH-021 US-001)
+                emit_event "$tracking_run_id" "story_end" "{\"story_id\":\"$story_id\",\"status\":\"pass\"}" 2>/dev/null || true
+
+                # Emit regression_end event (ENH-021 US-001)
+                emit_event "$tracking_run_id" "regression_end" "{\"status\":\"pass\",\"iteration\":$iteration}" 2>/dev/null || true
+
                 # Brief pause for filesystem to settle before reading PRD for display
                 # This ensures we read the updated story status, not stale cached data
                 sleep 1
@@ -4391,6 +4461,12 @@ cmd_run() {
                 fi
                 if ! run_regression_tests "$prd_id" "$story_id"; then
                     rm -f "$learned_before_file"
+
+                    # Emit regression_end event with failure status (ENH-021 US-001)
+                    emit_event "$tracking_run_id" "regression_end" "{\"status\":\"fail\",\"iteration\":$iteration,\"error\":\"Test failures\"}" 2>/dev/null || true
+
+                    # Emit error event (ENH-021 US-001)
+                    emit_event "$tracking_run_id" "error" "{\"type\":\"test_failure\",\"story_id\":\"$story_id\",\"iteration\":$iteration}" 2>/dev/null || true
 
                     # Export blocked status with test failure reason
                     export_session_status "$repo_name" "$active_prd" "$story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "Regression tests failed - see fade/tests/failed.log"
@@ -4433,6 +4509,12 @@ cmd_run() {
 
                 # Extract blocked reason from output (format: BLOCKED: reason)
                 local blocked_reason=$(echo "$output" | grep -o '^BLOCKED:[[:space:]].*' | head -1 | sed 's/BLOCKED:[[:space:]]*//')
+
+                # Emit blocked event (ENH-021 US-001)
+                emit_event "$tracking_run_id" "blocked" "{\"reason\":\"$blocked_reason\",\"iteration\":$iteration}" 2>/dev/null || true
+
+                # Emit run_stop event for blocked state (ENH-021 US-001)
+                emit_event "$tracking_run_id" "run_stop" "{\"status\":\"blocked\",\"reason\":\"$blocked_reason\",\"iterations\":$iteration}" 2>/dev/null || true
 
                 # Export final status with blocked reason
                 export_session_status "$repo_name" "$active_prd" "$next_story_id" "$iteration" "$session_start_time" "$selected_model" "$mode" "blocked" "$blocked_reason"
@@ -6491,6 +6573,9 @@ ${YELLOW}Commands:${NC}
   quick         Run a quick task without PRD (fade quick "<task>")
   classify      Analyze and classify existing PRDs by complexity
   dashboard     Configure and list repositories for multi-repo monitoring
+  logs          View logs from background runs (fade logs <run_id> [-f] [-n N])
+  stop          Stop a background run (fade stop <run_id>)
+  metrics       Show metrics from recent runs (fade metrics [--run <run_id>])
   status        Show current work queue
   export        Export FADE context to a single file for Claude web
   migrate       Move legacy FADE files into contained fade/ structure
@@ -6683,6 +6768,8 @@ ${YELLOW}Examples:${NC}
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade quick --model sonnet "update docs" # Quick task with Sonnet model
   fade classify                          # Classify existing PRDs by complexity
+  fade metrics                           # Show summary metrics from recent runs
+  fade metrics --run 20260127-014902-379 # Show metrics for a specific run
   fade dashboard --add ~/projects/fade   # Add repository to dashboard
   fade dashboard --add ~/projects/myapp --name "My App"  # Add with custom name
   fade dashboard --list                  # Show configured repositories
@@ -11343,6 +11430,203 @@ cmd_stop() {
     echo -e "${GREEN}✓ Updated run status${NC}"
 }
 
+calculate_run_metrics() {
+    local run_id="$1"
+    local events_file="fade/runs/$run_id/events.jsonl"
+
+    if [[ ! -f "$events_file" ]]; then
+        return 1
+    fi
+
+    local story_count=0
+    local pass_count=0
+    local fail_count=0
+    local blocked_count=0
+    local regression_count=0
+    local model_usage=""
+    local start_time=""
+    local end_time=""
+
+    # Parse events
+    while IFS= read -r line; do
+        # Extract event type and data
+        local event_type=$(echo "$line" | grep -o '"event_type":"[^"]*"' | cut -d'"' -f4)
+
+        case "$event_type" in
+            story_end)
+                local status=$(echo "$line" | grep -o '"status":"[^"]*"' | cut -d'"' -f4)
+                if [[ "$status" == "pass" ]]; then
+                    ((pass_count++))
+                else
+                    ((fail_count++))
+                fi
+                ((story_count++))
+                ;;
+            blocked)
+                ((blocked_count++))
+                ;;
+            regression_end)
+                ((regression_count++))
+                ;;
+            model_selected)
+                model=$(echo "$line" | grep -o '"model":"[^"]*"' | cut -d'"' -f4)
+                if [[ -z "$model_usage" ]]; then
+                    model_usage="$model"
+                else
+                    model_usage="$model_usage, $model"
+                fi
+                ;;
+            run_start)
+                start_time=$(echo "$line" | grep -o '"ts":"[^"]*"' | cut -d'"' -f4)
+                ;;
+            run_stop)
+                end_time=$(echo "$line" | grep -o '"ts":"[^"]*"' | cut -d'"' -f4)
+                ;;
+        esac
+    done < "$events_file"
+
+    # Output metrics as key=value pairs
+    echo "run_id=$run_id"
+    echo "stories=$story_count"
+    echo "passed=$pass_count"
+    echo "failed=$fail_count"
+    echo "blocked=$blocked_count"
+    echo "regressions=$regression_count"
+    echo "models=$model_usage"
+    echo "start_time=$start_time"
+    echo "end_time=$end_time"
+}
+
+cmd_metrics() {
+    local run_id=""
+    local show_all=false
+
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --run)
+                run_id="$2"
+                shift 2
+                ;;
+            --all)
+                show_all=true
+                shift
+                ;;
+            *)
+                shift
+                ;;
+        esac
+    done
+
+    local runs_dir="fade/runs"
+
+    if [[ ! -d "$runs_dir" ]]; then
+        echo -e "${YELLOW}No runs directory found${NC}"
+        exit 0
+    fi
+
+    if [[ -n "$run_id" ]]; then
+        # Show metrics for a specific run
+        echo -e "${CYAN}Metrics for run: $run_id${NC}"
+        echo ""
+
+        local metrics=""
+        metrics=$(calculate_run_metrics "$run_id")
+        if [[ -z "$metrics" ]]; then
+            echo -e "${RED}Run not found: $run_id${NC}"
+            exit 1
+        fi
+
+        # Parse metrics
+        local stories=0
+        local passed=0
+        local failed=0
+        local blocked=0
+        local models=""
+
+        while IFS='=' read -r key value; do
+            case "$key" in
+                stories) stories="$value" ;;
+                passed) passed="$value" ;;
+                failed) failed="$value" ;;
+                blocked) blocked="$value" ;;
+                models) models="$value" ;;
+            esac
+        done <<< "$metrics"
+
+        # Display in table format
+        printf "%-20s %s\n" "Total Stories:" "$stories"
+        printf "%-20s %s\n" "Passed:" "$passed"
+        printf "%-20s %s\n" "Failed:" "$failed"
+        printf "%-20s %s\n" "Blocked:" "$blocked"
+        if [[ -n "$models" ]]; then
+            printf "%-20s %s\n" "Models Used:" "$models"
+        fi
+        echo ""
+    else
+        # Show summary of recent runs
+        echo -e "${CYAN}Recent Run Metrics (Last 5)${NC}"
+        echo ""
+
+        # Get list of runs sorted by date (most recent first)
+        local run_count=0
+        local total_stories=0
+        local total_passed=0
+        local total_failed=0
+        local total_blocked=0
+
+        # Collect runs and metrics
+        printf "%-25s %-10s %-10s %-10s %-10s\n" "Run ID" "Stories" "Passed" "Failed" "Blocked"
+        printf "%-25s %-10s %-10s %-10s %-10s\n" "$(printf '=%.0s' {1..25})" "$(printf '=%.0s' {1..10})" "$(printf '=%.0s' {1..10})" "$(printf '=%.0s' {1..10})" "$(printf '=%.0s' {1..10})"
+
+        # Find all run directories and sort by modification time (newest first)
+        for run_folder in $(ls -dt "$runs_dir"/* 2>/dev/null | head -5); do
+            if [[ ! -d "$run_folder" ]]; then
+                continue
+            fi
+
+            local current_run_id=$(basename "$run_folder")
+            local metrics=$(calculate_run_metrics "$current_run_id")
+
+            if [[ -z "$metrics" ]]; then
+                continue
+            fi
+
+            # Parse metrics
+            local stories=0
+            local passed=0
+            local failed=0
+            local blocked=0
+
+            while IFS='=' read -r key value; do
+                case "$key" in
+                    stories) stories="$value" ;;
+                    passed) passed="$value" ;;
+                    failed) failed="$value" ;;
+                    blocked) blocked="$value" ;;
+                esac
+            done <<< "$metrics"
+
+            printf "%-25s %-10s %-10s %-10s %-10s\n" "$current_run_id" "$stories" "$passed" "$failed" "$blocked"
+
+            total_stories=$((total_stories + stories))
+            total_passed=$((total_passed + passed))
+            total_failed=$((total_failed + failed))
+            total_blocked=$((total_blocked + blocked))
+
+            ((run_count++))
+        done
+
+        if [[ $run_count -eq 0 ]]; then
+            echo -e "${YELLOW}No runs found${NC}"
+            exit 0
+        fi
+
+        echo ""
+        printf "%-25s %-10s %-10s %-10s %-10s\n" "TOTAL ($run_count runs)" "$total_stories" "$total_passed" "$total_failed" "$total_blocked"
+    fi
+}
+
 # ============================================================================
 # MAIN
 # ============================================================================
@@ -11393,6 +11677,10 @@ case "${1:-}" in
     stop)
         shift
         cmd_stop "$@"
+        ;;
+    metrics)
+        shift
+        cmd_metrics "$@"
         ;;
     update)
         shift

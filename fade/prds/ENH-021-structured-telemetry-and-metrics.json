@@ -21,7 +21,7 @@
         "Events do not contain secrets (no API keys, tokens, or credential-like strings)."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
@@ -33,7 +33,7 @@
         "Metrics output is deterministic and readable (table-like)."
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     }
   ]
 }

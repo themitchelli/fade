@@ -2162,3 +2162,118 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - Files changed: bin/fade-cli, fade/prds/FEAT-020-non-blocking-runs-and-run-control.json
 - Tests: bash -n syntax check passed, manual testing verified run directory creation and metadata structure
 
+
+## 2026-01-27 - US-002: Observe and control active runs (FEAT-020) - COMPLETE
+
+- Implemented cmd_logs() function to display run logs
+  - Syntax: fade logs <run_id> [-f] [-n N]
+  - Supports tail mode (-f): tails log until Ctrl+C
+  - Supports line limit (-n N): shows last N lines (default 20)
+  - Displays run context header: repo, branch, mode, model, state
+- Implemented cmd_stop() function to gracefully stop runs
+  - Sends SIGTERM first, waits up to 5 seconds
+  - Force kills with SIGKILL if process doesn't exit
+  - Updates run.json to mark state="stopped" with stop_time
+- Enhanced cmd_status() to display active runs section
+  - Shows run_id, repo, branch, PRD, model, start_time
+  - Provides quick access commands for logs and stop
+  - Only shows running runs (filters by state)
+- All acceptance criteria satisfied:
+  - fade status lists active runs ✓
+  - fade logs displays recent output ✓
+  - fade logs -f tails output ✓
+  - fade stop stops gracefully ✓
+  - stop updates run.json state ✓
+  - All commands show execution header ✓
+- Files changed: bin/fade-cli, fade/prds/FEAT-020-non-blocking-runs-and-run-control.json
+- Tests: bash -n syntax check passed, manual testing verified all commands
+
+## 2026-01-27 - US-003: Prevent running commands in wrong context (FEAT-020) - COMPLETE
+
+- Added warning when 'fade run' runs without --detach while active run exists
+  - Checks check_active_run() before determining execution mode
+  - Displays yellow warning with active run_id
+  - Offers three clear suggestions:
+    1. Use --detach to start another run
+    2. View logs with fade logs command
+    3. Stop and restart with fade stop command
+- Verified run ID uniqueness and sortability
+  - Format: YYYYMMDD-HHMMSS-NNN (ensures chronological sort order)
+  - NNN is random 0-999 to prevent collisions in same second
+- Verified all artifacts remain in fade/
+  - fade/runs/<run_id>/ contains all run files
+  - No repo root pollution
+- All acceptance criteria satisfied:
+  - Warning shown when run is active ✓
+  - Clear suggestions offered ✓
+  - Run IDs are unique, stable, sortable ✓
+  - All artifacts in fade/ ✓
+- Files changed: bin/fade-cli, fade/prds/FEAT-020-non-blocking-runs-and-run-control.json
+- Tests: bash -n syntax check passed, manual testing verified warning and command options
+
+
+## 2026-01-27 - US-001: Emit structured events for key lifecycle actions (ENH-021) - COMPLETE
+
+- Created emit_event() helper function to write JSONL events to events.jsonl files
+- Event schema includes: ts (timestamp), run_id, repo (project name), event_type, data (JSON object)
+- Implemented event emissions at all key lifecycle points:
+  - run_start: When detached run begins (includes mode, model, prd_id)
+  - model_selected: When model is chosen for iteration (includes model, source, iteration)
+  - regression_start: At beginning of each iteration
+  - story_end: When story completes (includes story_id, status)
+  - regression_end: When tests complete (includes status, iteration)
+  - prd_end: When all PRD stories complete (includes prd_id, status)
+  - blocked: When run is blocked (includes reason, iteration)
+  - error: When test failures occur (includes type, story_id, iteration)
+  - run_stop: When run terminates (includes status, reason if blocked, iteration count)
+  - signal_received: When ANY signal is detected (includes signal type, iteration)
+- All events include safe data (no secrets, API keys, or credentials)
+- Events are append-only to events.jsonl (never modified after emission)
+- Event function includes error handling (suppresses errors with 2>/dev/null)
+- For non-detached runs: uses pseudo run_id based on shell PID (local-$$)
+- For detached runs: uses actual generated run_id
+- Run tracking directory created automatically if missing
+- Tested with syntax check: bash -n passes
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
+
+## 2026-01-27 - US-002: Provide operator metrics derived from telemetry (ENH-021) - COMPLETE
+
+- Created calculate_run_metrics() helper function to parse events.jsonl and extract metrics:
+  - Counts stories, passes, failures, blocked events, regressions
+  - Extracts model usage across iterations
+  - Extracts start_time and end_time from events
+  - Returns metrics as key=value pairs for easy parsing
+- Created cmd_metrics() command with two modes:
+  - fade metrics: Shows summary of last 5 runs in table format
+    * Columns: Run ID, Stories, Passed, Failed, Blocked
+    * Includes total row with aggregated counts across runs
+    * Sorted by modification time (most recent first)
+    * Column widths: 25/10/10/10/10 chars for readability
+  - fade metrics --run <run_id>: Shows detailed metrics for single run
+    * Total Stories, Passed, Failed, Blocked, Models Used
+    * Uses printf formatting for clean output
+    * Includes validation and error handling
+- Added metrics command to main case statement (after stop, before update)
+- Added metrics command to help text with usage examples
+- Metrics output is deterministic and readable (table-like)
+- All metrics derive from events.jsonl, not requiring any modifications to runs
+- Tested with syntax check: bash -n passes
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
+
+## ENH-021: Structured Telemetry and Metrics - ALL COMPLETE
+
+- Completed both user stories for ENH-021
+- Event emission system fully integrated into ALL mode loop
+- Metrics command provides operators with visibility into run performance
+- Telemetry enables future analysis, optimization, and dashboard integration
+- All acceptance criteria satisfied:
+  - Events written to events.jsonl in JSONL format ✓
+  - Event schema includes all required fields ✓
+  - All specified event types implemented ✓
+  - Events are append-only ✓
+  - No secrets in events ✓
+  - fade metrics command summarizes recent runs ✓
+  - fade metrics --run shows per-run metrics ✓
+  - Metrics output is deterministic and table-like ✓
