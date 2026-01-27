@@ -1,0 +1,38 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-026",
+  "name": "Council mode for multi-LLM second opinions",
+  "description": "You frequently use multiple LLMs as a council to debate approach (Claude \u2192 ChatGPT \u2192 Gemini). This reduces the risk of being rail-roaded by one model and improves architectural/security judgement. FADE should make this a first-class, repeatable workflow for high-risk or complex decisions.",
+  "complexity": "medium",
+  "dependsOn": [
+    "ENH-021"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Generate a second-opinion brief for a PRD or story",
+      "description": "FADE can produce a structured prompt pack and capture responses from multiple models (where configured).",
+      "acceptanceCriteria": [
+        "Command `fade council <prd_id>` generates a 'council brief' (context + question + constraints) from repo context, FADE.md, and the PRD.",
+        "Council brief is saved to `fade/runs/<run_id>/council/` or `fade/council/` with timestamp.",
+        "If additional providers are configured, FADE can request and store their responses; if not, FADE stores the brief for manual paste into web tools.",
+        "Council output includes: recommended approach, alternative approaches, key risks, and 'what to watch for' during implementation."
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Auto-trigger council mode on high-risk signals",
+      "description": "FADE suggests council mode when work is complex, security-sensitive, or repeatedly failing.",
+      "acceptanceCriteria": [
+        "FADE suggests running council mode when: complexity=complex, PRD flagged security risk, or K retries/BLOCKED occur.",
+        "Suggestion is non-blocking and recorded in telemetry as `council_suggested`.",
+        "Operator can opt-in via `fade council --accept` to proceed."
+      ],
+      "priority": 2,
+      "passes": true
+    }
+  ]
+}

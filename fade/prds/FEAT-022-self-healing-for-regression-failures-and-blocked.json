@@ -23,7 +23,7 @@
         "If tests fail after K attempts (configurable; default 2), FADE stops with a clear summary and leaves the bug PRD queued for human review."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

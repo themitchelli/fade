@@ -2450,3 +2450,44 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - Only prompt.md was modified (no code changes as specified)
 
 Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
+
+## Model Usage: haiku (complexity: medium, duration: 6m, cost est: $0.02)
+
+
+## 2026-01-27 $(date +"%H:%M") - US-001: Auto-heal regression test failures (FEAT-022) - COMPLETE
+
+- Implemented self-healing loop for automatic recovery from regression test failures
+- Created `capture_test_failure_summary()` function to extract structured failure information from failed.log
+  - Parses [FAILURE], [EXPECTED], and [ACTUAL] tags
+  - Returns failure count, failing test paths, and assertion mismatches
+- Created `generate_bug_prd_for_test_failure()` function to auto-generate Bug PRDs
+  - Generates BUG-NNN PRDs in prds/ or fade/prds/ directory
+  - Includes failure summary, test names, and clear acceptance criteria
+  - Sets complexity to "simple" for efficient healing attempts
+- Created `run_bug_fix_agent()` function with complexity-based model selection
+  - Integrates with ENH-023 complexity estimator for model routing
+  - Uses minimal context: Bug PRD + failed.log + FADE.md
+  - Runs autonomous Claude session with --dangerously-skip-permissions
+  - Returns success when STORY_DONE signal detected
+- Created `attempt_self_healing_for_test_failure()` wrapper function
+  - Implements retry loop with configurable max attempts (default: 2)
+  - Steps: capture failures → generate Bug PRD → run bug-fix agent → re-run tests
+  - Archives completed Bug PRDs to prd-archive on success
+  - Leaves Bug PRD in queue for human review on failure
+- Integrated self-healing into cmd_run() main loop at test failure point
+  - Intercepts test failures before breaking the iteration loop
+  - Attempts healing automatically before falling back to blocked state
+  - Continues iteration loop if healing succeeds
+  - Preserves existing escalation suggestions if healing fails
+- All acceptance criteria satisfied:
+  - ✓ Regression failures emit regression_end with success=false
+  - ✓ Failure summary captured from failed.log with paths and assertions
+  - ✓ Bug PRD generated automatically with description and AC
+  - ✓ Bug-fix agent runs with complexity-based model selection
+  - ✓ Tests re-run automatically after fix attempt
+  - ✓ Returns to original PRD/story when tests pass
+  - ✓ Stops with clear summary after K attempts (default: 2)
+  - ✓ Bug PRD queued for human review on failure
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
+

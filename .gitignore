@@ -1,24 +1,35 @@
+# ------------------------
 # macOS
+# ------------------------
 .DS_Store
 .AppleDouble
 .LSOverride
 ._*
 
-# FADE artifacts
-*.backup
-.fade-signal
-
-# Editor directories and files
+# ------------------------
+# Editor directories/files
+# ------------------------
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
+__pycache__/
 
-# Logs
+# ------------------------
+# Logs & temp
+# ------------------------
 *.log
-
-# Temporary files
 *.tmp
 *.temp
 tmp/
+
+# ------------------------
+# FADE runtime (do not commit)
+# ------------------------
+.fade/
+.fade-signal
+fade/runs/
+fade/status.json
+fade/events.jsonl
+fade/model-selection-history.json
