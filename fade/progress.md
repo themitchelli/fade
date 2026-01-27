@@ -2989,3 +2989,20 @@ Self-healing workflow simplified to match manual debugging pattern.
 
 All STAB-004 user stories now complete (US-001, US-002, US-003, US-004).
 
+
+## 2026-01-27 - US-001: Make telemetry opt-in with FADE_TELEMETRY flag (STAB-005) - COMPLETE
+
+- Added FADE_TELEMETRY environment variable flag check to emit_event() function
+- Modified emit_event() to return silently (0) when FADE_TELEMETRY is not set to "1"
+- Default behavior: unset or any value other than "1" → telemetry disabled
+- With FADE_TELEMETRY=1: event logging to events.jsonl enabled
+- All 14 existing emit_event() calls automatically respect the flag
+- Added FADE_TELEMETRY documentation to help text Environment Variables section
+- Documented behavior: opt-in flag (default: disabled), options (0/1), example usage
+- All acceptance criteria satisfied:
+  - ✓ FADE_TELEMETRY=1 enables event logging
+  - ✓ Default (unset) skips all emit_event() calls
+  - ✓ emit_event() checks flag before writing
+  - ✓ Help text documents the flag
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed

@@ -19,7 +19,7 @@
         "Help text documents the flag"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",

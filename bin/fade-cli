@@ -4183,6 +4183,11 @@ check_active_run() {
 }
 
 emit_event() {
+    # Check if telemetry is enabled (opt-in flag)
+    if [[ "${FADE_TELEMETRY:-}" != "1" ]]; then
+        return 0  # Silently skip if telemetry disabled
+    fi
+
     local run_id="$1"
     local event_type="$2"
     local data="$3"
@@ -7160,10 +7165,15 @@ ${YELLOW}Version Options:${NC}
   --all, -a     Show CLI version plus all detected artifact versions
 
 ${YELLOW}Environment Variables:${NC}
-  FADE_MODEL    Default Claude model for all commands (default: sonnet)
-                Options: opus, sonnet, haiku
-                Can be overridden with --model flag
-                Example: export FADE_MODEL=opus
+  FADE_MODEL       Default Claude model for all commands (default: sonnet)
+                   Options: opus, sonnet, haiku
+                   Can be overridden with --model flag
+                   Example: export FADE_MODEL=opus
+
+  FADE_TELEMETRY   Enable event logging to events.jsonl (default: disabled)
+                   Options: 0 (disabled), 1 (enabled)
+                   When disabled, emit_event() calls are skipped
+                   Example: export FADE_TELEMETRY=1
 
 ${YELLOW}Execution Modes:${NC}
   STOP          Complete one story, then pause for human review
