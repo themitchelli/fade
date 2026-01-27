@@ -31,7 +31,7 @@
         "No prompts or suggestions interrupt the execution loop"
       ],
       "priority": 2,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-003",

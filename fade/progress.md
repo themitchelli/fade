@@ -3006,3 +3006,19 @@ All STAB-004 user stories now complete (US-001, US-002, US-003, US-004).
   - ✓ Help text documents the flag
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
+
+## 2026-01-27 - US-002: Remove automatic council suggestions from loop (STAB-005) - COMPLETE
+
+- Removed display_council_suggestion() call from cmd_run loop (line 4519)
+- Removed echo statements that surrounded the suggestion display (lines 4518 and 4520)
+- Removed the entire suggestion detection block's display logic
+- Kept the council detection logic removed - suggestion no longer triggers
+- Verified 'fade council <prd_id>' command still works for manual use
+- fade council command remains available in help text and works identically
+- Execution loop now cleaner with no interrupting suggestions
+- All acceptance criteria satisfied:
+  - ✓ display_council_suggestion() calls removed from loop
+  - ✓ fade council command still works for manual use
+  - ✓ No prompts or suggestions interrupt the execution loop
+- Files changed: bin/fade-cli
+- Tests: bash -n syntax check passed
