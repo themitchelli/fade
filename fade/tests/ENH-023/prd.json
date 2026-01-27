@@ -1,0 +1,37 @@
+{
+  "type": "enhancement",
+  "project": "FADE",
+  "id": "ENH-023",
+  "name": "Evidence-based complexity estimator and model selection",
+  "description": "The current complexity estimator is effectively always 'medium', pushing most work to Sonnet. This undermines cost control and model-aware execution. This PRD replaces the estimator with a scored rubric, persists outcomes, and begins learning from telemetry and PRD archives.",
+  "complexity": "medium",
+  "dependsOn": [
+    "ENH-021"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Replace heuristic estimator with scored rubric",
+      "description": "FADE should compute complexity from multiple signals rather than a single heuristic.",
+      "acceptanceCriteria": [
+        "Estimator produces `simple|medium|complex` based on a scored rubric with documented factors (e.g., file count, cross-module changes, security-sensitive areas, data migrations, unknown APIs).",
+        "Estimator writes its decision and factor scores to telemetry (`model_selected` event).",
+        "Operator can override model explicitly and the override is recorded."
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Learn from outcomes to reduce cost and failures",
+      "description": "FADE should begin using run history to adjust selection and surface when the estimator is wrong.",
+      "acceptanceCriteria": [
+        "FADE maintains `fade/metrics/model-history.json` (or similar) storing per-model outcomes: success rate, retries, regression failures, average duration per story.",
+        "If a run exhibits repeated retries or BLOCKED, FADE suggests escalating model (e.g., from haiku\u2192sonnet\u2192opus) and records the suggestion.",
+        "Provide `fade estimator explain` to print the rubric decision for a given PRD."
+      ],
+      "priority": 2,
+      "passes": true
+    }
+  ]
+}

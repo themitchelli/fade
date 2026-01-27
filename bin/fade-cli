@@ -6817,6 +6817,170 @@ cmd_version() {
     fi
 }
 
+# ============================================================================
+# COUNCIL COMMAND
+# ============================================================================
+
+cmd_council() {
+    local prd_id="$1"
+    local run_id=""
+
+    # Parse optional --run-id flag
+    if [[ "$2" == "--run-id" ]] && [[ -n "$3" ]]; then
+        run_id="$3"
+    fi
+
+    if [[ -z "$prd_id" ]]; then
+        echo -e "${RED}Error: PRD ID required${NC}"
+        echo ""
+        echo "Usage: fade council <prd_id> [--run-id <run_id>]"
+        echo "Example: fade council ENH-026"
+        echo "Example: fade council ENH-026 --run-id 20260127-014902-379"
+        exit 1
+    fi
+
+    # Find the PRD file by ID
+    local prd_file=""
+    local prd_data=""
+
+    # Check in active PRDs first (fade/prds/ or prds/)
+    if [[ -d "fade/prds" ]]; then
+        prd_file=$(find fade/prds -name "*${prd_id}*.json" -type f | head -1)
+    fi
+
+    if [[ -z "$prd_file" ]] && [[ -d "prds" ]]; then
+        prd_file=$(find prds -name "*${prd_id}*.json" -type f | head -1)
+    fi
+
+    # Check in archives if not found
+    if [[ -z "$prd_file" ]] && [[ -d "fade/prd-archive" ]]; then
+        prd_file=$(find fade/prd-archive -name "*${prd_id}*.json" -type f | head -1)
+    fi
+
+    if [[ -z "$prd_file" ]] && [[ -d "prd-archive" ]]; then
+        prd_file=$(find prd-archive -name "*${prd_id}*.json" -type f | head -1)
+    fi
+
+    if [[ -z "$prd_file" ]]; then
+        echo -e "${RED}Error: PRD not found: $prd_id${NC}"
+        exit 1
+    fi
+
+    # Extract PRD metadata
+    local prd_name=$(grep -o '"name": "[^"]*"' "$prd_file" | cut -d'"' -f4 | head -1)
+    local prd_type=$(grep -o '"type": "[^"]*"' "$prd_file" | cut -d'"' -f4 | head -1)
+    local prd_description=$(grep -o '"description": "[^"]*"' "$prd_file" | cut -d'"' -f4 | head -1)
+
+    # Get project context
+    local project_context=""
+    if [[ -f "FADE.md" ]]; then
+        project_context=$(head -100 FADE.md | tail -50)
+    fi
+
+    # Determine council directory based on run_id
+    local council_dir="fade/council"
+    if [[ -n "$run_id" ]]; then
+        council_dir="fade/runs/$run_id/council"
+    elif [[ ! -d "fade" ]]; then
+        council_dir="council"
+    fi
+
+    # Create council directory if it doesn't exist
+    mkdir -p "$council_dir"
+
+    # Generate timestamp
+    local timestamp=$(date +"%Y-%m-%d %H:%M:%S")
+    local timestamp_slug=$(date +"%Y%m%d-%H%M%S")
+
+    # Create council brief filename
+    local council_brief_file="$council_dir/${prd_id}-${timestamp_slug}.md"
+
+    # Build council brief content
+    cat > "$council_brief_file" << 'COUNCIL_EOF'
+# Council Brief
+
+COUNCIL_EOF
+
+    cat >> "$council_brief_file" << COUNCIL_EOF
+
+**Generated:** $timestamp
+**PRD ID:** $prd_id
+**PRD Name:** $prd_name
+**PRD Type:** $prd_type
+
+---
+
+## Executive Summary
+
+This council brief requests perspective on implementation approach for: **$prd_name**
+
+**Type:** $prd_type | **ID:** $prd_id
+
+**Description:**
+$prd_description
+
+---
+
+## Project Context
+
+\`\`\`
+$project_context
+\`\`\`
+
+---
+
+## Council Request
+
+For the above PRD, please provide:
+
+1. **Recommended Approach**: What is the highest-confidence path to success?
+   - Key architectural decisions
+   - Technology choices
+   - Implementation sequence
+   - Risk mitigation
+
+2. **Alternative Approaches**: What other viable paths exist?
+   - Pros and cons of each
+   - When to use instead of recommended path
+   - Trade-offs to consider
+
+3. **Key Risks**: What could go wrong?
+   - Technical risks
+   - Integration risks
+   - Security/performance risks
+   - Backwards compatibility concerns
+   - Test coverage needs
+
+4. **What to Watch For**: During implementation, monitor for:
+   - Early warning signs of problems
+   - Assumptions that should be validated
+   - Inflection points where approach might need pivot
+   - Common pitfalls in similar work
+
+---
+
+## Implementation Notes
+
+- See full PRD file for complete acceptance criteria: $prd_file
+- This brief preserves decision rationale for team alignment
+- Council output will be reviewed before implementation begins
+
+COUNCIL_EOF
+
+    echo -e "${GREEN}✓ Council brief generated${NC}"
+    echo ""
+    echo "Council brief saved to: ${CYAN}$council_brief_file${NC}"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Review the brief above"
+    echo "  2. Paste brief into multiple LLMs (ChatGPT, Gemini, etc.)"
+    echo "  3. Capture responses and compare perspectives"
+    echo "  4. Use consensus to guide implementation"
+    echo ""
+    echo "To view the brief:"
+    echo "  cat $council_brief_file"
+}
+
 cmd_help() {
     cat << EOF
 ${CYAN}FADE v$FADE_VERSION${NC} - Framework for Agentic Development and Engineering
@@ -6828,6 +6992,7 @@ ${YELLOW}Commands:${NC}
   new           Create a new PRD file (fade new <type> "<name>")
   discover      Interactive session to explore implementation details before PRD
   map           Analyze codebase and generate FADE.md context (for brownfield projects)
+  council       Generate a council brief for a PRD (multi-LLM review)
   run           Show work queue, choose STOP/ALL mode, start Claude Code
   run --yolo    Skip prompts, go straight to ALL mode with --dangerously-skip-permissions
   yolo          🤘 Shortcut for 'fade run --yolo' - skip permission prompts
@@ -6931,6 +7096,25 @@ ${YELLOW}Estimator Command:${NC}
   Examples:
     fade estimator explain ENH-023
     fade estimator explain              # Use active PRD
+
+${YELLOW}Council Command:${NC}
+  fade council <prd_id>
+
+  Generate a structured council brief for multi-LLM review of a PRD.
+  - Creates a brief with PRD context, decision questions, and constraints
+  - Preserved in fade/council/ (or council/ for legacy projects)
+  - Useful for getting second opinions on architecture/security/approach
+  - You manually paste brief into ChatGPT, Gemini, etc. for comparison
+  - Helps avoid being rail-roaded by single model's perspective
+
+  Output format:
+  - Executive summary of PRD
+  - Project context from FADE.md
+  - Council questions: recommended approach, alternatives, risks, watch-fors
+  - Reference to full PRD file for acceptance criteria
+
+  Example:
+    fade council ENH-026     # Generate brief for council review
 
 ${YELLOW}Dashboard Command:${NC}
   fade dashboard --add /path/to/repo [--name "Display Name"]
@@ -7043,6 +7227,7 @@ ${YELLOW}Examples:${NC}
   fade quick "fix typo in README"        # Quick task without PRD
   fade quick --yolo "add .gitignore"     # Quick task, no prompts
   fade quick --model sonnet "update docs" # Quick task with Sonnet model
+  fade council ENH-026                   # Generate council brief for multi-LLM review
   fade classify                          # Classify existing PRDs by complexity
   fade metrics                           # Show summary metrics from recent runs
   fade metrics --run 20260127-014902-379 # Show metrics for a specific run
@@ -11961,6 +12146,10 @@ case "${1:-}" in
     metrics)
         shift
         cmd_metrics "$@"
+        ;;
+    council)
+        shift
+        cmd_council "$@"
         ;;
     update)
         shift

@@ -2335,3 +2335,6 @@ Note: Script was created in US-005 session but PRD story was not marked complete
 - Tests: bash -n syntax check passed, manual testing of estimator explain ENH-023 verified output
 
 ## Model Usage: haiku (complexity: medium, duration: 15m, cost est: $0.02)
+
+## Model Usage: haiku (complexity: medium, duration: 10m, cost est: $0.02)
+

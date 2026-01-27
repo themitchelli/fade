@@ -20,7 +20,7 @@
         "Council output includes: recommended approach, alternative approaches, key risks, and 'what to watch for' during implementation."
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-002",
