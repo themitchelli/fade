@@ -3707,11 +3707,96 @@ EOF
     return 0
 }
 
+# Get model recommendation for a PRD using recommend-model.py
+# Usage: get_model_recommendation <prd_file>
+# Outputs: model recommendation with confidence and reasoning
+get_model_recommendation() {
+    local prd_file="$1"
+
+    if [[ ! -f "$prd_file" ]]; then
+        return 1
+    fi
+
+    # Determine history path (contained vs legacy)
+    local history_path="fade/model-selection-history.json"
+    if [[ ! -f "$history_path" ]]; then
+        history_path="model-selection-history.json"
+    fi
+
+    # Get PRD ID for recommendation call
+    local prd_id=$(get_prd_id "$prd_file")
+    if [[ -z "$prd_id" ]]; then
+        return 1
+    fi
+
+    # Call recommend-model.py (use python3 if available, otherwise python)
+    local python_cmd="python3"
+    if ! command -v python3 &>/dev/null; then
+        python_cmd="python"
+    fi
+
+    if ! command -v "$python_cmd" &>/dev/null; then
+        return 1
+    fi
+
+    # Check if recommend-model.py exists in fade directory
+    local recommender_path="fade/recommend-model.py"
+    if [[ ! -f "$recommender_path" ]]; then
+        recommender_path="recommend-model.py"
+    fi
+
+    if [[ ! -f "$recommender_path" ]]; then
+        return 1
+    fi
+
+    # Run recommender and capture output
+    "$python_cmd" "$recommender_path" "$prd_id" "$prd_file" "$history_path" 2>/dev/null
+    return 0
+}
+
+# Display model recommendation banner
+# Usage: display_model_recommendation <prd_file> <prd_name>
+display_model_recommendation() {
+    local prd_file="$1"
+    local prd_name="$2"
+
+    # Get recommendation
+    local recommendation=$(get_model_recommendation "$prd_file")
+    if [[ -z "$recommendation" ]]; then
+        return 1
+    fi
+
+    # Parse recommendation output (format: Recommend: MODEL\nConfidence: XX%\n...)
+    local model=$(echo "$recommendation" | grep "^Recommend:" | awk '{print $NF}')
+    local confidence=$(echo "$recommendation" | grep "^Confidence:" | awk '{print $NF}')
+    local reasoning=$(echo "$recommendation" | grep "^Reasoning:" | sed 's/^Reasoning: //')
+
+    if [[ -z "$model" ]]; then
+        return 1
+    fi
+
+    # Display banner
+    echo ""
+    echo -e "${CYAN}┌────────────────────────────────────────────────────────────┐${NC}"
+    echo -e "${CYAN}│ 📊 Model Recommendation for $prd_name${NC}"
+    echo -e "${CYAN}│ ✅ Recommend: ${YELLOW}${model}${CYAN} (${confidence})${NC}"
+    if [[ -n "$reasoning" ]]; then
+        echo -e "${CYAN}│ $reasoning${NC}"
+    fi
+    echo -e "${CYAN}│${NC}"
+    echo -e "${CYAN}│ Press Enter to accept, or override with: --model haiku|sonnet|opus${NC}"
+    echo -e "${CYAN}└────────────────────────────────────────────────────────────┘${NC}"
+    echo ""
+
+    return 0
+}
+
 cmd_run() {
     local yolo_mode=false
     local quiet_mode=false
     local model="${FADE_MODEL:-sonnet}"
     local model_override=false  # Track if --model flag was used
+    local show_recommendation_only=false  # Show recommendation without executing
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -3728,6 +3813,10 @@ cmd_run() {
                 model="$2"
                 model_override=true  # User explicitly set model
                 shift 2
+                ;;
+            --show-recommendation)
+                show_recommendation_only=true
+                shift
                 ;;
             *)
                 shift
@@ -3749,11 +3838,24 @@ cmd_run() {
         exit 0
     fi
 
+    # Get active PRD for recommendation
+    local active_prd=$(get_active_prd)
+
+    # Show model recommendation if available (before complexity routing)
+    if [[ -n "$active_prd" ]] && [[ "$model_override" == false ]]; then
+        local prd_name=$(get_prd_name "$active_prd")
+        if display_model_recommendation "$active_prd" "$prd_name" 2>/dev/null; then
+            # If --show-recommendation flag was passed, display and exit
+            if [[ "$show_recommendation_only" == true ]]; then
+                exit 0
+            fi
+        fi
+    fi
+
     # Apply complexity-based routing if --model flag was not used
     local selected_model="$model"
     local routing_source="default"
     if [[ "$model_override" == false ]]; then
-        local active_prd=$(get_active_prd)
         if [[ -n "$active_prd" ]]; then
             local complexity=$(get_prd_complexity "$active_prd")
 
@@ -6012,9 +6114,10 @@ ${YELLOW}Dashboard Options:${NC}
                   - Requires --cert flag as well
 
 ${YELLOW}Run Options:${NC}
-  --yolo          Skip prompts, use ALL mode with --dangerously-skip-permissions
-  --quiet, -q     Suppress iteration summaries in ALL/YOLO mode (final message still shown)
-  --model <name>  Use specific Claude model (opus, sonnet, haiku)
+  --yolo                 Skip prompts, use ALL mode with --dangerously-skip-permissions
+  --quiet, -q            Suppress iteration summaries in ALL/YOLO mode (final message still shown)
+  --model <name>         Use specific Claude model (opus, sonnet, haiku)
+  --show-recommendation  Display model recommendation and exit (don't execute)
 
 ${YELLOW}Migrate Options:${NC}
   --dry-run     Show what would be moved without making changes
@@ -6104,6 +6207,7 @@ ${YELLOW}Examples:${NC}
   fade dashboard --remote --password secret123  # Secure remote access with password
   fade dashboard --cert cert.pem --key key.pem  # Start with HTTPS support
   fade run                               # See queue, pick mode, start working
+  fade run --show-recommendation         # Show model recommendation and exit
   fade run --model sonnet                # Run with Sonnet to save tokens
   fade yolo                              # 🤘 Full auto mode, no prompts
   fade yolo --model sonnet               # 🤘 Full auto with Sonnet

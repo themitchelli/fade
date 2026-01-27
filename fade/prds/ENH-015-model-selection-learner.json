@@ -139,7 +139,7 @@
         "Support --show-recommendation flag to display without executing"
       ],
       "priority": 1,
-      "passes": false
+      "passes": true
     },
     {
       "id": "US-007",
