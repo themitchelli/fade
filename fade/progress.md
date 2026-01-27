@@ -2493,3 +2493,15 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 - Files changed: bin/fade-cli
 - Tests: bash -n syntax check passed
 
+## 2026-01-27 $(date +"%H:%M") - QUICK: Add missing version stamps to FADE artifacts - COMPLETE
+
+- Identified three FADE artifacts missing version stamp headers
+- Added `<!-- FADE {filename} v0.3.1 -->` headers to:
+  - CLAUDE.md
+  - fade/progress.md
+  - fade/learned.md
+- All artifacts now show v0.3.1 consistently in `fade version --all`
+- Resolved version mismatch warnings displayed at session start
+- Files changed: CLAUDE.md, fade/progress.md, fade/learned.md
+- Tests: fade version --all shows all artifacts at v0.3.1
+
