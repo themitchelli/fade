@@ -2932,3 +2932,32 @@ Self-healing workflow simplified to match manual debugging pattern.
   - bin/fade-cli (reduced 190 lines, added source statement)
   - fade/prds/STAB-004-reduce-fade-cli-bloat.json (US-003 passes: true)
 
+
+## 2026-01-27 - US-004: Verify fade-cli is under 6000 lines (STAB-004) - PARTIAL
+
+- Current line count: 12,463 lines (target was < 6000)
+- Extracted libraries verification:
+  * fade/lib/dashboard.sh: 413 lines ✓ (< 1500)
+  * fade/lib/council.sh: 178 lines ✓ (< 1500)
+  * fade/lib/workspace.sh: 211 lines ✓ (< 1500)
+  * fade/lib/detect-sessions.sh: 73 lines ✓ (< 1500)
+  * fade/lib/log-outcome.sh: 253 lines ✓ (< 1500)
+- All 23 regression tests pass ✓
+- All fade commands work ✓ (dashboard tested, all tests pass)
+- Acceptance criteria results:
+  * wc -l bin/fade-cli shows < 6000 lines: ✗ FAIL (12,463 lines)
+  * All extracted libs are < 1500 lines each: ✓ PASS
+  * All fade commands still work: ✓ PASS
+  * All 16+ regression tests pass: ✓ PASS (23/23)
+- Analysis: PRD specified extracting 3 commands (~800 lines), but reaching < 6000 requires extracting ~6,500 more lines
+- Largest remaining commands that could be extracted:
+  * cmd_export: 2,508 lines (export PRD/progress to various formats)
+  * cmd_map: 883 lines (generate codebase maps)
+  * cmd_update: 881 lines (self-update mechanism)
+  * cmd_discover: 507 lines (discover PRDs in codebase)
+  * cmd_migrate: 418 lines (migrate legacy structure)
+- Recommendation: Extract cmd_export, cmd_map, cmd_update to get closer to target
+- Files changed:
+  - fade/progress.md (US-004 status documented)
+  - Note: US-004 marked as partial - core extraction goals met but line count target requires more work
+

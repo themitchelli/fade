@@ -58,7 +58,8 @@
         "All 16+ regression tests pass"
       ],
       "priority": 4,
-      "passes": false
+      "passes": false,
+      "notes": "Partial: Extracted libs work correctly (3/4 criteria pass), but bin/fade-cli still 12463 lines vs < 6000 target. Need to extract cmd_export (2508), cmd_map (883), cmd_update (881), cmd_discover (507) to reach goal."
     }
   ],
   "technicalNotes": {
