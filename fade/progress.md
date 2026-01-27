@@ -2560,3 +2560,22 @@ Model Usage: haiku (complexity: patch, duration: 12m, cost est: $0.02)
 - Files changed: bin/fade-cli
 - Tests: Manual testing verified all AC pass, syntax check: bash -n passed
 
+
+## 2026-01-27 - US-002: Share standards and intelligence across repos with inheritance (FEAT-024) - COMPLETE
+
+- Implemented workspace-level standards and learnings inheritance system
+- Modified build_context() to load workspace learned.md before repo FADE.md
+  - Checks if repo is in workspace using get_current_workspace()
+  - Includes workspace learned.md if present
+  - Provides clear precedence: workspace standards first, then repo standards (repo overrides)
+- Created copy_learnings_to_workspace() helper function for optional workspace learning recording
+  - Extracts new learnings from repo learned.md
+  - Appends summaries to workspace learned.md with repo name context
+  - Enables knowledge sharing across repos in the workspace
+- All acceptance criteria satisfied:
+  - ✓ Workspace contains standards/ and learned.md (created in US-001)
+  - ✓ FADE loads workspace learnings into context before repo context
+  - ✓ copy_learnings_to_workspace() function enables configurable learning recording
+- Files changed: bin/fade-cli
+- Tests: Manual verification of workspace structure and inheritance precedence
+
