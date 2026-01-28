@@ -672,10 +672,12 @@ get_prd_name() {
     local prd_file="$1"
     local name=""
 
-    name=$(grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+    # Look for top-level "name" or "title" fields (first 50 lines where metadata lives)
+    # This avoids matching nested fields in technicalNotes, configSchema, etc.
+    name=$(head -50 "$prd_file" 2>/dev/null | grep -o '"name"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
 
     if [[ -z "$name" ]]; then
-        name=$(grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' "$prd_file" 2>/dev/null | head -1 | sed 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
+        name=$(head -50 "$prd_file" 2>/dev/null | grep -o '"title"[[:space:]]*:[[:space:]]*"[^"]*"' | head -1 | sed 's/.*"title"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
     fi
 
     if [[ -z "$name" ]]; then
