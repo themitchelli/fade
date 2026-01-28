@@ -2475,27 +2475,51 @@ display_prd_stories() {
     # Extract stories with their status using awk
     # Output format: ID|TITLE|PASSES
     awk '
-        /"userStories"/ { in_stories=1 }
-        in_stories && /"id"[[:space:]]*:/ {
+        /"userStories"/ { in_stories=1; next }
+
+        # When we see a story ID (US-XXX pattern), print the previous story (if any)
+        in_stories && /"id"[[:space:]]*:[[:space:]]*"US-/ {
+            # Print previous story before starting new one
+            if (story_id != "") {
+                if (passes == "") {
+                    passes = "false"
+                }
+                print story_id "|" story_title "|" passes
+            }
+            # Start new story
             gsub(/.*"id"[[:space:]]*:[[:space:]]*"/, "")
             gsub(/".*/, "")
             story_id = $0
+            story_title = ""
+            passes = ""
+            next
         }
+
         in_stories && /"title"[[:space:]]*:/ {
             gsub(/.*"title"[[:space:]]*:[[:space:]]*"/, "")
             gsub(/".*/, "")
             story_title = $0
+            next
         }
+
         in_stories && /"passes"[[:space:]]*:/ {
             if (/true/) {
                 passes = "true"
             } else {
                 passes = "false"
             }
-            print story_id "|" story_title "|" passes
-            story_id = ""
-            story_title = ""
-            passes = ""
+            next
+        }
+
+        # End of userStories array - print last story (match ] at 2-space indentation)
+        in_stories && /^  \]/ {
+            if (story_id != "") {
+                if (passes == "") {
+                    passes = "false"
+                }
+                print story_id "|" story_title "|" passes
+            }
+            in_stories = 0
         }
     ' "$prd_file" | while IFS='|' read -r id title passes; do
         if [[ "$passes" == "true" ]]; then
@@ -4828,6 +4852,39 @@ cmd_run() {
                 fi
 
                 rm -f "$learned_before_file"
+
+                # Archive the current PRD if it's fully complete (all stories pass)
+                # This ensures completed PRDs are moved to archive immediately, not waiting for ALL_COMPLETE
+                if [[ -n "$active_prd" ]] && prd_is_fully_complete "$active_prd"; then
+                    local prd_filename=$(basename "$active_prd")
+                    local archive_path="prd-archive"
+                    if [[ -d "fade/prd-archive" ]]; then
+                        archive_path="fade/prd-archive"
+                    fi
+
+                    # Ensure archive folder exists
+                    if [[ ! -d "$archive_path" ]]; then
+                        mkdir -p "$archive_path"
+                        touch "$archive_path/.gitkeep"
+                    fi
+
+                    # Archive the completed PRD
+                    mv "$active_prd" "$archive_path/$prd_filename"
+
+                    # Verify source file no longer exists
+                    if [[ ! -f "$active_prd" ]]; then
+                        echo ""
+                        echo -e "${GREEN}✓ Archived completed PRD: $prd_filename${NC}"
+                        echo ""
+                        # Clear active_prd since it's been archived
+                        active_prd=""
+                    else
+                        echo ""
+                        echo -e "${YELLOW}⚠ Warning: Failed to archive $prd_filename${NC}"
+                        echo ""
+                    fi
+                fi
+
                 ((iteration++))
                 sleep 1  # Brief pause before next iteration
                 continue

@@ -1,0 +1,54 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "STAB-001",
+  "name": "Core loop audit and hardening",
+  "description": "The core cmd_run() loop has grown complex with self-healing, telemetry, and model selection. This PRD audits the loop, removes dead code paths, and ensures the happy path is bulletproof. No new features - just hardening.",
+  "complexity": "medium",
+  "dependsOn": [],
+  "priority": 1,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Audit cmd_run() for dead code and unreachable branches",
+      "description": "Review the main execution loop for code that can never execute or conditions that can never be true.",
+      "acceptanceCriteria": [
+        "Document all code paths in cmd_run() with a simple flowchart comment",
+        "Remove any unreachable code or impossible conditions",
+        "Ensure all exit paths are covered: STORY_DONE, ALL_COMPLETE, BLOCKED, no-signal",
+        "bash -n syntax check passes"
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Verify signal detection is robust",
+      "description": "The BUG-007 fix added strict pattern matching. Verify it works in all scenarios.",
+      "acceptanceCriteria": [
+        "Run all 6 BUG-007 tests and confirm they pass",
+        "Add 2 additional edge case tests: signal at EOF, signal with trailing whitespace",
+        "Document signal patterns in a comment block near detect logic"
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Simplify iteration counter and loop bounds",
+      "description": "The loop has multiple iteration counters and bounds checks. Consolidate to single clear counter.",
+      "acceptanceCriteria": [
+        "Single $iteration variable tracks loop count",
+        "MAX_ITERATIONS constant controls loop bound (default 20)",
+        "Clear log message when max iterations reached",
+        "Remove any redundant counter variables"
+      ],
+      "priority": 3,
+      "passes": true
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "This is careful refactoring work that requires understanding existing code. Sonnet is appropriate for medium complexity."
+  }
+}

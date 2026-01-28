@@ -1,0 +1,51 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-020",
+  "name": "Non-blocking runs and run control",
+  "description": "FADE runs currently block the operator terminal, forcing multiple windows and causing human errors (wrong repo/window, accidental closure, loss of context). This PRD introduces detached/background runs with explicit run identity, live log streaming, and safe stop controls. This is foundational for long-running agentic workflows and is a prerequisite for dashboards and multi-repo operations.",
+  "complexity": "medium",
+  "dependsOn": [],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Start a FADE run without blocking the terminal",
+      "description": "Operators can start FADE runs in the background (detached) so they can continue working in the same terminal session\u2014asking questions, inspecting state, or operating other repos\u2014without spawning extra windows.",
+      "acceptanceCriteria": [
+        "Command `fade run --detach` starts a run in the background and returns immediately with a `run_id`.",
+        "A run started with `--detach` continues running if the invoking shell session is closed (within reason for OS process handling).",
+        "Each run creates a folder `fade/runs/<run_id>/` containing at minimum: `run.json` (metadata), `run.log` (stdout/stderr), and `events.jsonl` (may be stubbed until FEAT-021).",
+        "Run metadata includes: repo path, repo name, branch, mode (STOP/ALL/YOLO), selected model, start time, and current PRD id/name.",
+        "If a detached run is already active for the same repo, FADE refuses to start another unless `--force` is used, and prints a clear message."
+      ],
+      "priority": 1,
+      "passes": true
+    },
+    {
+      "id": "US-002",
+      "title": "Observe and control active runs",
+      "description": "Operators can list active runs, tail logs, and stop runs safely. This reduces window sprawl and operator errors.",
+      "acceptanceCriteria": [
+        "Command `fade status` lists active runs and the last N recent runs with: `run_id`, repo, branch, state, current PRD, current story, model, and start time.",
+        "Command `fade logs <run_id>` prints recent log output; `fade logs -f <run_id>` tails the log until interrupted.",
+        "Command `fade stop <run_id>` stops a run gracefully (SIGTERM first, then SIGKILL only after timeout).",
+        "Stopping a run updates `run.json` state to `stopped` and records stop time and stop reason.",
+        "All commands print an execution header like: `FADE | repo=<name> | branch=<branch> | run=<run_id> | mode=<mode> | model=<model>` where applicable."
+      ],
+      "priority": 2,
+      "passes": true
+    },
+    {
+      "id": "US-003",
+      "title": "Prevent running commands in the wrong context",
+      "description": "FADE should reduce human error by making context obvious and by providing safe defaults.",
+      "acceptanceCriteria": [
+        "When a run is active for a repo, `fade run` without `--detach` warns the user and offers a clear suggestion (status/logs/stop).",
+        "Run IDs are unique, stable, and sortable (timestamp-based or incrementing).",
+        "All run artifacts remain inside `fade/` and do not pollute repo root."
+      ],
+      "priority": 3,
+      "passes": true
+    }
+  ]
+}
