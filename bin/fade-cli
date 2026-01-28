@@ -2955,10 +2955,18 @@ display_iteration_summary() {
     local story_id="$2"
     local learned_before_file="$3"
     local iteration_start_time="${4:-}"
+    local active_prd_param="${5:-}"
 
-    # Find the PRD containing this story ID (not just the next active PRD)
-    local story_prd=$(find_prd_by_story_id "$story_id")
-    # Fall back to get_active_prd if story not found in any PRD
+    # Use the active PRD passed from the caller (most reliable)
+    # This ensures we show the PRD that was actually worked on, not a different PRD with the same story ID
+    local story_prd="$active_prd_param"
+
+    # Fall back to finding by story ID if active_prd not provided
+    if [[ -z "$story_prd" ]]; then
+        story_prd=$(find_prd_by_story_id "$story_id")
+    fi
+
+    # Last resort: get the next active PRD
     if [[ -z "$story_prd" ]]; then
         story_prd=$(get_active_prd)
     fi
@@ -4805,7 +4813,7 @@ cmd_run() {
 
                 # Display iteration summary (unless --quiet flag is set)
                 if [[ "$quiet_mode" != true ]]; then
-                    display_iteration_summary "$iteration" "$story_id" "$learned_before_file" "$iteration_start_time"
+                    display_iteration_summary "$iteration" "$story_id" "$learned_before_file" "$iteration_start_time" "$active_prd"
                 fi
 
                 # Run regression tests (if run.sh exists and is executable)
