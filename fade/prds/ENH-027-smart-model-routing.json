@@ -1,0 +1,213 @@
+{
+  "id": "ENH-027",
+  "title": "Smart Model Routing & Token Optimization",
+  "type": "enhancement",
+  "priority": "high",
+  "complexity": "medium",
+  "status": "proposed",
+  "created": "2026-01-28",
+  "description": "Implement intelligent model selection to maximize token efficiency. Route simple stories to Haiku (£0.10), medium to Sonnet (£0.40), complex to Opus (£2.00). This optimization could reduce costs by 30-40% while maintaining quality.",
+  "problem": [
+    "Currently all stories use Sonnet regardless of complexity",
+    "Simple stories (docs, config, tests) waste tokens on expensive model",
+    "No mechanism to automatically select cost-appropriate model",
+    "Users hitting monthly limits faster than necessary"
+  ],
+  "solution": [
+    "Add complexity-based model routing to fade run",
+    "Support --model flag for manual override",
+    "Add model selection heuristics (doc changes → Haiku)",
+    "Display estimated cost savings in output",
+    "Document model selection guidelines"
+  ],
+  "dependencies": [],
+  "technicalNotes": {
+    "modelCosts": {
+      "haiku": "£0.05-0.10 per story (simple tasks)",
+      "sonnet": "£0.25-0.50 per story (medium complexity)",
+      "opus": "£1.00-2.00 per story (complex/critical)"
+    },
+    "targetSavings": "30-40% cost reduction overall",
+    "fallback": "Default to Sonnet if routing uncertain"
+  },
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Complexity-Based Model Selection",
+      "story": "As a FADE user, I want stories to automatically use the most cost-effective model so I maximize throughput per dollar",
+      "acceptanceCriteria": [
+        "Read 'complexity' field from PRD story JSON",
+        "Route: simple → haiku, medium → sonnet, complex/high → opus",
+        "Default to sonnet if complexity field missing",
+        "Log model selection: 'Using haiku for US-003 (complexity: simple, estimated cost: £0.08)'",
+        "Support --model flag to override: fade run --model haiku"
+      ],
+      "technicalNotes": {
+        "implementation": "Add get_model_for_story() function in fade-cli",
+        "location": "Before Claude invocation in cmd_run()"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Story Type Heuristics",
+      "story": "As FADE, I want to detect story types that benefit from cheap models so I reduce costs automatically",
+      "acceptanceCriteria": [
+        "Detect documentation stories (keywords: README, docs/, comments, documentation)",
+        "Detect config stories (keywords: config, .env, settings, parameters)",
+        "Detect test-only stories (keywords: test, spec, unit test, integration test)",
+        "Detect simple refactors (keywords: rename, typo, formatting, lint)",
+        "Auto-suggest Haiku for these types even if complexity=medium",
+        "Display: 'Story appears to be documentation → suggesting Haiku (override with --model sonnet)'"
+      ],
+      "technicalNotes": {
+        "keywords": {
+          "documentation": ["README", "docs/", "documentation", "comment", "javadoc"],
+          "configuration": ["config", ".env", "settings", "parameters", "constants"],
+          "testing": ["test", "spec", "unit", "integration", "e2e"],
+          "simple": ["typo", "rename", "format", "lint", "whitespace"]
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Cost Estimation Display",
+      "story": "As a user, I want to see estimated cost per story so I understand my spending",
+      "acceptanceCriteria": [
+        "Before starting story, display: 'Estimated cost: £0.35 (Sonnet, ~60K tokens)'",
+        "After completing story, display: 'Actual cost: £0.42 (used 72K tokens)'",
+        "Display cumulative session cost: 'Session total: £2.10 (5 stories)'",
+        "Display savings from optimization: 'Saved £0.80 vs all-Sonnet (28% reduction)'",
+        "Show model distribution: 'Session: 2 Haiku, 3 Sonnet, 0 Opus'"
+      ],
+      "technicalNotes": {
+        "tokenTracking": "Track input/output tokens per iteration (Claude API provides this)",
+        "costCalculation": "Use current model pricing (Haiku: $0.80/$4.00, Sonnet: $3/$15, Opus: $15/$75 per 1M tokens)"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Model Override Flag",
+      "story": "As a user, I want to override automatic model selection so I have control when needed",
+      "acceptanceCriteria": [
+        "Support: fade run --model haiku (force Haiku)",
+        "Support: fade run --model sonnet (force Sonnet)",
+        "Support: fade run --model opus (force Opus)",
+        "Support: fade run --auto-model (use intelligent routing, default)",
+        "Display warning if override seems suboptimal: 'Warning: Using Opus for simple story (estimated £1.50 vs £0.08 with Haiku)'",
+        "Save override preference for session: 'Using --model haiku for all remaining stories in session'"
+      ],
+      "technicalNotes": {
+        "flagParsing": "Add --model to cmd_run() argument parser",
+        "precedence": "Command flag > environment variable > auto-detection"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-005",
+      "title": "Environment Variable Support",
+      "story": "As a user, I want to set default model preference so I don't repeat --model flag",
+      "acceptanceCriteria": [
+        "Support FADE_MODEL environment variable: export FADE_MODEL=haiku",
+        "Precedence: --model flag > FADE_MODEL env > auto-routing",
+        "Display active model source: 'Using Haiku (source: FADE_MODEL env variable)'",
+        "Document in README and help text",
+        "Support 'auto' value: export FADE_MODEL=auto (use intelligent routing)"
+      ],
+      "technicalNotes": {
+        "implementation": "Check FADE_MODEL early in cmd_run(), before model selection logic"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-006",
+      "title": "Documentation & Guidelines",
+      "story": "As a user, I want clear guidelines on when to use each model so I make informed choices",
+      "acceptanceCriteria": [
+        "Create fade/docs/model-selection-guide.md with decision matrix",
+        "Document: Haiku use cases (docs, config, tests, simple refactors)",
+        "Document: Sonnet use cases (business logic, APIs, moderate complexity)",
+        "Document: Opus use cases (architecture, algorithms, critical code)",
+        "Include cost comparison table and examples",
+        "Add to FADE.md: 'See fade/docs/model-selection-guide.md for model selection guidelines'"
+      ],
+      "technicalNotes": {
+        "content": "Expand on token-optimization-analysis.md decision matrix"
+      },
+      "passes": false
+    },
+    {
+      "id": "US-007",
+      "title": "Telemetry & Analytics",
+      "story": "As a developer, I want to track model usage patterns so I can measure optimization impact",
+      "acceptanceCriteria": [
+        "Log to events.jsonl: model used, tokens consumed, estimated cost per story",
+        "Add to fade metrics: breakdown by model (haiku: 30%, sonnet: 60%, opus: 10%)",
+        "Track savings: 'Month to date: £45.20 spent, £18.30 saved vs all-Sonnet (29% reduction)'",
+        "Display in fade status: 'Token efficiency: 142% (28% cost reduction this month)'",
+        "Respect FADE_TELEMETRY=1 flag (only log if enabled)"
+      ],
+      "technicalNotes": {
+        "eventSchema": {
+          "event": "story_complete",
+          "model": "haiku",
+          "input_tokens": 35000,
+          "output_tokens": 12000,
+          "estimated_cost_gbp": 0.09,
+          "story_id": "US-003"
+        }
+      },
+      "passes": false
+    },
+    {
+      "id": "US-008",
+      "title": "Optimization Warnings",
+      "story": "As FADE, I want to warn users about suboptimal model choices so they can improve efficiency",
+      "acceptanceCriteria": [
+        "Warn if using Sonnet for obvious Haiku work: 'Consider --model haiku for this documentation story (save ~75%)'",
+        "Warn if using Haiku for complex work: 'Warning: Haiku may struggle with this algorithm. Consider --model sonnet'",
+        "Track retry patterns: If Haiku fails and retries with Sonnet, log for learning",
+        "Suggest complexity field updates: 'Story completed with Opus but marked medium → consider complexity: high'",
+        "Display optimization tips at session end: '3 stories could have used Haiku (potential £0.60 savings)'"
+      ],
+      "technicalNotes": {
+        "learning": "Track which stories succeeded/failed with which models → improve heuristics over time"
+      },
+      "passes": false
+    }
+  ],
+  "filesToCreate": [
+    "fade/docs/model-selection-guide.md",
+    "fade/lib/model-routing.sh",
+    "fade/lib/cost-estimation.sh"
+  ],
+  "definitionOfDone": [
+    "Complexity-based routing works for all complexity values",
+    "Story type heuristics detect doc/config/test stories",
+    "Cost estimation displays before and after each story",
+    "Model override flag works (--model haiku/sonnet/opus)",
+    "Environment variable FADE_MODEL respected",
+    "Documentation guide complete with examples",
+    "Telemetry tracks model usage and savings",
+    "Optimization warnings display when appropriate",
+    "All 8 user stories pass acceptance criteria"
+  ],
+  "estimatedSessions": "2-3 FADE sessions",
+  "estimatedSavings": "30-40% cost reduction (£35-50/month at current usage)",
+  "risks": [
+    {
+      "risk": "Haiku may fail on stories marked simple but actually complex",
+      "likelihood": "low",
+      "impact": "medium",
+      "mitigation": "Provide clear override mechanism. Track failures and improve heuristics."
+    },
+    {
+      "risk": "Cost estimation may be inaccurate due to token count variability",
+      "likelihood": "medium",
+      "impact": "low",
+      "mitigation": "Use conservative estimates. Display as 'estimated' not 'actual'. Measure actual from API."
+    }
+  ]
+}

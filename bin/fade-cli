@@ -3402,7 +3402,7 @@ ask_execution_mode() {
 # Signal          Format                  Pattern Match
 # --------------- ----------------------- ------------------------------------------
 # ALL_COMPLETE    ALL_COMPLETE            grep -q '^[*]*ALL_COMPLETE' (line start, optional markdown)
-# STORY_DONE      STORY_DONE: US-XXX      grep -q '^STORY_DONE: ' (line start + colon)
+# STORY_DONE      STORY_DONE: US-XXX      grep -q '^[*]*STORY_DONE: ' (line start, optional markdown, colon)
 # BLOCKED         BLOCKED: [reason]       grep -q '^BLOCKED: ' (line start + colon)
 #
 # CRITICAL: Use strict pattern matching (not 'grep -q "word"') to avoid false
@@ -4664,7 +4664,7 @@ cmd_run() {
             local detected_signal=""
             if echo "$output" | grep -q '^[*]*ALL_COMPLETE'; then
                 detected_signal="ALL_COMPLETE"
-            elif echo "$output" | grep -q '^STORY_DONE: '; then
+            elif echo "$output" | grep -q '^[*]*STORY_DONE: '; then
                 detected_signal="STORY_DONE"
             elif echo "$output" | grep -q '^BLOCKED: '; then
                 detected_signal="BLOCKED"
@@ -4681,7 +4681,7 @@ cmd_run() {
             #
             # PATTERNS:
             # - ALL_COMPLETE: '^[*]*ALL_COMPLETE' (line start, optional markdown, extra text OK)
-            # - STORY_DONE: '^STORY_DONE: US-XXX' (line start, colon, story ID)
+            # - STORY_DONE: '^[*]*STORY_DONE: US-XXX' (line start, optional markdown, colon, story ID)
             # - BLOCKED: '^BLOCKED: reason' (line start, colon, reason text)
             # - INTERRUPTION: detect_interruption() checks for rate_limit/network/service patterns
             # - NO SIGNAL: fallback if none of the above match
@@ -4797,9 +4797,9 @@ cmd_run() {
 
             # Check for STORY_DONE signal BEFORE BLOCKED to ensure successful completions
             # are detected even if output mentions "blocked" elsewhere
-            if echo "$output" | grep -q '^STORY_DONE: '; then
-                # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX)
-                local story_id=$(echo "$output" | grep -o '^STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/STORY_DONE:[[:space:]]*//')
+            if echo "$output" | grep -q '^[*]*STORY_DONE: '; then
+                # Extract story ID from STORY_DONE signal (format: STORY_DONE: US-XXX or **STORY_DONE: US-XXX**)
+                local story_id=$(echo "$output" | grep -o '^[*]*STORY_DONE:[[:space:]]*[A-Z]*-[0-9]*' | head -1 | sed 's/^[*]*STORY_DONE:[[:space:]]*//')
 
                 # Emit story_end event (ENH-021 US-001)
                 emit_event "$tracking_run_id" "story_end" "{\"story_id\":\"$story_id\",\"status\":\"pass\"}" 2>/dev/null || true
