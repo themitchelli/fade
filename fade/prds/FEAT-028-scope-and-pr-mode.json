@@ -1,0 +1,116 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-028",
+  "name": "Scope and PR mode execution matrix",
+  "description": "Introduces two orthogonal flags — scope and mode — giving FADE a 3x2 execution matrix. Scope controls how much work FADE processes before stopping (story, prd, all). Mode controls how changes land (auto = direct to main, pr = branch + pull request). Together they make FADE usable in enterprise workflows with branch protection, while preserving the existing autonomous loop for personal use.",
+  "complexity": "medium",
+  "priority": 1,
+  "status": "proposed",
+  "created": "2026-03-21",
+  "context": {
+    "opportunity": "FADE currently has one execution mode: process stories and commit directly to main. This works well for personal projects but is incompatible with enterprise workflows that require branch protection and PR review. Adding scope + mode flags unlocks FADE for use at Milliman and similar orgs without sacrificing autonomy for personal use."
+  },
+  "problem": [
+    "FADE commits directly to main, bypassing branch protection in enterprise repos",
+    "No way to run FADE for a single story or single PRD without it processing everything",
+    "Autonomous loop is all-or-nothing — no gate for human review before code lands on main"
+  ],
+  "solution": [
+    "Add --scope flag (story | prd | all) to control stopping point",
+    "Add --mode flag (auto | pr) to control whether FADE commits to main or creates a branch and raises a PR",
+    "In PR mode: create branch at start, commit per story as now, raise PR at the scope boundary using gh CLI",
+    "Auto-generate PR description from PRD name and completed story list",
+    "Add convenience shortcuts: fade pr (prd + pr), fade story --pr (story + pr)",
+    "Existing fade yolo remains unchanged (all + auto)"
+  ],
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scope flag controls stopping point",
+      "story": "As a developer, I want to pass --scope=story|prd|all so that FADE stops and signals completion at the right boundary",
+      "acceptanceCriteria": [
+        "--scope=story stops after STORY_DONE and exits cleanly",
+        "--scope=prd stops after ALL_COMPLETE for the current PRD and exits cleanly",
+        "--scope=all processes all PRDs in the queue (existing behaviour)",
+        "Default scope is all to preserve existing behaviour",
+        "Invalid scope value prints usage and exits non-zero"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Mode flag controls how changes land",
+      "story": "As a developer, I want to pass --mode=auto|pr so that FADE either commits directly to main or works on a branch",
+      "acceptanceCriteria": [
+        "--mode=auto commits directly to main (existing behaviour)",
+        "--mode=pr creates a branch before starting work",
+        "Branch name format: fade/prd-{prd-id}-{slug} for prd scope, fade/story-{us-id} for story scope",
+        "Default mode is auto to preserve existing behaviour",
+        "In PR mode, all story commits land on the branch, not main"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "PR raised at scope boundary in PR mode",
+      "story": "As a developer, I want FADE to raise a pull request when it reaches the scope boundary so that my changes go through review before merging",
+      "acceptanceCriteria": [
+        "At scope boundary in PR mode, FADE runs gh pr create",
+        "PR title is auto-generated: PRD name (prd scope) or story title (story scope)",
+        "PR body lists completed stories with their acceptance criteria",
+        "FADE confirms PR URL to stdout before exiting",
+        "If gh CLI is not installed, FADE exits with a clear error message before starting work",
+        "If gh pr create fails, FADE reports the error and does not silently continue"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Convenience shortcuts for common modes",
+      "story": "As a developer, I want short commands for the most common mode combinations so that I don't have to type flags every time",
+      "acceptanceCriteria": [
+        "fade pr is equivalent to fade --scope=prd --mode=pr",
+        "fade story --pr is equivalent to fade --scope=story --mode=pr",
+        "fade yolo remains unchanged (--scope=all --mode=auto)",
+        "fade run with no flags defaults to --scope=all --mode=auto (existing behaviour)",
+        "All shortcuts are documented in README and fade --help output"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Medium complexity bash changes — sonnet is appropriate",
+    "constraints": [
+      "PR mode requires gh CLI to be installed and authenticated — check at startup, fail fast",
+      "Do not modify existing fade yolo or fade run behaviour — additive only",
+      "Branch creation must happen before any file changes so nothing is committed to main in PR mode",
+      "This PRD must be implemented manually, not via FADE itself — FADE cannot fix its own execution loop"
+    ]
+  },
+  "risks": [
+    {
+      "risk": "gh CLI not available in all environments",
+      "likelihood": "medium",
+      "impact": "medium",
+      "mitigation": "Fail fast at startup with clear install instructions if gh is missing and --mode=pr is requested"
+    },
+    {
+      "risk": "Branch already exists from a previous interrupted run",
+      "likelihood": "low",
+      "impact": "low",
+      "mitigation": "Check for existing branch before creating, append timestamp suffix if collision"
+    }
+  ],
+  "definitionOfDone": [
+    "All four user stories pass",
+    "fade pr and fade story --pr work end-to-end against a test repo with branch protection",
+    "fade yolo and fade run with no flags behave identically to pre-change",
+    "README updated with matrix table and new flag documentation"
+  ]
+}
