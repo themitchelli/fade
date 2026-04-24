@@ -1,0 +1,96 @@
+name: Feature Spec
+description: Define a feature before it's built. No spec = no implementation.
+labels: ["spec"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Fill this in before asking anyone to build it.**
+        The goal is to agree on *what* and *how we'll know it's done* before writing a line of code.
+
+  - type: textarea
+    id: story
+    attributes:
+      label: User Story
+      description: "As a [role], I want [capability], so that [outcome]."
+      placeholder: "As a developer using FADE, I want to..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Opportunity
+      description: What breaks, is missing, or is painful today? Why does this matter?
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance-criteria
+    attributes:
+      label: Acceptance Criteria
+      description: |
+        Numbered list. Each criterion must be independently verifiable.
+        If you can't tell whether it passes or fails, rewrite it.
+      placeholder: |
+        1. ...
+        2. ...
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: test-criteria
+    attributes:
+      label: Test Criteria
+      description: |
+        Agree this BEFORE coding starts — not after.
+        For each AC above: will there be an automated test? If not, how will it be verified?
+      placeholder: |
+        AC1: automated shell test — checks exit code and output
+        AC2: automated — asserts file created in correct location
+        AC3: manual — subjective quality, reviewed in PR
+    validations:
+      required: true
+
+  - type: dropdown
+    id: complexity
+    attributes:
+      label: Complexity
+      description: This guides whether /plan should be used before coding.
+      options:
+        - Simple — single file, clear path, no design decisions
+        - Medium — multiple files, some design needed
+        - Complex — architectural impact, needs /plan first
+    validations:
+      required: true
+
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of Scope
+      description: Explicitly list what this does NOT include. Prevents scope creep.
+      placeholder: |
+        - Does not change the update mechanism
+        - Does not affect legacy structure compatibility
+        - ...
+
+  - type: textarea
+    id: technical-notes
+    attributes:
+      label: Technical Notes
+      description: Constraints, dependencies, or implementation hints (optional).
+
+  - type: checkboxes
+    id: dod
+    attributes:
+      label: Definition of Done
+      options:
+        - label: All acceptance criteria pass
+          required: true
+        - label: Tests written and passing (or skip rationale documented)
+          required: true
+        - label: No regressions in existing tests
+          required: true
+        - label: "bash -n bin/fade-cli passes (if bin/fade-cli was changed)"
+          required: false
