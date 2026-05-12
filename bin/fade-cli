@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # FADE - Framework for Agentic Development and Engineering
 # v0.3.1 - Documentation update, fade map and export commands
@@ -1247,8 +1247,11 @@ get_active_prd() {
         for prd_file in $(ls fade/prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
             if prd_has_incomplete_stories "$prd_file"; then
-                echo "$prd_file"
-                return
+                # Skip PRDs where every remaining story is blocked:true (no actionable work)
+                if [[ -n "$(get_next_incomplete_story "$prd_file")" ]]; then
+                    echo "$prd_file"
+                    return
+                fi
             fi
         done
     fi
@@ -1258,8 +1261,11 @@ get_active_prd() {
         for prd_file in $(ls prds/*.json 2>/dev/null | sort); do
             [[ -f "$prd_file" ]] || continue
             if prd_has_incomplete_stories "$prd_file"; then
-                echo "$prd_file"
-                return
+                # Skip PRDs where every remaining story is blocked:true (no actionable work)
+                if [[ -n "$(get_next_incomplete_story "$prd_file")" ]]; then
+                    echo "$prd_file"
+                    return
+                fi
             fi
         done
     fi
@@ -1832,8 +1838,13 @@ run_test_generation() {
     # --print enables non-interactive single-turn mode that still allows tool usage
     # Capture output to file for signal detection
     # Note: tee outputs to stderr so user sees progress, stdout goes to file only
-    claude --print --dangerously-skip-permissions "$context" 2>&1 | tee "$output_file" >&2
+    # Context written to temp file to avoid Windows 32KB command-line length limit
+    local _fade_ctx_tg
+    _fade_ctx_tg=$(mktemp /tmp/fade-ctx-XXXXXX)
+    printf '%s' "$context" > "$_fade_ctx_tg"
+    claude --print --dangerously-skip-permissions < "$_fade_ctx_tg" 2>&1 | tee "$output_file" >&2
     local exit_code=${PIPESTATUS[0]}
+    rm -f "$_fade_ctx_tg"
 
     output=$(cat "$output_file")
     rm -f "$output_file"
@@ -1939,12 +1950,12 @@ get_next_incomplete_story() {
         return
     fi
 
-    # Use awk to find the first story with passes: false
+    # Use awk to find the first story with passes: false AND NOT blocked: true
     # Returns format: "US-001|Story Title"
     awk '
-        BEGIN { in_story=0; found_id=0; found_title=0; found_passes=0; story_id=""; story_title="" }
+        BEGIN { in_story=0; found_id=0; found_title=0; found_passes=0; found_blocked=0; story_id=""; story_title="" }
         /"userStories"/ { in_stories=1; next }
-        in_stories && /{/ { in_story=1; found_id=0; found_title=0; found_passes=0; story_id=""; story_title=""; next }
+        in_stories && /{/ { in_story=1; found_id=0; found_title=0; found_passes=0; found_blocked=0; story_id=""; story_title=""; next }
         in_story && /"id"[[:space:]]*:/ {
             gsub(/.*"id"[[:space:]]*:[[:space:]]*"/, "")
             gsub(/".*/, "")
@@ -1957,15 +1968,10 @@ get_next_incomplete_story() {
             story_title=$0
             found_title=1
         }
-        in_story && /"passes"[[:space:]]*:[[:space:]]*false/ {
-            found_passes=1
-            if (found_id && found_title) {
-                print story_id "|" story_title
-                exit
-            }
-        }
+        in_story && /"passes"[[:space:]]*:[[:space:]]*false/ { found_passes=1 }
+        in_story && /"blocked"[[:space:]]*:[[:space:]]*true/ { found_blocked=1 }
         in_story && /}/ {
-            if (found_id && found_title && found_passes) {
+            if (found_id && found_title && found_passes && !found_blocked) {
                 print story_id "|" story_title
                 exit
             }
@@ -3795,7 +3801,7 @@ get_test_results() {
 
     if [[ -f "$failed_log" ]]; then
         # Count failures in failed.log
-        failed_count=$(grep -c "^\[FAILURE\]" "$failed_log" 2>/dev/null || echo "0")
+        failed_count=$(grep -c "^\[FAILURE\]" "$failed_log" 2>/dev/null); failed_count=${failed_count:-0}
 
         # Get last run timestamp from failed.log
         last_run=$(grep "^\[RUN_TIMESTAMP\]" "$failed_log" 2>/dev/null | tail -1 | sed 's/^\[RUN_TIMESTAMP\] //')
@@ -4482,7 +4488,20 @@ cmd_run() {
         echo -e "${CYAN}Model: ${selected_model} (${routing_source})${NC}"
         echo ""
         local context=$(build_context)
-        exec $claude_cmd "$context"
+        if [[ -n "$selected_model" ]]; then
+            context="# CURRENT SESSION MODEL: $selected_model
+
+You are running as the '$selected_model' model. Stories whose executiveNote says 'REQUIRES OPUS' or whose recommendedModel is 'opus' CAN and SHOULD be implemented by you in this session. Do not output BLOCKED solely because a story is marked for Opus — you are Opus.
+
+---
+
+${context}"
+        fi
+        # Write context to temp file to avoid Windows 32KB arg-length limit
+        local _fade_ctx_tmp
+        _fade_ctx_tmp=$(mktemp /tmp/fade-ctx-XXXXXX)
+        printf '%s' "$context" > "$_fade_ctx_tmp"
+        exec $claude_cmd --print < "$_fade_ctx_tmp"
     else
         # ALL mode: loop until complete or blocked
         local iteration=1
@@ -4621,6 +4640,15 @@ cmd_run() {
             fi
 
             local context=$(build_context)
+            if [[ -n "$selected_model" ]]; then
+                context="# CURRENT SESSION MODEL: $selected_model
+
+You are running as the '$selected_model' model. Stories whose executiveNote says 'REQUIRES OPUS' or whose recommendedModel is 'opus' CAN and SHOULD be implemented by you in this session. Do not output BLOCKED solely because a story is marked for Opus — you are Opus.
+
+---
+
+${context}"
+            fi
 
             # Track PRD changes for model usage logging
             if [[ -n "$active_prd" ]] && [[ "$active_prd" != "$current_prd_file" ]]; then
@@ -4653,9 +4681,13 @@ cmd_run() {
             # Run Claude and capture output
             local output_file=$(mktemp)
 
-            # Run claude interactively but capture output
-            $claude_cmd "$context" 2>&1 | tee "$output_file"
+            # Run claude with context via stdin to avoid Windows 32KB arg-length limit
+            local _fade_ctx_tmp
+            _fade_ctx_tmp=$(mktemp /tmp/fade-ctx-XXXXXX)
+            printf '%s' "$context" > "$_fade_ctx_tmp"
+            $claude_cmd --print < "$_fade_ctx_tmp" 2>&1 | tee "$output_file"
             local exit_code=${PIPESTATUS[0]}
+            rm -f "$_fade_ctx_tmp"
 
             local output=$(cat "$output_file")
             rm -f "$output_file"
@@ -5219,8 +5251,11 @@ Start working on the task now. Keep it simple and focused.
         claude_cmd="$claude_cmd --model $model"
     fi
 
-    # Execute Claude with context - single execution, no loop
-    exec $claude_cmd "$context"
+    # Execute Claude with context via stdin to avoid Windows 32KB arg-length limit
+    local _fade_ctx_tmp
+    _fade_ctx_tmp=$(mktemp /tmp/fade-ctx-XXXXXX)
+    printf '%s' "$context" > "$_fade_ctx_tmp"
+    exec $claude_cmd --print < "$_fade_ctx_tmp"
 }
 
 # ============================================================================
@@ -5729,7 +5764,11 @@ What are they trying to accomplish? What's the context?
     if [[ -n "$model" ]]; then
         claude_cmd="$claude_cmd --model $model"
     fi
-    exec $claude_cmd "$context"
+    # Write context to temp file to avoid Windows 32KB arg-length limit; pass path as short arg
+    local _fade_ctx_tmp
+    _fade_ctx_tmp=$(mktemp /tmp/fade-ctx-XXXXXX)
+    printf '%s' "$context" > "$_fade_ctx_tmp"
+    exec $claude_cmd "Read and follow all instructions in: $_fade_ctx_tmp"
 }
 
 # Interactive PRD creation with full repo context awareness (FEAT-025 US-001)
