@@ -432,7 +432,7 @@ These are the ONLY valid exit signals. The fade script detects these to control 
 | ALL_COMPLETE | `ALL_COMPLETE` | All stories in queue finished | Exit loop successfully |
 | BLOCKED | `BLOCKED: [reason]` | Cannot proceed, human intervention needed | Exit loop, await human |
 
-**Important:** Output signals exactly as shown. The fade script uses simple string matching.
+**Important:** Output signals exactly as shown — plain text only, no backticks, no markdown formatting. The fade script uses simple string matching and will not detect a signal wrapped in backticks.
 
 ## Error Handling
 
