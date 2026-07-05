@@ -1,0 +1,40 @@
+{
+  "type": "chore",
+  "project": "FADE",
+  "id": "CHORE-020",
+  "name": "Sync init template with current prompt.md; make README install instructions true",
+  "description": "Two public-credential issues from the 2026-07-05 external review. (1) The PROMPT_TEMPLATE embedded in fade-cli (used by fade init) is an old version missing acPassed checkpointing, the Observability section, PRD Integrity Rules, and the standards routing table — new projects get worse instructions than FADE gives itself. (2) README says npm install -g fade-dev but the package is not published: npx fade-dev 404s. Also status.json advertises 382 passing tests while the runner (pre-fix) executed 13.",
+  "complexity": "medium",
+  "dependsOn": [],
+  "priority": 3,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "fade init emits the current prompt.md",
+      "description": "The template written by fade init must match the protocol FADE itself runs.",
+      "acceptanceCriteria": [
+        "PROMPT_TEMPLATE in fade-cli is generated from or byte-identical to fade/prompt.md sections: completion tokens, acPassed checkpointing, Observability, PRD Integrity Rules, standards routing",
+        "A guard test fails if the two drift again",
+        "fade init in a scratch directory produces a prompt.md containing the acPassed protocol"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "README install instructions are true",
+      "description": "Either publish fade-dev to npm or change the README to the git/manual install as primary.",
+      "acceptanceCriteria": [
+        "Following the README's first install path on a clean machine succeeds",
+        "If npm publish is chosen: npx fade-dev init works; if not: all npm references removed or marked 'coming soon'",
+        "status.json test counts reflect what the runner actually executes"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Documentation and template hygiene; publish decision is the owner's, PRD covers both branches."
+  }
+}
