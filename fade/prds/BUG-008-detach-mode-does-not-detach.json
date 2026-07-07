@@ -1,0 +1,29 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "BUG-008",
+  "name": "fade run --detach does not actually run anything",
+  "description": "fade run --detach creates the run directory, writes metadata, prints a success message, and exits without launching any process (no nohup, no &). fade logs <run_id> returns empty. The feature misrepresents itself. Source: external engineering review 2026-07-05 (bin/fade-cli lines ~4323-4358). Either implement it properly or remove the flag.",
+  "complexity": "simple",
+  "dependsOn": [],
+  "priority": 2,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Detach actually detaches",
+      "description": "Launch the run as a real background process with output captured to the run directory.",
+      "acceptanceCriteria": [
+        "fade run --detach launches the loop via nohup ... >> fade/runs/<run_id>/output.log 2>&1 & and records the PID in the run metadata",
+        "fade logs <run_id> tails the live output; fade status shows the run as active while the PID is alive",
+        "If implementing is judged out of scope, the flag is removed from CLI and README instead (a lying flag is worse than no flag)",
+        "bash -n passes"
+      ],
+      "priority": 1,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Small, well-located fix; review documented the exact broken region."
+  }
+}

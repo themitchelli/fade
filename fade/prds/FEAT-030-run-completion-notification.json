@@ -1,0 +1,39 @@
+{
+  "type": "feature",
+  "project": "FADE",
+  "id": "FEAT-030",
+  "name": "Run completion notification hook",
+  "description": "Unattended overnight runs currently end silently: ALL_COMPLETE, BLOCKED, NO_SIGNAL, MAX_ITERATIONS, and interruption all just update status.json. Nothing tells a human. Add a notification hook fired at every loop exit path. Source: external engineering review 2026-07-05, ranked the single most important missing feature for unattended use.",
+  "complexity": "medium",
+  "dependsOn": [],
+  "priority": 1,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Write completion.md at every exit path",
+      "description": "Every way the run loop can end writes a summary file to the run directory.",
+      "acceptanceCriteria": [
+        "All exit paths (ALL_COMPLETE, STORY_DONE final, BLOCKED, NO_SIGNAL, MAX_ITERATIONS, interruption/rate-limit) write fade/runs/<run_id>/completion.md with: exit reason, stories completed vs remaining, elapsed time, last story worked",
+        "bash -n passes; existing signal-detection tests still pass"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Optional FADE_NOTIFY_CMD hook",
+      "description": "If the env var FADE_NOTIFY_CMD is set, it is invoked at every exit path with the summary, enabling Telegram/webhook/email notifications without FADE knowing about any specific service.",
+      "acceptanceCriteria": [
+        "When FADE_NOTIFY_CMD is set, it is executed with the completion summary passed on stdin and exit reason as $1; failures of the hook are logged and never crash the run",
+        "When unset, behaviour is unchanged",
+        "Documented in README with a Telegram curl one-liner example"
+      ],
+      "priority": 2,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Focused bash change with clear exit-path inventory already documented in the 2026-07-05 review."
+  }
+}

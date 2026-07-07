@@ -3536,7 +3536,7 @@ TOTAL=0
 } > "$FAILED_LOG"
 
 # Find all PRD-* test directories
-PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -type d -name "PRD-*" 2>/dev/null | sort)
+PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort)
 
 if [[ -z "$PRD_DIRS" ]]; then
     echo "No test folders found (fade/tests/PRD-*/). Nothing to test."
@@ -8410,7 +8410,7 @@ TOTAL=0
 } > "$FAILED_LOG"
 
 # Find all PRD-* test directories
-PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -type d -name "PRD-*" 2>/dev/null | sort)
+PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort)
 
 if [[ -z "$PRD_DIRS" ]]; then
     echo "No test folders found (fade/tests/PRD-*/). Nothing to test."

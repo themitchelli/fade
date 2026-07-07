@@ -22,7 +22,7 @@ TOTAL=0
 } > "$FAILED_LOG"
 
 # Find all PRD-* and STAB-* test directories
-PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -type d \( -name "PRD-*" -o -name "STAB-*" \) 2>/dev/null | sort)
+PRD_DIRS=$(find "$TESTS_DIR" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort)
 
 if [[ -z "$PRD_DIRS" ]]; then
     echo "No test folders found (fade/tests/PRD-*/ or STAB-*/). Nothing to test."
