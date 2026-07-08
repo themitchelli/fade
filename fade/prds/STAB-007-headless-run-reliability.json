@@ -1,0 +1,67 @@
+{
+  "type": "bug",
+  "project": "FADE",
+  "id": "STAB-007",
+  "name": "Headless run reliability — fix the four unattended-loop failure modes",
+  "description": "Clean-room implementation of four failure-mode fixes identified by principle-level comparison with a sibling FADE fork (comms note 2026-07-08, Agentic/Comms/Claude-Jarvis-Comms.md — principles shared, no code exchanged). Context: this fork is about to run fully unattended (overnight fade yolo tonight; inside a Hetzner container as the Proving House pipeline builder shortly after, per agentica-platform ORG-006), so failure modes that a watching human would catch become silent production failures. The four, in priority order: (1) SUB-AGENT SIGNAL LOSS — if the orchestrating loop delegates work to a sub-agent, the completion signal can land where the loop's detection never looks, producing false 'interrupted' failures on successful work; the completion-signal path must stay flat: the top-level loop never delegates the work whose completion it is trying to detect. (2) NON-INTERACTIVE INVOCATION — any claude CLI invocation without an explicit non-interactive/print mode can be tipped into interactive behaviour by piped stdin, which either corrupts the terminal or hangs silently with zero progress — the worst headless failure shape: looks alive, never advances, never errors. (3) NESTED-SESSION ENV LEAKAGE — a child agent process spawned from inside a parent agent session inherits session-identifying environment and can refuse to run or misbehave; strip inherited session markers before every spawn. (4) FAILURE VISIBILITY — unrecognised failures collapse into a generic 'interrupted' message; surface the child process's actual exit code in the failure message and run metadata. Sibling-fork gotcha, adopted as a requirement here: these exact fixes were reintroduced-then-refixed there after unrelated refactors — every fix in this PRD therefore ships WITH a regression test that fails if the guard is removed, not just the patch. Deliberately out of scope: a review-as-pipeline-step feature (the Proving House stack gets an external adversarial reviewer via ORG-006, so an in-loop one would be redundant here) and setup-wizard improvements (irrelevant to an already-configured unattended loop).",
+  "complexity": "medium",
+  "dependsOn": [],
+  "priority": 1,
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Flat completion-signal path",
+      "description": "Audit the yolo/run loop for any place the work whose completion the loop detects is delegated to a sub-agent (Task tool, nested claude call, or prompt instructions that permit delegation). Ensure the completion signal (story pass markers, progress file writes, whatever the loop polls) is always produced by the process the loop directly observes. Where delegation is legitimate, the orchestrator itself must re-emit the completion signal after the sub-agent returns.",
+      "acceptanceCriteria": [
+        "The loop's prompt contract explicitly forbids delegating the completion-signal write, OR the orchestrator re-emits the signal itself after any delegation — one of the two, implemented and documented in prompt.md/FADE.md",
+        "A run whose implementation work happens in a sub-agent still completes without a false 'interrupted' verdict (integration-tested with a scripted mock agent that writes its signal from a child process)",
+        "Regression test exists that fails if the signal-detection path regains a delegation blind spot (test the detection function directly against child-written fixtures)",
+        "bash -n / existing test suite passes"
+      ],
+      "priority": 1,
+      "passes": false
+    },
+    {
+      "id": "US-002",
+      "title": "Non-interactive invocation everywhere + zero-progress watchdog",
+      "description": "Every claude CLI invocation in the codebase must use the explicit non-interactive/print mode; none may rely on stdin state to select behaviour. Additionally add a zero-progress watchdog to the run loop: if the child produces no output and no progress-file change for a configurable window (default 15 minutes), kill the child, record 'stalled' with whatever partial output exists, and continue or fail the run explicitly — a silent hang must always convert into a visible failure.",
+      "acceptanceCriteria": [
+        "grep of the codebase shows every claude invocation carries the explicit non-interactive flag; a regression test asserts this (script that greps and fails on violations, wired into the test suite)",
+        "Invoking the loop with piped/closed stdin behaves identically to a terminal launch (tested both ways)",
+        "Watchdog kills a deliberately-hung mock child after the window, records status 'stalled' (not 'interrupted') with the exit context, and the run terminates visibly rather than hanging (tested with a short window)",
+        "Watchdog window configurable via env/config with the default documented"
+      ],
+      "priority": 2,
+      "passes": false
+    },
+    {
+      "id": "US-003",
+      "title": "Strip inherited session environment before spawning",
+      "description": "Before any child agent process is spawned, remove session-identifying environment variables inherited from a possible parent agent session, so fade behaves identically whether launched from a clean shell, from inside another agent session, or inside a container that nests agent calls.",
+      "acceptanceCriteria": [
+        "A single spawn wrapper (or equivalent single point) strips the known session-marker env vars before every child agent launch; all spawn sites route through it",
+        "Launching fade with the session markers present in the environment produces the same behaviour as a clean-shell launch (tested by injecting the markers and asserting the child env is clean)",
+        "Regression test fails if a new spawn site bypasses the wrapper (grep-based or import-based guard, wired into the suite)"
+      ],
+      "priority": 3,
+      "passes": false
+    },
+    {
+      "id": "US-004",
+      "title": "Exit codes surface in failures and run metadata",
+      "description": "Wherever the loop reports a child failure, include the actual process exit code (and signal name if killed) in the message and persist it in the run metadata, replacing any generic catch-all wording as the only information.",
+      "acceptanceCriteria": [
+        "A child exiting non-zero produces a failure message containing the numeric exit code and lands the code in the run metadata file (tested with mock children exiting 1, 2, 137)",
+        "The generic 'interrupted' wording can only appear alongside an exit code or an explicit 'no exit code available: <reason>'",
+        "fade status / run summary for a failed run shows the exit code",
+        "Regression test covers the metadata field so a refactor cannot silently drop it"
+      ],
+      "priority": 4,
+      "passes": false
+    }
+  ],
+  "technicalNotes": {
+    "model": "sonnet",
+    "rationale": "Behaviour is fully specified at principle level; implementation is local to the run loop and spawn sites. Review focal points: the watchdog must never kill a slow-but-progressing run (progress definition matters), the env-strip must not remove variables the child legitimately needs, and every fix's regression test must actually fail when the fix is reverted (mutation-check them once by hand). These four fixes gate the Proving House ORG-006 builder containerisation — land them before that PRD builds."
+  }
+}
