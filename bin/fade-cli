@@ -4330,6 +4330,7 @@ cmd_run() {
     local detach_mode=false
     local force_detach=false
     local single_prd=false  # Stop after completing one PRD
+    local mode_flag=""      # --mode STOP|ALL: skip the interactive prompt (headless callers)
 
     # Parse flags
     while [[ $# -gt 0 ]]; do
@@ -4358,6 +4359,14 @@ cmd_run() {
             --single-prd)
                 single_prd=true
                 shift
+                ;;
+            --mode)
+                mode_flag=$(echo "$2" | tr '[:lower:]' '[:upper:]')
+                if [[ "$mode_flag" != "STOP" && "$mode_flag" != "ALL" ]]; then
+                    echo -e "${RED}Invalid --mode: $2 (expected STOP or ALL)${NC}" >&2
+                    exit 1
+                fi
+                shift 2
                 ;;
             *)
                 shift
@@ -4466,6 +4475,9 @@ cmd_run() {
     if [[ "$yolo_mode" == true ]]; then
         mode="ALL"
         echo -e "${YELLOW}🤘 YOLO MODE - Skipping prompts, going straight to ALL mode${NC}"
+    elif [[ -n "$mode_flag" ]]; then
+        mode="$mode_flag"
+        echo -e "${CYAN}Mode: $mode (--mode flag)${NC}"
     else
         mode=$(ask_execution_mode)
     fi
