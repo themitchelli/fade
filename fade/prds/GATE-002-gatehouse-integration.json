@@ -1,0 +1,61 @@
+{
+  "id": "GATE-002",
+  "name": "FADE calls Gatehouse: story acceptance goes through the external gate",
+  "type": "FEAT",
+  "complexity": "complex",
+  "priority": 1,
+  "project": "fade",
+  "executiveNote": "Ends builder self-certification. STORY_DONE stops meaning done and starts meaning candidate: FADE hands the story's diff, requirement, and the repo's gatehouse.yml to the external `gatehouse` CLI (github.com/themitchelli/gatehouse, v0 complete 2026-07-19) and only marks passes:true on exit 0. Design agreed in vault sessions 2026-07-19; verdict routing per the GATE-004 flow discussion.",
+  "technicalNotes": "Gatehouse contract (stable v0): `gatehouse review --diff <ref-range> --requirement <path> --policy gatehouse.yml --work-id <id>` -> exit 0 pass / 1 blocking / 2 could_not_run / 3 tests_failed; findings at .gatehouse/evidence/findings.json (kinds: ac_invalidating, new_scope, advisory, protected_path); append-only evidence JSONL. Integration is OPT-IN: only active when the target repo contains gatehouse.yml AND `gatehouse` is on PATH (or FADE_GATEHOUSE_BIN set); otherwise current behaviour is unchanged. FOCAL POINTS: (1) the story-start commit must be recorded when the story begins so the diff is exactly this story's work — never derive the diff by matching story ids against history (review-sweep lesson); (2) exit 2 halts the loop, never retries, never proceeds; (3) FADE must not implement its own remediation counting — pass the same --work-id (PRD-id/story-id) and let the gate's bound decide; (4) passes:true may only be written after exit 0 — no code path may set it from STORY_DONE alone when the gate is active.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Record story-start commit and construct the story-scoped diff",
+      "model": "sonnet",
+      "passes": false,
+      "blocked": false,
+      "dependsOn": [],
+      "acceptanceCriteria": [
+        "When a story's builder iteration starts and gatehouse integration is active, FADE records the current HEAD as the story-start ref in the run directory (fade/runs/<id>/story-start-<story>.ref)",
+        "The diff passed to gatehouse is exactly <story-start>..HEAD at STORY_DONE time; no diff construction consults story ids, PRD ids, or archive history",
+        "If the story-start ref is missing or unreadable at STORY_DONE time, FADE does NOT call gatehouse with a guessed diff; it halts with an explicit error (treated as could_not_run)",
+        "Tests cover: normal capture, missing ref halting, and diff exactness when unrelated commits exist before story start"
+      ],
+      "rationale": "Diff scoping is where the 2026-07-14 review-sweep incident started; the ref file makes the scope explicit and testable."
+    },
+    {
+      "id": "US-002",
+      "title": "Call the gate on STORY_DONE and route the four verdicts",
+      "model": "opus",
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["US-001"],
+      "acceptanceCriteria": [
+        "When active, the STORY_DONE branch invokes gatehouse review with the story diff, the PRD file plus story id as requirement, the repo's gatehouse.yml, and --work-id <prd-id>/<story-id>",
+        "Exit 0: passes:true is set, progress.md notes the gate verdict, loop continues as today",
+        "Exit 1: passes stays false; FADE starts one remediation iteration whose prompt is built from .gatehouse/evidence/findings.json (the ac_invalidating findings and the reviewed diff), then re-invokes the gate with the same work-id; if the gate reports the bound exhausted, FADE halts and writes the operator question",
+        "Exit 2: the loop halts immediately with the gate's stderr surfaced; no retry, no remediation iteration, no archive",
+        "Exit 3: routes to the existing test-failure flow (failure log becomes the fix task), replacing the separate run_regression_tests call when the gate is active",
+        "new_scope findings are written as draft:true PRD stubs in fade/prds/ named GH-SCOPE-<n>; advisory findings are appended to the run log only",
+        "When gatehouse.yml is absent or the binary is not found, behaviour is byte-identical to current FADE (verified by test)",
+        "Tests mock the gatehouse binary and cover all four exit codes, bound exhaustion, new_scope stub creation, and the inactive path"
+      ],
+      "rationale": "The verdict routing is the whole point: the gate decides, FADE obeys, and no FADE code path can promote a story the gate did not pass."
+    },
+    {
+      "id": "US-003",
+      "title": "Gate the archive: no PRD archives with unreviewed stories",
+      "model": "sonnet",
+      "passes": false,
+      "blocked": false,
+      "dependsOn": ["US-002"],
+      "acceptanceCriteria": [
+        "When active, ALL_COMPLETE/archive paths verify every story in the PRD carries a recorded gate pass (evidence of exit 0 in the run records) before archiving",
+        "A PRD with any story lacking a gate pass does not archive; FADE reports which stories are unreviewed and halts that PRD's archive only",
+        "The check reads recorded verdicts from this run's records; it never re-enumerates other PRDs or triggers new reviews (no sweep behaviour)",
+        "Tests cover: clean archive, one-unreviewed-story refusal, and that refusal touches no other queued PRD"
+      ],
+      "rationale": "Merged-but-not-reviewed drift is the gap ENH-029 named; the archive gate closes it at the moment it matters."
+    }
+  ]
+}
