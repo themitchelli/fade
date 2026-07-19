@@ -4472,12 +4472,12 @@ cmd_run() {
 
     # Determine execution mode
     local mode
-    if [[ "$yolo_mode" == true ]]; then
-        mode="ALL"
-        echo -e "${YELLOW}🤘 YOLO MODE - Skipping prompts, going straight to ALL mode${NC}"
-    elif [[ -n "$mode_flag" ]]; then
+    if [[ -n "$mode_flag" ]]; then
         mode="$mode_flag"
         echo -e "${CYAN}Mode: $mode (--mode flag)${NC}"
+    elif [[ "$yolo_mode" == true ]]; then
+        mode="ALL"
+        echo -e "${YELLOW}🤘 YOLO MODE - Skipping prompts, going straight to ALL mode${NC}"
     else
         mode=$(ask_execution_mode)
     fi
